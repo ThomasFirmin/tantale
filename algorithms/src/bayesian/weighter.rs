@@ -1,8 +1,10 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
 
 use crate::bayesian::error::WeighterError;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// A struct to hold the weights for a set of points, as well as the prior weight.
 pub struct PointWeights {
     pub weights: Vec<f64>,
@@ -16,7 +18,7 @@ impl PointWeights {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 /// A struct to hold the weights for the good and bad sets, as well as the prior weights for both sets.
 pub struct TPEWeights {
     pub good: PointWeights,
@@ -26,7 +28,7 @@ pub struct TPEWeights {
 /// The [`Weighter`] trait defines a method for weighting the good and bad sets within the TPE algorithm.
 pub trait Weighter<T>
 where
-    Self: Send + Sync + Serialize + for<'de> Deserialize<'de>,
+    Self: Clone + Debug + Send + Sync + Serialize + for<'de> Deserialize<'de>,
 {
     /// Computes the weights for the good and bad sets.
     ///
@@ -54,7 +56,7 @@ where
 /// $$
 /// w_0 = \\frac{\\texttt{prior}}{|\\texttt{set}| + \\texttt{prior}}
 /// $$
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UniformWeighter(f64);
 
 impl UniformWeighter {

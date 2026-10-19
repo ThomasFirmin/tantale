@@ -27,8 +27,7 @@ fn test_fid_seq_run() {
     let pb = sp_evaluator_sh::get_problem();
 
     let sampler = BatchRandomSearch::new(10);
-    let sha = Sha::new(sampler, 1., 5., 1.61).unwrap(); // log(max/min)
-    let opt = Hyperband::new(sha);
+    let opt = Sha::new(sampler, 1., 5., 1.61).unwrap().into_hyperband();
 
     let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_hyperband_sha_run");
@@ -38,15 +37,15 @@ fn test_fid_seq_run() {
     let exp = Experiment::new(pb, opt, stop, rec, check);
     exp.run();
 
-    // 1450 = 4 brackets at
+    // 3550 = 4 brackets at
     // n = 1*1.61^3 = 5 |-> 4 |-> 4 |-> 4 (batch sizes of bracket 1) | s = [3,2,1,0]
-    // bracket 1 : 5 |-> bracket 2 : 3 (5/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61) |-> bracket 4 : 1 (1/1.61) (fully evaluated)
-    // 5+3+4+2+4+2+1+4+2+1+1 = 29 partial evaluations to get 1 full
-    // So 29 * 50 = 1450 evaluations to get 50 full evaluations
-    run_reader("tmp_test_hyperband_sha_run", 1450);
+    // bracket 1 : 10 |-> bracket 2 : 6 (10/1.61)
+    // bracket 1 : 10 |-> bracket 2 : 6 (10/1.61)
+    // bracket 1 : 10 |-> bracket 2 : 6 (10/1.61) |-> bracket 3 : 3 (6/1.61)
+    // bracket 1 : 10 |-> bracket 2 : 6 (10/1.61) |-> bracket 3 : 3 (6/1.61) |-> bracket 4 : 1 (3/1.61) (fully evaluated)
+    // 10+6+10+6+10+6+3+10+6+3+1 = 71 partial evaluations to get 1 full
+    // So 71 * 50 = 3550 evaluations to get 50 full evaluations
+    run_reader("tmp_test_hyperband_sha_run", 3550);
 
     let pb = sp_evaluator_sh::get_problem();
 
@@ -101,7 +100,7 @@ fn test_fid_seq_run() {
 
     let exp = Experiment::<_, hyperband!(sha!(batchrandomsearch!())), Evaluated, _, _>::load(pb, rec, check);
 
-    run_reader("tmp_test_hyperband_sha_run", 2900);
+    run_reader("tmp_test_hyperband_sha_run", 7098);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.sampler();

@@ -1,4 +1,4 @@
-use tantale::algos::GridSearch;
+use tantale::algos::{GridSearch, NoPruner, nopruner};
 use tantale::core::{Experiment, Problem};
 use tantale::core::problem::Pb;
 use tantale::{
@@ -70,7 +70,8 @@ fn test_fid_seq_run() {
 
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
-    let opt = GridSearch::new(&sp);
+    let smpl = GridSearch::new(&sp);
+    let opt = NoPruner::new(smpl, None);
 
     let stop = Evaluated::new(200);
     let config = FolderConfig::new("tmp_test_gs_fidseqrun");
@@ -88,8 +89,8 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler().1, 0, "Number of fully evaluated grid is wrong");
+    let mut exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(exp.sampler().sampler.1, 0, "Number of fully evaluated grid is wrong");
 
     let expstop: &mut Evaluated = exp.mut_stop();
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
@@ -105,8 +106,8 @@ fn test_fid_seq_run() {
     let check = MessagePack::new(config).unwrap();
 
 
-    let exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler().1, 1, "Number of fully evaluated grid is wrong");
+    let exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(exp.sampler().sampler.1, 1, "Number of fully evaluated grid is wrong");
     run_reader("tmp_test_gs_fidseqrun", 1500);
     let expstop: &Evaluated = exp.get_stop();
     assert_eq!(expstop.calls(), 300, "Number of calls is wrong");

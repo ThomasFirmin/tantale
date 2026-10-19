@@ -61,7 +61,10 @@ pub trait Recorder<P: Problem, Context> {
     /// It is called once before the optimization loop starts.
     fn init(&mut self, problem: &P, context: &Context) -> Result<(), RecorderError>;
 
-    /// Prepare the recorder for resuming from a [`load`](crate::load)ed experiment.
+    /// Prepare the recorder for resuming from a checkpoint.
+    fn before_load(&mut self, problem: &P, context: &Context) -> Result<(), RecorderError>;
+
+    /// Prepare the recorder after resuming from a checkpoint.
     fn after_load(&mut self, problem: &P, context: &Context) -> Result<(), RecorderError>;
 
     /// Record a evaluated solution and its outcome.

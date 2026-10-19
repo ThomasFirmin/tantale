@@ -1,4 +1,4 @@
-use std::ops::Neg;
+use std::{fmt::Debug, ops::Neg};
 
 use crate::bayesian::error::SplitError;
 use tantale_core::{Dominate, NdArrayDominate, NonDominatedSorting, Orderable, OrderedArchive};
@@ -11,7 +11,7 @@ use wfg_rs::wfg::{inclusive_wfg, reference_point, wfg};
 /// The element to be split must implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
 pub trait Splitter<T>
 where
-    Self: Send + Sync + Serialize + for<'a> Deserialize<'a>,
+    Self: Clone + Debug + Send + Sync + Serialize + for<'a> Deserialize<'a>,
     T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
     /// Splits the given archive of points into two parts: the "good" set and the "bad" set.
@@ -36,7 +36,7 @@ where
 ///
 /// A small $\beta$ will result in a smaller best set, resulting in a more explorative optimization.
 /// See [Watanabe](https://arxiv.org/pdf/2304.11127) for more details.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinearSplit(pub f64);
 impl LinearSplit {
     pub fn new(beta: f64) -> Result<Self, SplitError> {
@@ -77,7 +77,7 @@ where
 ///
 /// A small $\beta$ will result in a smaller best set, resulting in a more explorative optimization.
 /// See [Watanabe](https://arxiv.org/pdf/2304.11127) for more details.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SqrtSplit(pub f64);
 
 impl SqrtSplit {
@@ -193,7 +193,7 @@ where
 /// # Note
 ///
 /// See [Ozaki et al.](https://www.jair.org/index.php/jair/article/view/13188/26784) for more details.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MOSplit(pub f64);
 
 impl MOSplit {

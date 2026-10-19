@@ -13,25 +13,25 @@ use crate::run_checker::run_reader;
 
 #[test]
 fn test_fid_batch_run() {
-    let _clean = Cleaner::new("tmp_test_sh_seqrun");
+    let _clean = Cleaner::new("tmp_test_sha_batchrun");
 
     let pb = sp_evaluator_sh::get_problem();
     let sampler = BatchRandomSearch::new(10);
     let opt = Sha::new(sampler, 1., 5., 1.61).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_sh_seqrun");
+    let config = FolderConfig::new("tmp_test_sha_batchrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
     let exp = Experiment::new(pb, opt, stop, rec, check);
     exp.run();
 
-    run_reader("tmp_test_sh_seqrun", 1000);
+    run_reader("tmp_test_sha_batchrun", 1000);
 
     let pb = sp_evaluator_sh::get_problem();
 
-    let config = FolderConfig::new("tmp_test_sh_seqrun");
+    let config = FolderConfig::new("tmp_test_sha_batchrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
@@ -42,7 +42,7 @@ fn test_fid_batch_run() {
     expstop.1 = 100;
     let expoptimizer = exp.sampler();
     assert_eq!(
-        expoptimizer.sampler.calls, 200,
+        expoptimizer.sampler.calls, 51,
         "Number of iteration is wrong"
     );
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
@@ -51,18 +51,18 @@ fn test_fid_batch_run() {
 
     let pb = sp_evaluator_sh::get_problem();
 
-    let config = FolderConfig::new("tmp_test_sh_seqrun");
+    let config = FolderConfig::new("tmp_test_sha_batchrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, sha!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
 
-    run_reader("tmp_test_sh_seqrun", 2000);
+    run_reader("tmp_test_sha_batchrun", 1998);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.sampler();
     assert_eq!(
-        expoptimizer.sampler.calls, 400,
+        expoptimizer.sampler.calls, 101,
         "Number of iteration is wrong"
     );
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");

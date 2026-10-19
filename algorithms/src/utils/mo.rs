@@ -1,6 +1,7 @@
 use core::fmt;
+use std::fmt::Debug;
 
-use tantale_core::{Dominate, NonDominatedSorting, err_msg, errors::ErrMsg};
+use tantale_core::{Dominate, DominateView, NonDominatedSorting, err_msg, errors::ErrMsg};
 
 use serde::{Deserialize, Serialize};
 
@@ -26,8 +27,8 @@ err_msg!(SelectorError);
 ///
 /// # See also
 /// - [`NSGA2Selector`]: An implementation of the NSGA-II crowding distance selection operator.
-pub trait CandidateSelector: std::fmt::Debug + Serialize + for<'a> Deserialize<'a> {
-    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Result<Vec<&'a T>, SelectorError>;
+pub trait CandidateSelector: Debug + Clone + Serialize + for<'a> Deserialize<'a> {
+    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(&self, values: &'a mut [V], size: usize) -> Result<Vec<&'a T>, SelectorError>;
     fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Result<Vec<usize>, SelectorError>;
 }
 
@@ -98,7 +99,7 @@ pub fn crowding_distance<T: Dominate>(values: &[&T]) -> Vec<f64> {
 
 /// Implements the NSGA-II selection operator, which selects candidates based on their non-dominated sorting and crowding distance.
 /// From the paper [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NSGA2Selector;
 
 /// The NSGA-II selection operator selects candidates based on their non-dominated sorting and crowding distance.
@@ -129,9 +130,9 @@ pub struct NSGA2Selector;
 /// 14. &emsp; **return** $C$
 /// ---
 impl CandidateSelector for NSGA2Selector {
-    fn select_candidates<'a, T: Dominate>(&self, values: &'a mut [T], size: usize) -> Result<Vec<&'a T>, SelectorError> {
+    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(&self, values: &'a mut [V], size: usize) -> Result<Vec<&'a T>, SelectorError> {
         if values.len() == size {
-            Ok(values.iter().collect())
+            Ok(values.iter().map(|v| v.view()).collect())
         } else if values.len() < size {
             Err(SelectorError::NotEnoughPoints("Not enough points in the archive to perform selection."))
         } else {
@@ -153,13 +154,13 @@ impl CandidateSelector for NSGA2Selector {
                     // Unzip the selected candidates and their distances
                     let (front, _) = front_with_distances
                         .into_iter()
-                        .unzip::<&T, f64, Vec<&T>, Vec<f64>>();
+                        .unzip::<&V, f64, Vec<&V>, Vec<f64>>();
                     // Take the top `remaining` candidates from the current front and add them to the final list of candidates
                     candidates.extend(front.into_iter().take(remaining));
                     break;
                 }
             }
-            Ok(candidates)
+            Ok(candidates.into_iter().map(|v| v.view()).collect())
         }
     }
 

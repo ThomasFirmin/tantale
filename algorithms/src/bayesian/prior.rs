@@ -6,7 +6,7 @@ use crate::bayesian::error::PriorError;
 /// A Beta prior distribution with parameters `alpha` and `beta`.
 /// The Beta distribution is defined on the interval [0, 1] and is commonly used
 /// as a prior distribution for probabilities in Bayesian statistics.
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct BetaPrior(pub f64, pub f64, pub f64);
 
 impl BetaPrior {

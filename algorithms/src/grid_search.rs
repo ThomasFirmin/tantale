@@ -60,7 +60,7 @@ macro_rules! gridsearch {
 /// [`GridSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
 /// any state or history of evaluations.
 /// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GridSearch(pub Vec<usize>, pub usize);
 
 impl GridSearch {

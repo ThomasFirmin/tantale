@@ -117,7 +117,7 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info>
         &self.id
     }
 
-    fn mut_ref_id(&mut self) -> &mut Id {
+    fn mut_id(&mut self) -> &mut Id {
         &mut self.id
     }
 }
@@ -268,7 +268,7 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info
         &self.id
     }
 
-    fn mut_ref_id(&mut self) -> &mut Id {
+    fn mut_id(&mut self) -> &mut Id {
         &mut self.id
     }
 }

@@ -6,7 +6,7 @@ use crate::{
 use chrono::Utc;
 use rmp_serde;
 use std::{
-    fs::{self, File, create_dir_all, rename}, path::{Path, PathBuf},
+    fs::{self, File, create_dir_all, rename}, path::{PathBuf},
 };
 
 /// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
@@ -34,13 +34,13 @@ pub struct MessagePack {
 impl MessagePack {
     /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
     pub fn new(config: FolderConfig) -> Option<Self> {
-        let path_stop = config.path_check.join(Path::new("state_stop.mp"));
-        let path_exp = config.path_check.join(Path::new("state_exp.mp"));
-        let path_optim = config.path_check.join(Path::new("state_optim.mp"));
-        let path_config = config.path_check.join(Path::new("state_config.mp"));
-        let path_acc = config.path_check.join(Path::new("state_acc.mp"));
-        let path_workers = config.path_check.join(Path::new("state_workers"));
-        let path_func = config.path_check.join(Path::new("state_func"));
+        let path_stop = config.path_check.join("state_stop.mp");
+        let path_exp = config.path_check.join("state_exp.mp");
+        let path_optim = config.path_check.join("state_optim.mp");
+        let path_config = config.path_check.join("state_config.mp");
+        let path_acc = config.path_check.join("state_acc.mp");
+        let path_workers = config.path_check.join("state_workers");
+        let path_func = config.path_check.join("state_func");
         Some(MessagePack {
             config,
             path_stop,
@@ -110,12 +110,6 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
                     self.path_stop.display()
                 )))
             }
-            if !self.path_exp.try_exists().unwrap() {
-                return Err(CheckpointerError::FileNotFound(format!(
-                    "The `eval` file does not exist in {}",
-                    self.path_exp.display()
-                )))
-            }
             if !self.path_acc.try_exists().unwrap() {
                 return Err(CheckpointerError::FileNotFound(format!(
                     "The `accumulator` file does not exist in {}",
@@ -146,7 +140,18 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
             i += 1;
         }
         rename(&self.config.path_check, &new_path).map_err(|e| CheckpointerError::Other(format!("Failed to rename checkpoint folder {} to backup {}: {}", self.config.path_check.display(), new_path.display(), e)))?;
-        self.init(p, context)
+        self.init(p, context)?;
+        // move func states to new folder
+        let func_folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        let old_func_folder = new_path.join("state_func");
+        if old_func_folder.exists() && old_func_folder.is_dir() {
+            // because a function state might be very large and we don't want to duplicate it in the backup folder, we move it instead of copying it.
+            // Many function states might be present in the backup folder...
+            rename(&old_func_folder, func_folder).map_err(|e| CheckpointerError::Other(format!("Failed to move function state folder {} to new location {}: {}", old_func_folder.display(), func_folder.display(), e)))?;
+            // recreate empty func folder for backup for backup integrity | old func state are moved to new folder
+            create_dir_all(&old_func_folder).map_err(|e| CheckpointerError::FolderCreationError(format!("Failed to create empty function state folder {}: {}", old_func_folder.display(), e)))?;
+        }
+        Ok(())
     }
     
     fn save_state<T: HasState>(&self,state: &T,target: &CheckpointerTargets,ctx: &()) -> Result<(), CheckpointerError>
@@ -202,7 +207,7 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
             Err(CheckpointerError::FileNotFound(format!("The given path does not have any checkpoint folder, {}.", target.display())))
         }
     }
-    
+
     fn remove(&self,target: &CheckpointerTargets,_ctx: &()) -> Result<(), CheckpointerError>
     {
         let target = self.retrieve(target);

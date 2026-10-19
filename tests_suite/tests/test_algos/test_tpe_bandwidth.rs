@@ -5,8 +5,7 @@ use std::sync::Arc;
 use tantale::algos::bayesian::bandwidth::{
     Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw, scott_col,
 };
-use tantale::core::{BaseSol, Bernoulli, Bool, Cat, 
-    ElemSingleCodomain, EmptyInfo, HasX, SolId, SId, Uncomputed, Unit, Xy};
+use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, SolId, Sp, Uncomputed, Unit, Var, Xy};
 use tantale::core::{Int, Nat, Real, distribution::Uniform};
 
 use super::init_func::sp_real;
@@ -46,7 +45,12 @@ fn test_optuna_object() {
     let xy3 = Xy::new(sol3.clone_x(), ElemSingleCodomain::new(3.0).into());
     let xy = vec![&xy1, &xy2, &xy3];
 
-    let scp = sp_real::get_searchspace();
+    let scp = Sp::new(vec![
+            Var::<Real, NoDomain>::new("a",Real::new(-5.0, 5.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-20.0, 20.0, Uniform), NoDomain),
+        ].into_boxed_slice()
+    );
 
     let bw_vec = <Optuna as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![
@@ -239,7 +243,12 @@ fn test_hyperopt_object() {
     let xy3 = Xy::new(sol3.clone_x(), ElemSingleCodomain::new(3.0).into());
     let xy = vec![&xy1, &xy2, &xy3];
 
-    let scp = sp_real::get_searchspace();
+    let scp = Sp::new(vec![
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+        ].into_boxed_slice()
+    );
 
     let bw_array = <Hyperopt as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![
@@ -324,7 +333,12 @@ fn test_scott_object() {
     let xy5 = Xy::new(sol5.clone_x(), ElemSingleCodomain::new(5.0).into());
     let xy = vec![&xy1, &xy2, &xy3, &xy4, &xy5];
 
-    let scp = sp_real::get_searchspace();
+    let scp = Sp::new(vec![
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
+        ].into_boxed_slice()
+    );
 
     let bw_vec = <Scott as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
     let bw_expected = vec![

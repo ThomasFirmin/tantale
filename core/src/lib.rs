@@ -364,7 +364,7 @@ pub use checkpointer::{Checkpointer, MessagePack};
 
 pub mod utils;
 pub use utils::{
-    Dominate, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
+    Dominate, DominateView, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
     NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
     HasState, FolderConfig, Recordable, Schema,

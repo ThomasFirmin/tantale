@@ -61,7 +61,7 @@
 //!
 //! Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 use tantale_core::{
     HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, 
@@ -77,7 +77,7 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::utils::{PrunerError, build_halving_budgets};
+use crate::{Hyperband, utils::{PrunerError, build_halving_budgets}};
 
 /// A helper macro to simplify the type signature of [`Sha`].
 #[macro_export]
@@ -172,6 +172,8 @@ where
     pub budgets: Vec<f64>,
     /// Current budget level. This value increases by `scaling` at each stage until it reaches `budget_max`.
     pub current_budget: f64,
+    /// Size of the current rung (number of candidates at the current budget level).
+    pub current_rung_size: usize,
     /// Index of the current budget in the `budgets` vector.
     pub budget_idx: usize,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
@@ -181,6 +183,46 @@ where
     _pb: PhantomData<P>,
 }
 
+impl<P, Smpl> Clone for Sha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Sha {
+            sampler: self.sampler.clone(),
+            budgets: self.budgets.clone(),
+            current_budget: self.current_budget,
+            current_rung_size: self.current_rung_size,
+            budget_idx: self.budget_idx,
+            scaling: self.scaling,
+            iteration: self.iteration,
+            _pb: self._pb,
+        }
+    }
+}
+
+impl<P, Smpl> Debug for Sha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sha")
+        .field("sampler", &self.sampler)
+        .field("budgets", &self.budgets)
+        .field("current_budget", &self.current_budget)
+        .field("current_rung_size", &self.current_rung_size)
+        .field("budget_idx", &self.budget_idx)
+        .field("scaling", &self.scaling)
+        .field("iteration", &self.iteration)
+        .field("_pb", &self._pb).finish()
+    }
+}
+
+#[fidelity_bounds(P)]
 impl<Smpl, P> Sha<Smpl, P>
 where
     P: Problem,
@@ -197,13 +239,13 @@ where
     ///   fidelity level, typically 1 epoch or similar.
     /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
     ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
+    /// * `scaling` - Budget scaling factor ($\eta$). Must be $> 1.0$.
     ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
     ///
     /// # Errors
     ///
     /// Returns an error if:
-    /// - `scaling < 1.0`
+    /// - `scaling <= 1.0`
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `batch` is too small relative to the number of halving rounds needed
@@ -214,17 +256,38 @@ where
         scaling: f64,
     ) -> Result<Self, PrunerError> {
         let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
-
+        let current_rung_size = sampler.batch_size();
         let current_budget = budgets[0];
         Ok(Sha {
                 sampler,
                 budgets,
                 budget_idx: 0,
                 current_budget,
+                current_rung_size,
                 scaling,
                 iteration: 0,
                 _pb: PhantomData,
             })
+    }
+
+    pub fn bracket_complete(&self) -> bool {
+        self.current_budget == *self.budgets.last().unwrap()
+            && self.sampler.batch().is_empty()
+            && self.sampler.comp_batch().len() >= self.current_rung_size
+    }
+
+    pub fn into_hyperband(mut self) -> Hyperband<Self, P> {
+        let (budget_min, budget_max) = self.get_budgets();
+        let scaling = self.get_scaling();
+
+        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+
+        let n = scaling.powi(s_max as i32);
+        self.set_batch_size(n.ceil() as usize);
+        let r = budget_max * scaling.powi(-(s_max as i32));
+        self.set_budgets(budget_min, r);
+
+        Hyperband::new(budget_min, budget_max, scaling, s_max, self.sampler.batch_size(), self)
     }
 }
 
@@ -265,10 +328,12 @@ where
 {
     fn batch_size(&self) -> usize {
         self.sampler.batch_size()
+        
     }
 
     fn set_batch_size(&mut self, size: usize) {
         self.sampler.set_batch_size(size);
+        self.current_rung_size = size;
     }
 
     fn batch(&self) -> &[Shape<P>] {
@@ -298,21 +363,10 @@ where
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
     /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.budgets = (0..)
-            .map(|i| budget_min * self.scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-        if self.budgets.len() == 1 {
-            self.budgets.push(budget_max);
-        }
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *self.budgets.last().unwrap() != budget_max {
-            let last = self.budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+        self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
         self.current_budget = self.budgets[0];
         self.budget_idx = 0;
+        self.drain();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -325,7 +379,7 @@ where
 
     /// Updates the scaling factor for this optimizer.
     fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        assert!(scaling > 1.0, "Scaling factor must be > 1.0");
         self.scaling = scaling;
     }
 
@@ -348,15 +402,15 @@ where
     }
 
     fn drain(&mut self) -> Vec<Shape<P>> {
-        self.sampler.mut_batch().drain(..);
-        self.sampler.mut_comp_batch().drain(..).map(|c| IntoComputedShape::extract(c).0).collect()
+        self.sampler.mut_comp_batch().clear();
+        self.sampler.mut_batch().drain(..).collect()
     }
 
     fn drain_one(&mut self) -> Option<Shape<P>> {
-        if !self.sampler.batch().is_empty(){
-            self.sampler.mut_batch().drain(..);
+        if !self.sampler.mut_comp_batch().is_empty(){
+            self.sampler.mut_comp_batch().clear();
         }
-        self.sampler.mut_comp_batch().pop().map(|c| IntoComputedShape::extract(c).0)
+        self.sampler.mut_batch().pop()
     }
 }
 
@@ -369,52 +423,52 @@ where
     type Info = Smpl::Info;
 
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        if !self.sampler.batch().is_empty(){
-            self.current_budget = self.budgets[0];
-            self.budget_idx = 0;
-            let sampled = self.sampler.sample_info(scp, acc);
-            sampled.map(|(mut sol, info)| {
+        if !self.sampler.batch().is_empty() {
+            let sol = self.sampler.sample_info(scp, acc);
+            sol.map(|(mut sol, info)| {
                 sol.set_fidelity(self.current_budget);
                 (sol, info)
             })
         } else {
             self.sampler.mut_comp_batch().retain(|comp| matches!(comp.step(), Step::Partially(_)));
             if self.sampler.mut_comp_batch().is_empty() {
+                self.current_budget = self.budgets[0];
+                self.budget_idx = 0;
                 let sampled = self.sampler.sample_info(scp, acc);
                 sampled.map(|(mut sol, info)| {
                     sol.set_fidelity(self.current_budget);
                     (sol, info)
                 })
             } else {
-                // Compute number of candidates to keep
-                let comp_len = self.sampler.mut_comp_batch().len();
-                let k = comp_len - (((comp_len as f64) / self.scaling) as usize).max(1);
-
-                // Increase fidelity for next evaluation round (capped at budget_max)
+                // Advance to the next fidelity rung.
                 self.budget_idx += 1;
                 self.current_budget = self.budgets[self.budget_idx];
+                self.current_rung_size = ((self.sampler.batch_size() as f64 * self.scaling.powi(-(self.budget_idx as i32))).floor() as usize).max(1);
 
-                // Partition candidates by performance: worst k candidates go before index k
-                self.sampler.mut_comp_batch().select_nth_unstable_by(k, |a, b| Orderable::ord_cmp(a, b).unwrap());
-                // extract
-                let mut i = 0;
+                // Keep the best floor(n / scaling) candidates, with at least one survivor.
+                let comp_len = self.sampler.mut_comp_batch().len();
+                let survivors = self.current_rung_size;
+                let discard_count = comp_len - survivors;
+
+                // The left partition contains the worst candidates; popping then yields survivors first.
+                self.sampler.mut_comp_batch().select_nth_unstable_by(discard_count, |a, b| Orderable::ord_cmp(a, b).unwrap());
+                let mut promoted = 0;
                 while let Some(comp) = self.sampler.mut_comp_batch().pop() {
                     let mut pair: Shape<P> = IntoComputedShape::extract(comp).0;
-                    if i >= k {
+                    if promoted < survivors {
+                        pair.set_fidelity(self.current_budget);
+                        self.sampler.mut_batch().push(pair);
+                        promoted += 1;
+                    } else {
                         // Discard worst performers
                         pair.discard();
-                    } else {
-                        // Schedule best performers for next fidelity level
-                        pair.set_fidelity(self.current_budget);
-                        self.sampler.add_to_batch(pair);
+                        self.sampler.mut_batch().push(pair);
                     }
-                    i += 1;
                 }
                 self.sample_info(scp, acc)
             }
         }
     }
-
     fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
         match x.step() {
             Step::Partially(_) | Step::Evaluated  => self.sampler.update(x, scp, acc),
@@ -436,6 +490,7 @@ enum ShaField {
     Sampler,
     Budgets,
     CurrentBudget,
+    CurrentRungSize,
     BudgetIdx,
     Scaling,
     Iteration,
@@ -457,6 +512,7 @@ where
         state.serialize_field("sampler", &self.sampler.get_state())?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("current_budget", &self.current_budget)?;
+        state.serialize_field("current_rung_size", &self.current_rung_size)?;
         state.serialize_field("budget_idx", &self.budget_idx)?;
         state.serialize_field("scaling", &self.scaling)?;
         state.serialize_field("iteration", &self.iteration)?;
@@ -479,7 +535,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
     type Value = ShaField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .write_str("`sampler`, `budgets`, `current_budget`, `budget_idx`, `scaling` or `iteration`")
+            .write_str("`sampler`, `budgets`, `current_budget`, `current_rung_size`, `budget_idx`, `scaling` or `iteration`")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -490,6 +546,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
             "sampler" => Ok(ShaField::Sampler),
             "budgets" => Ok(ShaField::Budgets),
             "current_budget" => Ok(ShaField::CurrentBudget),
+            "current_rung_size" => Ok(ShaField::CurrentRungSize),
             "budget_idx" => Ok(ShaField::BudgetIdx),
             "scaling" => Ok(ShaField::Scaling),
             "iteration" => Ok(ShaField::Iteration),
@@ -499,6 +556,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
                     "sampler",
                     "budgets",
                     "current_budget",
+                    "current_rung_size",
                     "budget_idx",
                     "scaling",
                     "iteration",
@@ -541,6 +599,9 @@ where
         let current_budget = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let current_rung_size = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
         let budget_idx = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
@@ -554,6 +615,7 @@ where
             sampler: Smpl::from_state(sampler),
             budgets,
             current_budget,
+            current_rung_size,
             budget_idx,
             scaling,
             iteration,
@@ -568,6 +630,7 @@ where
         let mut sampler = None;
         let mut budgets = None;
         let mut current_budget = None;
+        let mut current_rung_size = None;
         let mut budget_idx = None;
         let mut scaling = None;
         let mut iteration = None;
@@ -592,6 +655,12 @@ where
                     }
                     current_budget = Some(map.next_value()?);
                 }
+                ShaField::CurrentRungSize => {
+                    if current_rung_size.is_some() {
+                        return Err(de::Error::duplicate_field("current_rung_size"));
+                    }
+                    current_rung_size = Some(map.next_value()?);
+                }
                 ShaField::BudgetIdx => {
                     if budget_idx.is_some() {
                         return Err(de::Error::duplicate_field("budget_idx"));
@@ -615,8 +684,8 @@ where
 
         let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
         let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
-        let current_budget =
-            current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let current_rung_size = current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
         let budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
         let iteration = iteration.ok_or_else(|| de::Error::missing_field("iteration"))?;
@@ -625,6 +694,7 @@ where
             sampler: Smpl::from_state(sampler),
             budgets,
             current_budget,
+            current_rung_size,
             budget_idx,
             scaling,
             iteration,

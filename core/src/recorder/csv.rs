@@ -28,9 +28,7 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    Computed, FolderConfig, HasVariables, Problem, Var, 
-    aliases::{Obj, Out, SObj, SOpt, TrueOpt}, errors::RecorderError,
-    recorder::{Recorder, RecorderTargets}, utils::record::{CompParts, Recordable, Schema, SolParts},
+    Computed, FolderConfig, HasVariables, Problem, Var, aliases::{Obj, Out, SObj, SOpt, TrueOpt}, errors::RecorderError, objective::outcome::IdOut, recorder::{Recorder, RecorderTargets}, utils::record::{CompParts, Recordable, Schema, SolParts},
 };
 
 use std::{
@@ -204,7 +202,7 @@ where
             }
             // Header of the output file (out.csv)
             if let Ok(f) = self.open(&RecorderTargets::Outcome) {
-                let header = Out::<P>::columns(&(), ());
+                let header = IdOut::<P::Id, Out<P>>::columns(&(), ());
                 write_to(f, header)?;
             }
 
@@ -214,6 +212,41 @@ where
             }
             Result::Ok(())
         }
+    }
+
+    fn before_load(&mut self, _problem: &P, _context: &()) -> Result<(), RecorderError> {
+        if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+            if let Some(ppobj) = &self.path_pobj
+                && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
+            }
+
+            if let Some(ppopt) = &self.path_popt
+                && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
+            }
+
+            if let Some(ppinfo) = &self.path_info
+                && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
+            }
+
+            if let Some(ppout) = &self.path_out
+                && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
+            }
+
+            if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+                return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
+            }
+        } else {
+            return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
+        }
+        Ok(())
     }
 
     fn after_load(&mut self, _problem: &P, _context: &()) -> Result<(), RecorderError> {

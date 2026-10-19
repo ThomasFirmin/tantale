@@ -262,23 +262,6 @@ use crate::{
 // BASICS
 pub mod basics;
 pub use basics::{Experiment};
-// BATCHED
-pub mod batched;
-// pub use batched::batchevaluator::{BatchEvaluator, ThrBatchEvaluator};
-// pub use batched::batchfidevaluator::{FidBatchEvaluator, FidThrBatchEvaluator};
-// SEQUENTIAL
-// pub mod sequential;
-// pub use sequential::seqevaluator::{SeqEvaluator, ThrSeqEvaluator, VecThrSeqEvaluator};
-// pub use sequential::seqfidevaluator::{
-//     FidSeqEvaluator, FidThrSeqEvaluator, PoolFidThrSeqEvaluator,
-// };
-
-// #[cfg(feature = "mpi")]
-// pub use batched::batchfidevaluator::FidDistBatchEvaluator;
-// #[cfg(feature = "mpi")]
-// pub use sequential::seqevaluator::DistSeqEvaluator;
-// #[cfg(feature = "mpi")]
-// pub use sequential::seqfidevaluator::FidDistSeqEvaluator;
 
 pub mod parallel;
 

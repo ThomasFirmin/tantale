@@ -41,7 +41,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tantale_macros::{basic_bounds, fidelity_bounds};
 use core::panic;
-use std::{cell::RefCell, vec};
+use std::{cell::RefCell, fmt::Debug, vec};
 use log::warn;
 
 thread_local! {
@@ -210,7 +210,7 @@ type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrderedArchive<Xy<Raw, CodEl
 ///   * `current_fidelity`: The current fidelity level if applicable. Used for multi-fidelity optimization.
 ///   * `current_archive`: The current archive of solutions if applicable. Used for multi-fidelity optimization.
 #[basic_bounds(P)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 #[serde(bound(
     serialize = "Wght: Serialize, Splt: Serialize, Bw: Serialize, Kern::Context: Serialize",
     deserialize = "Wght: for<'a> Deserialize<'a>, Splt: for<'a> Deserialize<'a>, Bw: for<'a> Deserialize<'a>, Kern::Context: for<'a> Deserialize<'a>",
@@ -234,6 +234,58 @@ where
     pub point_archive: JointFidelityArchive<<SOpt<P> as HasX>::X, CodElem<P>>,
     pub current_fidelity: f64,
     pub current_archive: usize,
+}
+
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> Debug for Tpe<Kern, Bw, Wght, Splt, P, Id>
+where
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
+    Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
+    Id: SolId,
+    P: Problem<Id = Id>,
+    CodElem<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tpe")
+            .field("n_init", &self.n_init)
+            .field("n_sample", &self.n_sample)
+            .field("kernel", &self.kernel)
+            .field("bandwidth", &self.bandwidth)
+            .field("weighter", &self.weighter)
+            .field("splitter", &self.splitter)
+            .field("point_archive", &self.point_archive)
+            .field("current_fidelity", &self.current_fidelity)
+            .field("current_archive", &self.current_archive)
+            .finish()
+    }
+}
+
+#[basic_bounds(P)]
+impl<Kern, Bw, Wght, Splt, P, Id> Clone for Tpe<Kern, Bw, Wght, Splt, P, Id>
+where
+    Kern: Kernel<P, Opt<P>>,
+    Bw: Bandwidth<P, Opt<P>>,
+    Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
+    Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
+    Id: SolId,
+    P: Problem<Id = Id>,
+    CodElem<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Self { 
+            n_init: self.n_init,
+            n_sample: self.n_sample,
+            kernel: self.kernel.clone(), 
+            bandwidth: self.bandwidth.clone(), 
+            weighter: self.weighter.clone(), 
+            splitter: self.splitter.clone(), 
+            point_archive: self.point_archive.clone(), 
+            current_fidelity: self.current_fidelity,
+            current_archive: self.current_archive 
+        }
+    }
 }
 
 #[basic_bounds(P)]
@@ -337,7 +389,7 @@ where
 
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let n_init = self.n_init;
-        if self.point_archive[0].1.size() < n_init {
+        if self.point_archive.is_empty() || self.point_archive[0].1.size() < n_init {
             Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
         } else {
             // Split the archive into good and bad, and compute the weights
@@ -387,7 +439,11 @@ where
 
     fn update(&mut self,x: &CompShape<P>,_scp: &<P as Problem>::Scp,_acc: &Accum<P>) {
         let xy = x.get_sopt().xy();
-        self.point_archive[0].1.add(xy);
+        if self.point_archive.is_empty() {
+            self.point_archive.push((0.0, OrderedArchive::new(xy)));
+        } else {
+            self.point_archive[0].1.add(xy);
+        }
     }
 }
 

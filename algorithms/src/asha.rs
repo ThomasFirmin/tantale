@@ -67,11 +67,14 @@
 //!
 //! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
-use std::{cell::RefCell, marker::PhantomData};
+use std::{cell::RefCell, fmt::Debug, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, aliases::{CodElem, CompShape, Opt, Shape}, domain::codomain::ElemSingle, optimizer::opt::{Prunable, Pruner}, solution::shape::IntoComputedShape,
+    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step,
+    aliases::{Accum, CompShape, Opt, Shape}, 
+    optimizer::opt::{Prunable, Pruner}, 
+    solution::shape::IntoComputedShape,
 };
 
 use rand::rngs::StdRng;
@@ -82,7 +85,7 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::utils::{PrunerError, build_halving_budgets};
+use crate::{Hyperband, utils::{PromotableShape, PrunerError, Rungs, build_halving_budgets}};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -98,8 +101,6 @@ macro_rules! asha {
         Asha<$sampler, _>
     };
 }
-
-type AshaRungs<P> = Vec<Vec<CompShape<P>>>;
 
 /// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934) multi-fidelity optimizer.
 ///
@@ -160,7 +161,7 @@ pub struct Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
@@ -169,23 +170,57 @@ where
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rungs: AshaRungs<P>,
+    pub rungs: Rungs<P>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
+}
+
+impl<P,Smpl> Debug for Asha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+        .field("sampler", &self.sampler)
+        .field("budgets", &self.budgets)
+        .field("scaling", &self.scaling)
+        .field("rungs", &self.rungs)
+        .field("current_budget", &self.current_budget)
+        .finish()
+    }
+}
+
+impl<P,Smpl> Clone for Asha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Self { 
+            sampler: self.sampler.clone(), 
+            budgets: self.budgets.clone(), 
+            scaling: self.scaling, 
+            rungs: self.rungs.clone(), 
+            current_budget: self.current_budget
+        }
+    }
 }
 
 impl<Smpl, P> State for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 { }
 
 impl<Smpl, P> HasState for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     type State = Self;
 
@@ -202,11 +237,12 @@ where
     }
 }
 
+#[fidelity_bounds(P)]
 impl<Smpl, P> Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
@@ -238,11 +274,67 @@ where
             current_budget,
         })
     }
+
     pub fn with_rng<F, T>(&self, f: F) -> T
     where
         F: FnOnce(&mut StdRng) -> T,
     {
         THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+    }
+
+    pub fn sample_info_with_new_samples(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+        allow_new_samples: bool,
+    ) -> Option<(Shape<P>, Sampled<Smpl::Info>)> {
+        let mut i = self.budgets.len() - 1;
+        while i > 0 {
+            let length = self.rungs[i].len();
+            let k = (length as f64 / self.scaling) as usize;
+            if k > 0 {
+                self.rungs[i].select_nth_unstable_by(length - k, |a, b| a.ord_cmp(b).unwrap());
+                let mut promotable = self.rungs[i]
+                    .iter_mut()
+                    .rev()
+                    .take(k)
+                    .filter(|x| !x.is_promoted())
+                    .collect::<Vec<_>>();
+                if !promotable.is_empty() {
+                    promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
+                    let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
+                    promotable[0].promote();
+                    self.current_budget = self.budgets[i];
+                    sol.set_fidelity(self.current_budget);
+                    return Some((sol, Sampled::Reused));
+                }
+            }
+            i -= 1;
+        }
+
+        if !allow_new_samples {
+            return None;
+        }
+
+        self.current_budget = self.budgets[0];
+        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+            sol.set_fidelity(self.current_budget);
+            (sol, info)
+        })
+    }
+
+    pub fn into_hyperband(mut self) -> Hyperband<Self, P> {
+        let (budget_min, budget_max) = self.get_budgets();
+        let scaling = self.get_scaling();
+
+        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+
+        let n = scaling.powi(s_max as i32);
+        let bracket_size = n.ceil() as usize;
+        let r = budget_max * scaling.powi(-(s_max as i32));
+        self.set_budgets(budget_min, r);
+
+        Hyperband::new(budget_min, budget_max, scaling, s_max, bracket_size, self)
     }
 }
 
@@ -250,15 +342,12 @@ where
 impl<Smpl, P, Opt> Pruner<P, Opt> for Asha<Smpl, P>
 where
     Smpl: Sampler<P, Opt> + Prunable,
-    CodElem<P>: ElemSingle,
     CompShape<P>: Orderable,
 {
-    /// Reinitializes the budget parameters for this optimizer.
-    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
-    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
         self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
         self.current_budget = self.budgets[0];
+        self.drain();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -271,7 +360,7 @@ where
 
     /// Updates the scaling factor for this optimizer.
     fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        assert!(scaling > 1.0, "Scaling factor must be >= 1.0");
         self.scaling = scaling;
     }
 
@@ -301,10 +390,14 @@ where
             .rungs
             .drain(..)
             .flatten()
-            .map(|comp| {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                sol
+            .filter_map(|comp| {
+                if comp.is_promoted(){
+                    None
+                } else {
+                    let mut sol: Shape<P> = IntoComputedShape::extract(comp.result).0;
+                    sol.discard();
+                    Some(sol)
+                }
             })
             .collect();
         self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
@@ -313,10 +406,10 @@ where
 
     fn drain_one(&mut self) -> Option<Shape<P>> {
         for rung in self.rungs.iter_mut() {
-            if let Some(comp) = rung.pop() {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
+            if let Some(comp) = rung.pop() && !comp.is_promoted(){
+                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result).0;
                 sol.discard();
-                return Some(sol);
+                return Some(sol);   
             }
         }
         None
@@ -330,7 +423,6 @@ where
 impl<Smpl, P, Opt> Sampler<P, Opt> for Asha<Smpl, P>
 where
     Smpl: Sampler<P, Opt> + Prunable,
-    CodElem<P>: ElemSingle,
     CompShape<P>: Orderable,
 {
     type Info = Smpl::Info;
@@ -374,47 +466,24 @@ where
     /// To simplify things, a function state is local to a worker, and is not shared across workers.
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &tantale_core::aliases::Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        let mut i = self.budgets.len() - 1;
-        let mut k = (self.rungs[i].len() as f64 / self.scaling) as usize;
-        while k == 0 && i > 0 {
-            i -= 1;
-            k = (self.rungs[i].len() as f64 / self.scaling) as usize;
-        }
-        if k == 0 {
-            self.current_budget = self.budgets[0];
-            let sample= self.sampler.sample_info(scp, acc);
-            sample.map(|(mut sol, info)| {
-                sol.set_fidelity(self.current_budget);
-                (sol, info)
-            })
-        } else {
-            self.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
-            self.current_budget = self.budgets[i];
-            let mut sol: Shape<P> = IntoComputedShape::extract(self.rungs[i].pop().unwrap()).0;
-            sol.set_fidelity(self.current_budget);
-            Some((sol, Sampled::Reused))
-        }
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        self.sample_info_with_new_samples(scp, acc, true)
     }
 
-    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &tantale_core::aliases::Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
         if let Step::Partially(_s) = x.step() {
             self.sampler.update(x, scp, acc);
             let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
             if let Some(i) = idx {
                 let rung_idx = i + 1;
                 if rung_idx >= self.rungs.len() {
-                    // Emit a warning
                     warn!("
                         Warning: Rung index out of bounds due to wrong Step. 
                         Most probably within user-defined objective function.
                         Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                     ");
                 } else {
-                    // Invariant:
-                    // rungs[i] contains configurations waiting to be evaluated at budgets[i].
-                    // A completed evaluation at budgets[i] is inserted into rungs[i + 1].
-                    self.rungs[rung_idx].push(x.clone());
+                    self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
                 }
             }
         }
@@ -425,7 +494,7 @@ where
 //--- SERDE ---//
 //-------------//
 
-struct AshaStateVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
+struct AshaVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>>;
@@ -444,13 +513,13 @@ impl<Smpl, P> Serialize for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AshaState", 5)?;
+        let mut state = serializer.serialize_struct("Asha", 5)?;
         state.serialize_field("sampler", &self.sampler.get_state())?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
@@ -460,14 +529,14 @@ where
     }
 }
 
-impl<Smpl, P> AshaStateVisitor<Smpl, P>
+impl<Smpl, P> AshaVisitor<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     fn new() -> Self {
-        AshaStateVisitor(PhantomData)
+        AshaVisitor(PhantomData)
     }
 }
 
@@ -503,16 +572,16 @@ impl<'de> Deserialize<'de> for AshaField {
     }
 }
 
-impl<'de, Smpl, P> Visitor<'de> for AshaStateVisitor<Smpl, P>
+impl<'de, Smpl, P> Visitor<'de> for AshaVisitor<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     type Value = Asha<Smpl, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("struct AshaState")
+        formatter.write_str("struct Asha")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -609,12 +678,12 @@ impl<'de, Smpl, P> Deserialize<'de> for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
-    CodElem<P>: ElemSingle,
+    CompShape<P>: Orderable,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(AshaStateVisitor::new())
+        deserializer.deserialize_map(AshaVisitor::new())
     }
 }

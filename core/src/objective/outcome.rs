@@ -165,7 +165,7 @@
 //! println!("Step : {:?}", out.get_step());
 //! ```
 
-use crate::{Codomain, objective::EvalStep, utils::record::{Recordable, Schema}};
+use crate::{Codomain, SolId, objective::EvalStep, utils::record::{Recordable, Schema}};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
@@ -232,4 +232,28 @@ where
     /// - `path`: Folder path where the checkpoint is stored.
     ///   The user can decide how to deserialize the state (e.g., using rmp_serde, bincode, etc.).
     fn load(path: PathBuf) -> std::io::Result<Self>;
+}
+
+
+pub struct IdOut<'a, Id:SolId, Out:Outcome>(pub &'a Id, pub &'a Out);
+
+impl<'a, Id:SolId, Out:Outcome> Schema<()> for IdOut<'a, Id,Out>{
+    type Parts = ();
+
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        let mut col_id = Id::columns(&(), ());
+        let mut col_out = Out::columns(&(), ());
+        col_id.append(&mut col_out);
+        col_id
+    }
+}
+
+impl<'a, Id:SolId, Out: Outcome> Recordable<()> for IdOut<'a, Id, Out> {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        let mut rec_id = self.0.record(&(), ());
+        let mut rec_out = self.1.record(&(), ());
+        rec_id.append(&mut rec_out);
+        rec_id
+    }
 }

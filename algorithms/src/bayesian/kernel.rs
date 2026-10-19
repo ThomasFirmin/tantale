@@ -4,6 +4,7 @@ use tantale_core::{
 use tantale_macros::basic_bounds;
 
 use core::f64;
+use std::fmt::Debug;
 use num::{Num, cast::AsPrimitive};
 use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
@@ -65,7 +66,7 @@ pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: 
 /// - [`AitchisonAitkenKernel`] for the Aitchison-Aitken kernel function.
 /// - [`MixedKernel`] for the mixed kernel function that combines Gaussian and Aitchison-Aitken kernels.
 /// - [`Kernel`] for object computing the kernel accross all input dimensions.
-pub trait KernelFunc<Dom: Domain> {
+pub trait KernelFunc<Dom: Domain>: Clone + Debug{
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
     /// for efficient kernel computation for each point within the archive.
@@ -133,6 +134,7 @@ pub trait KernelFunc<Dom: Domain> {
 /// $$
 /// with $Z^\\prime(x_2 \\,\\lvert\\, b) = \\int_{L-\frac{1}{2}}^{U+\frac{1}{2}} g(x,x_2 \\,\\lvert\\, b)dx$.
 /// Conversely to the [`Real`] case, a continuity correction is applied to for $Z^\\prime$, which explains $\\int_{L-\frac{1}{2}}^{U+\frac{1}{2}}$.
+#[derive(Clone, Debug)]
 pub struct GaussianKernel;
 
 /// The context for the Gaussian kernel, which holds precomputed values needed for efficient kernel computation.
@@ -382,6 +384,7 @@ impl KernelFunc<Nat> for GaussianKernel {
 /// \\end{cases}\\enspace\\text{,}
 /// $$
 /// where $b$ is the bandwidth parameter, and $|\mathcal{D}|$ is the size of the domain (e.g. number of features).
+#[derive(Clone, Debug)]
 pub struct AitchisonAitkenKernel;
 
 /// The context for the Aitchison-Aitken kernel, which holds the bandwidth parameter needed for efficient kernel computation.
@@ -488,6 +491,7 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
 }
 
 /// The mixed kernel combines the Gaussian and Aitchison-Aitken kernels for mixed-type domains.
+#[derive(Clone, Debug)]
 pub enum MixedKernel {
     Gaussian(GaussianKernel),
     AitchisonAitken(AitchisonAitkenKernel),
@@ -681,7 +685,7 @@ impl KernelFunc<Mixed> for MixedKernel {
 /// - [`Univariate`] for the univariate kernel, which assumes independence between dimensions and computes the product of the kernel values for each dimension.
 /// - [`Multivariate`] for the multivariate kernel, which models the joint distribution of all dimensions.
 #[basic_bounds(P,Dom)]
-pub trait Kernel<P, Dom>: Send + Sync + Clone + Sized + Serialize + for<'a> Deserialize<'a>
+pub trait Kernel<P, Dom>: Send + Sync + Clone + Debug + Sized + Serialize + for<'a> Deserialize<'a>
 {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed

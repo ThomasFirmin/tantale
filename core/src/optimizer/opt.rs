@@ -26,7 +26,7 @@ impl SolInfo for EmptyInfo {}
 /// A [`Sampler`] generates candidate [`Solution`](crate::solution::Solution)s to
 /// **maximize** an objective, and maintains the state required to resume or
 /// checkpoint an experiment.
-pub trait Sampler<P: Problem, Dom: Domain>: HasState
+pub trait Sampler<P: Problem, Dom: Domain>: HasState + Clone + Debug
 {
     type Info: SolInfo;
     
@@ -138,6 +138,16 @@ where
 
     /// Returns the current minimum and maximum budgets of the optimizer.
     fn get_budgets(&self) -> (f64, f64);
+
+    /// Returns the current minimum budget of the optimizer.
+    fn get_budget_min(&self) -> f64 {
+        self.get_budgets().0
+    }
+
+    /// Returns the current maximum budget of the optimizer.
+    fn get_budget_max(&self) -> f64 {
+        self.get_budgets().1
+    }
 
     /// Sets the current budget level used by the optimizer for pruning candidates.
     fn set_current_budget(&mut self, budget: f64);

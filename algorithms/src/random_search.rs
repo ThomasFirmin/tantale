@@ -5,7 +5,7 @@ use tantale_core::{
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use tantale_macros::basic_bounds;
-use std::cell::RefCell;
+use std::{cell::RefCell, fmt::Debug};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -103,7 +103,7 @@ macro_rules! batchrandomsearch {
 /// ```rust,ignore
 /// self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()))
 /// ```
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RandomSearch(pub usize);
 
 impl RandomSearch {
@@ -160,15 +160,38 @@ impl<P, Opt> Sampler<P, Opt> for RandomSearch
 
 impl Prunable for RandomSearch {}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 #[serde(bound = "Shape<P>: Serialize + for<'a> Deserialize<'a>")]
 pub struct BatchRandomSearch<P:Problem> 
 {
     pub calls:usize,
     pub batch_size: usize,
     pub batch_uncomputed: Vec<Shape<P>>,
-    pub batch_computed: Vec<Shape<P>>,
+    pub batch_computed: Vec<CompShape<P>>,
 }
+
+impl<P:Problem> Clone for BatchRandomSearch<P> {
+    fn clone(&self) -> Self {
+        BatchRandomSearch {
+            calls: self.calls,
+            batch_size: self.batch_size,
+            batch_uncomputed: self.batch_uncomputed.clone(),
+            batch_computed: self.batch_computed.clone(),
+        }
+    }
+}
+
+impl<P:Problem> Debug for BatchRandomSearch<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchRandomSearch")
+        .field("calls", &self.calls)
+        .field("batch_size", &self.batch_size)
+        .field("batch_uncomputed", &self.batch_uncomputed)
+        .field("batch_computed", &self.batch_computed).finish()
+    }
+}
+
+
 
 impl<P:Problem> BatchRandomSearch<P> {
     pub fn new(batch_size: usize) -> Self {
@@ -225,11 +248,11 @@ impl<P, Opt> Batched<P, Opt> for BatchRandomSearch<P> {
     }
 
     fn comp_batch(&self) -> &[CompShape<P>] {
-        unreachable!("BatchRandomSearch does not maintain a batch of computed solutions");
+        self.batch_computed.as_slice()
     }
 
     fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>> {
-        unreachable!("BatchRandomSearch does not maintain a batch of computed solutions");
+        &mut self.batch_computed
     }
 }
 

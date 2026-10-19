@@ -6,10 +6,8 @@ use tantale::{
         bayesian::splitter::{MOSplit, Splitter},
         mo::{CandidateSelector, NSGA2Selector},
         utils::mo::crowding_distance,
-    },
-    core::{
-        Accumulator, HasId, Lone, NonDominatedSorting, OrderedArchive, ParetoAccumulator,
-        ParetoFront,
+    }, core::{
+        Accumulator, Computed, HasId, Lone, NonDominatedSorting, OrderedArchive, ParetoAccumulator, ParetoFront,
     },
 };
 use wfg_rs::{reference_point, wfg};
@@ -302,6 +300,18 @@ fn test_nsga2_selection() {
         vec![5, 4, 3, 2, 1, 10, 9, 8, 6],
         "NSGA2 selection is wrong."
     );
+}
+
+#[test]
+fn test_nsga2_selection_refs() {
+    let solutions = front::generate_solutions();
+    let mut refs = solutions.iter().collect::<Vec<_>>();
+    let selector = NSGA2Selector;
+    let selected: Vec<&Computed<_,_>> = selector.select_candidates(&mut refs, 9).unwrap();
+    let ids = selected.iter().map(|s| s.id().id).collect::<Vec<_>>();
+    assert_eq!(ids, vec![5, 4, 3, 2, 1, 10, 9, 8, 6]);
+    let args = selector.arg_select_candidates(&refs, 9).unwrap();
+    assert_eq!(args.len(), 9);
 }
 
 #[test]

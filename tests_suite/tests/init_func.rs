@@ -1517,11 +1517,11 @@ pub mod sp_real {
 
     objective!(
         pub fn example() -> OutEvaluator {
-            let _a = [! a | Real(-5.0, 5.0, Uniform) | !];
+            let _a = [! a | Real(-10.0, 10.0, Uniform) | !];
             let _b = [! b | Real(-10.0, 10.0, Uniform) | !];
 
             OutEvaluator{
-                obj: [! j | Real(-20.0, 20.0, Uniform) | !] as f64
+                obj: [! j | Real(-10.0, 10.0, Uniform) | !] as f64
             }
         }
     );

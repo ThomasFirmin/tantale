@@ -190,8 +190,8 @@ where
         self.0.ref_id()
     }
 
-    fn mut_ref_id(&mut self) -> &mut SA::Id {
-        self.0.mut_ref_id()
+    fn mut_id(&mut self) -> &mut SA::Id {
+        self.0.mut_id()
     }
 }
 
@@ -203,16 +203,16 @@ where
     SB::Id: StepId,
 {
     fn increment(&mut self) {
-        self.0.id().increment();
-        self.1.id().increment();
+        self.0.mut_id().increment();
+        self.1.mut_id().increment();
     }
 
     fn id_step(&self) -> usize {
-        self.0.id().id_step()
+        self.0.ref_id().id_step()
     }
 
     fn previous_id(&self) -> SA::Id {
-        self.0.id().previous_id()
+        self.0.ref_id().previous_id()
     }
 }
 
@@ -497,8 +497,8 @@ impl<S: Solution> HasId for Lone<S>
         self.0.ref_id()
     }
 
-    fn mut_ref_id(&mut self) -> &mut S::Id {
-        self.0.mut_ref_id()
+    fn mut_id(&mut self) -> &mut S::Id {
+        self.0.mut_id()
     }
 }
 
@@ -507,15 +507,15 @@ where
     S::Id: StepId,
 {
     fn increment(&mut self) {
-        self.0.id().increment();
+        self.0.mut_id().increment();
     }
 
     fn id_step(&self) -> usize {
-        self.0.id().id_step()
+        self.0.ref_id().id_step()
     }
 
     fn previous_id(&self) -> S::Id {
-        self.0.id().previous_id()
+        self.0.ref_id().previous_id()
     }
 }
 

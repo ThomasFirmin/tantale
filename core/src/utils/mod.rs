@@ -3,7 +3,7 @@
 
 pub mod dominate;
 pub use dominate::{
-    Dominate, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate, NonDominatedSorting,
+    Dominate, DominateView, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate, NonDominatedSorting,
     ParetoFront,
 };
 

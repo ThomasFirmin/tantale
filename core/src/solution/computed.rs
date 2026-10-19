@@ -120,8 +120,8 @@ impl<S: Uncomputed, Out: Outcome> HasId for Computed<S, Out>
         self.sol.ref_id()
     }
 
-    fn mut_ref_id(&mut self) -> &mut S::Id {
-        self.sol.mut_ref_id()
+    fn mut_id(&mut self) -> &mut S::Id {
+        self.sol.mut_id()
     }
 }
 
@@ -130,15 +130,15 @@ where
     Self::Id: StepId,
 {
     fn increment(&mut self) {
-        self.sol.id().increment()
+        self.sol.mut_id().increment()
     }
 
     fn id_step(&self) -> usize {
-        self.sol.id().id_step()
+        self.sol.ref_id().id_step()
     }
 
     fn previous_id(&self) -> Self::Id {
-        self.sol.id().previous_id()
+        self.sol.ref_id().previous_id()
     }
 }
 

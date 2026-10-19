@@ -30,9 +30,9 @@ use serde::{
     ser::SerializeStruct,
 };
 use tantale_macros::fidelity_bounds;
-use std::{cell::RefCell, marker::PhantomData};
+use std::{cell::RefCell, fmt::Debug, marker::PhantomData};
 
-use crate::{mo::{CandidateSelector, SelectorError}, utils::{PrunerError, build_halving_budgets}};
+use crate::{mo::{CandidateSelector, SelectorError}, utils::{PromotableShape, PrunerError, Rungs, build_halving_budgets}};
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
@@ -56,8 +56,6 @@ macro_rules! moasha {
         MoAsha<$sampler, $selector, _>
     };
 }
-
-type MoAshaRungs<P> = Vec<Vec<CompShape<P>>>;
 
 /// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
 ///
@@ -142,9 +140,42 @@ where
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: MoAshaRungs<P>,
+    pub rungs: Rungs<P>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
+}
+
+impl<Smpl, Selector, P> Debug for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MoAsha")
+        .field("sampler", &self.sampler)
+        .field("selector", &self.selector)
+        .field("budgets", &self.budgets)
+        .field("scaling", &self.scaling)
+        .field("rungs", &self.rungs)
+        .field("current_budget", &self.current_budget)
+        .finish()
+    }
+}
+
+impl<Smpl, Selector, P> Clone for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CodElem<P>: ElemMulti,
+    CompShape<P>: Dominate,
+{
+    fn clone(&self) -> Self {
+        Self { sampler: self.sampler.clone(), selector: self.selector.clone(), budgets: self.budgets.clone(), scaling: self.scaling, rungs: self.rungs.clone(), current_budget: self.current_budget }
+    }
 }
 
 impl<Smpl, Selector, P> State for MoAsha<Smpl, Selector, P>
@@ -225,7 +256,7 @@ where
             selector,
             budgets,
             scaling,
-            rung: (0..length).map(|_| Vec::new()).collect(),
+            rungs: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
         })
     }
@@ -234,10 +265,16 @@ where
     /// This method is called during the optimization step to determine which candidates should be promoted to the next fidelity level.
     /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state,
     /// which can be customized to implement different selection criteria (e.g., [`NSGA2Selector`](crate::utils::mo::NSGA2Selector)).
-    pub fn select(&mut self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
-        self
-            .selector
-            .arg_select_candidates(&self.rung[index], n)
+    ///
+    /// Returns the indices, within the rung, of the selected candidates.
+    pub fn select(&self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
+        let (positions, promotable): (Vec<usize>, Vec<&PromotableShape<P>>) = self.rungs[index]
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| !s.is_promoted())
+            .unzip();
+        let selected = self.selector.arg_select_candidates(&promotable, n)?;
+        Ok(selected.into_iter().map(|i| positions[i]).collect())
     }
 
     pub fn with_rng<F, T>(&self, f: F) -> T
@@ -303,33 +340,37 @@ where
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
     ///
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+
         let mut i = self.budgets.len() - 1;
-        let mut k = (self.rung[i].len() as f64 / self.scaling) as usize;
-        while k == 0 && i > 0 {
+        while i > 0 {
+            let length = self.rungs[i].len();
+            let k = (length as f64 / self.scaling) as usize;
+            if k > 0 {
+                let selected = self.select(i, k);
+                if let Ok(candidates) = selected && !candidates.is_empty() {
+                    let candidate = &mut self.rungs[i][candidates[0]];
+                    let mut sol: Shape<P> = IntoComputedShape::extract(candidate.result.clone()).0;
+                    candidate.promote();
+                    self.current_budget = self.budgets[i];
+                    sol.set_fidelity(self.current_budget);
+                    return Some((sol, Sampled::Reused))
+                }
+            }
             i -= 1;
-            k = (self.rung[i].len() as f64 / self.scaling) as usize;
         }
-        if k == 0 {
-            self.current_budget = self.budgets[0];
-            let sample= self.sampler.sample_info(scp, acc);
-            sample.map(|(mut sol, info)| {
-                sol.set_fidelity(self.current_budget);
-                (sol, info)
-            })
-        } else {
-            let idx = self.select(i, k).unwrap()[0];
-            self.current_budget = self.budgets[i];
-            let mut sol: Shape<P> = IntoComputedShape::extract(self.rung[i].remove(idx)).0;
+        self.current_budget = self.budgets[0];
+        let sample= self.sampler.sample_info(scp, acc);
+        sample.map(|(mut sol, info)| {
             sol.set_fidelity(self.current_budget);
-            Some((sol, Sampled::Reused))
-        }
+            (sol, info)
+        })
     }
     
     fn update(&mut self,x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
         if let Step::Partially(_s) = x.step() {
             let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
             if let Some(i) = idx {
-                self.rung[i + 1].push(x.clone());
+                self.rungs[i + 1].push(PromotableShape::new(x.clone()));
             }
         }
     }
@@ -398,23 +439,23 @@ where
     /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
     fn drain(&mut self) -> Vec<Shape<P>> {
         let clear = self
-            .rung
+            .rungs
             .drain(..)
             .flatten()
             .map(|comp| {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
+                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result.clone()).0;
                 sol.discard();
                 sol
             })
             .collect();
-        self.rung = (0..self.budgets.len()).map(|_| Vec::new()).collect();
+        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
         clear
     }
 
     fn drain_one(&mut self) -> Option<Shape<P>> {
-        for rung in self.rung.iter_mut() {
+        for rung in self.rungs.iter_mut() {
             if let Some(comp) = rung.pop() {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp).0;
+                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result.clone()).0;
                 sol.discard();
                 return Some(sol);
             }
@@ -463,7 +504,7 @@ where
         state.serialize_field("selector", &self.selector)?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
-        state.serialize_field("rung", &self.rung)?;
+        state.serialize_field("rung", &self.rungs)?;
         state.serialize_field("current_budget", &self.current_budget)?;
         state.end()
     }
@@ -486,7 +527,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
     type Value = MoAshaField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .write_str("`sampler`, `selector`, `budgets`, `scaling`, `rung` or `current_budget`")
+            .write_str("`sampler`, `selector`, `budgets`, `scaling`, `rungs` or `current_budget`")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -498,7 +539,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
             "selector" => Ok(MoAshaField::Selector),
             "budgets" => Ok(MoAshaField::Budgets),
             "scaling" => Ok(MoAshaField::Scaling),
-            "rung" => Ok(MoAshaField::Rung),
+            "rungs" => Ok(MoAshaField::Rung),
             "current_budget" => Ok(MoAshaField::CurrentBudget),
             _ => Err(de::Error::unknown_field(
                 value,
@@ -507,7 +548,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
                     "selector",
                     "budgets",
                     "scaling",
-                    "rung",
+                    "rungs",
                     "current_budget",
                 ],
             )),
@@ -553,7 +594,7 @@ where
         let scaling = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(3, &self))?;
-        let rung = seq
+        let rungs = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
         let current_budget = seq
@@ -564,7 +605,7 @@ where
             selector,
             budgets,
             scaling,
-            rung,
+            rungs,
             current_budget,
         })
     }
@@ -577,7 +618,7 @@ where
         let mut selector = None;
         let mut budgets = None;
         let mut scaling = None;
-        let mut rung = None;
+        let mut rungs = None;
         let mut current_budget = None;
 
         while let Some(key) = map.next_key()? {
@@ -607,10 +648,10 @@ where
                     scaling = Some(map.next_value()?);
                 }
                 MoAshaField::Rung => {
-                    if rung.is_some() {
+                    if rungs.is_some() {
                         return Err(de::Error::duplicate_field("rung"));
                     }
-                    rung = Some(map.next_value()?);
+                    rungs = Some(map.next_value()?);
                 }
                 MoAshaField::CurrentBudget => {
                     if current_budget.is_some() {
@@ -625,7 +666,7 @@ where
         let selector = selector.ok_or_else(|| de::Error::missing_field("selector"))?;
         let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
-        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let rungs = rungs.ok_or_else(|| de::Error::missing_field("rungs"))?;
         let current_budget =
             current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
 
@@ -634,7 +675,7 @@ where
             selector,
             budgets,
             scaling,
-            rung,
+            rungs,
             current_budget,
         })
     }

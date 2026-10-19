@@ -23,7 +23,7 @@ pub trait HasId
     fn ref_id(&self) -> &Self::Id;
 
     /// Returns a mutable reference to the solution's unique identifier.
-    fn mut_ref_id(&mut self) -> &mut Self::Id;
+    fn mut_id(&mut self) -> &mut Self::Id;
 
     /// Checks if another object is a twin (shares the same [`Id`]).
     ///

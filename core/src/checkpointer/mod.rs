@@ -228,10 +228,9 @@ pub trait Checkpointer<P: Problem, Context> {
         id: &Id,
         ctx: &Context,
     ) -> Result<(), CheckpointerError>{
-        let previous = id.previous_id();
-        let res = self.remove_fn_state::<Id, FnState>(&previous, ctx);
+        let res = self.remove_fn_state::<Id, FnState>(id, ctx);
         if res.is_ok() {
-            self.remove_all_previous_fn_states::<Id, FnState>(&previous, ctx)
+            self.remove_all_previous_fn_states::<Id, FnState>(&id.previous_id(), ctx)
         } else {
             res
         }
@@ -247,6 +246,7 @@ pub trait Checkpointer<P: Problem, Context> {
         &self,
         ctx: &Context,
     ) -> Result<Vec<(Id, FnState)>, CheckpointerError>;
+
 
     /// Removes the checkpointed state at a specific target.
     fn remove(

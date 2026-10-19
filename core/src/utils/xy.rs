@@ -18,12 +18,12 @@ use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 /// A helper struct to hold the raw solution and the computed codomain value together.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(bound = "Raw: Serialize + for<'a> Deserialize<'a>, Y: Serialize + for<'a> Deserialize<'a>")]
 pub struct Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     pub x: Raw,
     pub y: Arc<Y>,
@@ -31,8 +31,8 @@ where
 
 impl <Raw, Y> Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     /// Creates a new `Xy` instance with the given raw solution and computed codomain value.
     pub fn new(x: Raw, y: Arc<Y>) -> Self {
@@ -42,8 +42,8 @@ where
 
 impl<Raw, Y> AsRef<Xy<Raw, Y>> for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn as_ref(&self) -> &Xy<Raw, Y> {
         self
@@ -53,7 +53,7 @@ where
 impl<Raw, Y> HasX for Xy<Raw, Y>
 where
     Raw: Send + Sync + Clone + Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     type X = Raw;
     fn ref_x(&self) -> &Raw {
@@ -71,8 +71,8 @@ where
 
 impl<Raw, Y> HasY for Xy<Raw, Y>
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     type Y = Y;
     /// Returns the computed [`TypeCodom`](crate::Codomain::TypeCodom) for this solution.
@@ -87,8 +87,8 @@ where
 
 impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.y == other.y
@@ -97,14 +97,14 @@ where
 
 impl<Raw, Y: Eq> Eq for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {}
 
 impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y.partial_cmp(&other.y)
@@ -113,8 +113,8 @@ where
 
 impl<Raw, Y: Ord> Ord for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.y.cmp(&other.y)
@@ -123,8 +123,8 @@ where
 
 impl<Raw, Y: Orderable> Orderable for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn ord_cmp(&self, other: &Self) -> Option<Ordering> {
         self.y.ord_cmp(&other.y)
@@ -133,8 +133,8 @@ where
 
 impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y> 
 where
-    Raw: Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn dominates(&self, other: &Self) -> bool {
         self.y.dominates(&other.y)
@@ -323,8 +323,8 @@ where
 impl<Dom, X, Y> AsX<Dom> for Xy<X, Y>
 where
     Dom: Domain,
-    X: XToNdArray<Dom> + Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    X: XToNdArray<Dom> + Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     type Target = X;
     fn as_x(&self) -> &X {
@@ -400,8 +400,8 @@ where
 impl<Dom, X, Y> XToNdArray<Dom> for Xy<X, Y>
 where
     Dom: Domain,
-    X: XToNdArray<Dom> + Debug + Serialize + for<'a> Deserialize<'a>,
-    Y: Debug + Serialize + for<'a> Deserialize<'a>,
+    X: XToNdArray<Dom> + Clone + Debug + Serialize + for<'a> Deserialize<'a>,
+    Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     fn x_array(&self) -> Array2<Dom::Element> {
         self.x.x_array()

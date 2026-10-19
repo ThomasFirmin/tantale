@@ -23,7 +23,7 @@ pub trait BandwidthType {
 /// - [`CategoricalBw`] for the categorical bandwidth method.
 pub trait Bandwidth<P, Dom>
 where
-    Self: Send + Sync + Clone + Sized + Serialize + for<'a> Deserialize<'a>,
+    Self: Send + Sync + Clone + Debug + Sized + Serialize + for<'a> Deserialize<'a>,
     P: Problem,
     P::Scp: Linked<Opt = Dom>,
     Dom: Domain,
