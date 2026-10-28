@@ -1,9 +1,11 @@
 //! Utilities for basic algorithms implemented in Tantale algorithms
 
-use std::fmt::Debug;
+use std::{cell::RefCell, fmt::Debug};
 
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
-use tantale_core::{Dominate, Orderable, Problem, aliases::CompShape, err_msg, errors::ErrMsg};
+use tantale_core::{
+    Dominate, Orderable, Problem, Recordable, Schema, Searchspace, SolInfo, aliases::{CompShape, Shape}, err_msg, errors::ErrMsg, utils::ShapeWithInfo};
 
 pub mod mo;
 
@@ -21,32 +23,114 @@ impl ErrMsg for PrunerError {
 }
 err_msg!(PrunerError);
 
-pub fn build_halving_budgets(min:f64, max:f64, scaling:f64) -> Result<Vec<f64>, PrunerError> {
-    if scaling <= 1.0 {
-        return Err(PrunerError::BudgetError("Scaling factor must be > 1.0"));
+pub fn build_halving_budgets(min: f64,max: f64,scaling: f64) -> Result<Vec<f64>, PrunerError> {
+    if !scaling.is_finite() || scaling <= 1.0 {
+        return Err(PrunerError::BudgetError(
+            "Scaling factor must be finite and > 1.0",
+        ));
     }
-    if min <= 0.0 {
-        return Err(PrunerError::BudgetError("Minimum budget must be > 0.0"));
+    if !min.is_finite() || min <= 0.0 {
+        return Err(PrunerError::BudgetError(
+            "Minimum budget must be finite and > 0.0",
+        ));
     }
-    if max < min {
-        return Err(PrunerError::BudgetError("Maximum budget must be > minimum budget"));
+    if !max.is_finite() || max < min {
+        return Err(PrunerError::BudgetError(
+            "Maximum budget must be finite and >= minimum budget",
+        ));
     }
-    
-    let mut budgets: Vec<f64> = (0..)
-        .map(|i| min * scaling.powi(i))
-        .take_while(|&b| b <= max)
-        .collect();
-    // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-    if budgets.len() == 1 {
-        budgets.push(max);
+
+    if min == max {
+        return Ok(vec![max]);
     }
-    //If final budget is not budget_max, modify final budget to be budget_max
-    if *budgets.last().unwrap() != max {
-        let last = budgets.last_mut().unwrap();
-        *last = max;
+
+    let mut budgets = vec![min];
+
+    loop {
+        let current = *budgets.last().unwrap();
+        let next = current * scaling;
+
+        if next <= current {
+            return Err(PrunerError::BudgetError(
+                "Scaling does not produce a larger representable budget",
+            ));
+        }
+
+        if !next.is_finite() || next >= max {
+            break;
+        }
+
+        budgets.push(next);
     }
+
+    // Always include max exactly once.
+    budgets.push(max);
+
     Ok(budgets)
 }
+
+pub fn build_halving_budgets_with_levels(min: f64,max: f64,scaling: f64,num_levels: usize) -> Result<Vec<f64>, PrunerError> {
+    if !scaling.is_finite() || scaling <= 1.0 {
+        return Err(PrunerError::BudgetError(
+            "Scaling factor must be finite and > 1.0",
+        ));
+    }
+
+    if !min.is_finite() || min <= 0.0 {
+        return Err(PrunerError::BudgetError(
+            "Minimum budget must be finite and > 0.0",
+        ));
+    }
+
+    if !max.is_finite() || max < min {
+        return Err(PrunerError::BudgetError(
+            "Maximum budget must be finite and >= minimum budget",
+        ));
+    }
+
+    if num_levels == 0 {
+        return Err(PrunerError::BudgetError(
+            "Number of levels must be > 0",
+        ));
+    }
+
+    if num_levels == 1 {
+        if min != max {
+            return Err(PrunerError::BudgetError(
+                "A single level requires min == max",
+            ));
+        }
+
+        return Ok(vec![max]);
+    }
+
+    let mut budgets = Vec::with_capacity(num_levels);
+    budgets.push(min);
+
+    for _ in 1..num_levels - 1 {
+        let current = *budgets.last().unwrap();
+        let next = current * scaling;
+
+        if !next.is_finite() || next <= current {
+            return Err(PrunerError::BudgetError(
+                "Invalid or non-increasing budget sequence",
+            ));
+        }
+
+        if next >= max {
+            return Err(PrunerError::BudgetError(
+                "Maximum budget is too small for the requested number of levels",
+            ));
+        }
+
+        budgets.push(next);
+    }
+
+    budgets.push(max);
+
+    Ok(budgets)
+}
+
 
 /// A single entry in a rung of the Asynchronous Successive Halving algorithm.
 #[derive(Serialize, Deserialize)]
@@ -142,3 +226,69 @@ where
 /// representing the rungs in the Asynchronous Successive Halving algorithm
 /// or its multi-objective version.
 pub type Rungs<P> = Vec<Vec<PromotableShape<P>>>;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BracketInfo(pub usize);
+
+impl Schema<()> for BracketInfo {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["bracket".into()]
+    }
+}
+
+impl Recordable<()> for BracketInfo {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.0.to_string()]
+    }
+}
+
+impl SolInfo for BracketInfo { }
+
+thread_local! {
+    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
+}
+
+/// Executes a closure with a thread-local random number generator.
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use tantale::algorithms::utils::with_rng;
+/// 
+/// let random_value = with_rng(|rng| rng.gen::<f64>());
+/// ```
+pub fn with_rng<F, T>(f: F) -> T
+where
+    F: FnOnce(&mut StdRng) -> T,
+{
+    THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+}
+
+
+/// Refills a vector of [`Shape`]s until it reaches the specified length by sampling from the provided [`Searchspace`].
+pub fn refill<P, I>(v:&mut Vec<ShapeWithInfo<Shape<P>, I>>, scp: &P::Scp, until: usize) 
+where
+    P: Problem,
+    I: SolInfo,
+{
+    while v.len() < until {
+        let sol = with_rng(|rng| scp.sample_pair(rng));
+        v.push((sol, I::default()).into());
+    }
+}
+
+/// Refills a vector of [`Shape`]s until it reaches the specified length by sampling from the provided [`Searchspace`],
+/// and applies a transformation function to each sampled shape.
+pub fn refill_apply<P, I, F>(v:&mut Vec<ShapeWithInfo<Shape<P>, I>>, scp: &P::Scp, until: usize, f: F) 
+where
+    P:Problem,
+    I: SolInfo,
+    F: Fn(Shape<P>) -> (Shape<P>, I) + Send + Sync,
+{
+    while v.len() < until {
+        let res = f(with_rng(|rng| scp.sample_pair(rng)));
+        v.push(res.into())        
+    }
+}

@@ -196,7 +196,7 @@ impl PartialEq for Step {
 ///
 /// - [`Step`] - User-facing enum counterpart
 /// - [`Outcome`] - Contains evaluation results with step information
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Default, Clone, Serialize, Deserialize)]
 pub struct EvalStep(pub isize);
 
 impl PartialEq for EvalStep {

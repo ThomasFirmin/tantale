@@ -259,6 +259,24 @@ impl<T: Dominate> DominateView<T> for &T {
     }
 }
 
+/// A helper trait for types that can be mutably viewed as a [`Dominate`] object,
+/// allowing for flexible handling of mutable references and owned values.
+pub trait MutDominateView<T: Dominate> {
+    fn mut_view(&mut self) -> &mut T;
+}
+
+impl<T: Dominate> MutDominateView<T> for T {
+    fn mut_view(&mut self) -> &mut T {
+        self
+    }
+}
+
+impl<T: Dominate> MutDominateView<T> for &mut T {
+    fn mut_view(&mut self) -> &mut T {
+        self
+    }
+}
+
 /// A helper trait for converting  objects made of [`Dominate`] into an [`ndarray::Array2<f64>`] representation.
 pub trait NdArrayDominate {
     /// Returns a 2D array representation of the object,

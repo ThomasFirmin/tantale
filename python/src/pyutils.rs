@@ -421,7 +421,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 1. Single obj - no constraints, no cost > SingleCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr] $(,)?
@@ -447,7 +447,7 @@ macro_rules! init_python {
     }};
 
     // 2. Single obj - constraints only > ConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -480,7 +480,7 @@ macro_rules! init_python {
     }};
 
     // 3. Single obj - cost only > CostCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -508,7 +508,7 @@ macro_rules! init_python {
     }};
 
     // 4. Single obj - constraints + cost > CostConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -547,7 +547,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 5. Multi obj - no constraints, no cost > MultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?] $(,)?
@@ -577,7 +577,7 @@ macro_rules! init_python {
     }};
 
     // 6. Multi obj - constraints only > ConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -616,7 +616,7 @@ macro_rules! init_python {
     }};
 
     // 7. Multi obj - cost only > CostMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -650,7 +650,7 @@ macro_rules! init_python {
     }};
 
     // 8. Multi obj - constraints + cost > CostConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -695,7 +695,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 9. Stepped single obj - no constraints, no cost > SingleCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -723,7 +723,7 @@ macro_rules! init_python {
     }};
 
     // 10. Stepped single obj - constraints only > ConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -758,7 +758,7 @@ macro_rules! init_python {
     }};
 
     // 11. Stepped single obj - cost only > CostCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -788,7 +788,7 @@ macro_rules! init_python {
     }};
 
     // 12. Stepped single obj - constraints + cost > CostConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -829,7 +829,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 13. Stepped multi obj - no constraints, no cost > MultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -861,7 +861,7 @@ macro_rules! init_python {
     }};
 
     // 14. Stepped multi obj - constraints only > ConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -902,7 +902,7 @@ macro_rules! init_python {
     }};
 
     // 15. Stepped multi obj - cost only > CostMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -938,7 +938,7 @@ macro_rules! init_python {
     }};
 
     // 16. Stepped multi obj - constraints + cost > CostConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1238,7 +1238,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 1. Single obj - no constraints, no cost > SingleCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr] $(,)?
@@ -1264,7 +1264,7 @@ macro_rules! init_python {
     }};
 
     // 2. Single obj - constraints only > ConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1297,7 +1297,7 @@ macro_rules! init_python {
     }};
 
     // 3. Single obj - cost only > CostCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1325,7 +1325,7 @@ macro_rules! init_python {
     }};
 
     // 4. Single obj - constraints + cost > CostConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1364,7 +1364,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 5. Multi obj - no constraints, no cost > MultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?] $(,)?
@@ -1394,7 +1394,7 @@ macro_rules! init_python {
     }};
 
     // 6. Multi obj - constraints only > ConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1433,7 +1433,7 @@ macro_rules! init_python {
     }};
 
     // 7. Multi obj - cost only > CostMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1467,7 +1467,7 @@ macro_rules! init_python {
     }};
 
     // 8. Multi obj - constraints + cost > CostConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1512,7 +1512,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 9. Stepped single obj - no constraints, no cost > SingleCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1540,7 +1540,7 @@ macro_rules! init_python {
     }};
 
     // 10. Stepped single obj - constraints only > ConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1575,7 +1575,7 @@ macro_rules! init_python {
     }};
 
     // 11. Stepped single obj - cost only > CostCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1605,7 +1605,7 @@ macro_rules! init_python {
     }};
 
     // 12. Stepped single obj - constraints + cost > CostConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1646,7 +1646,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 13. Stepped multi obj - no constraints, no cost > MultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1678,7 +1678,7 @@ macro_rules! init_python {
     }};
 
     // 14. Stepped multi obj - constraints only > ConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1719,7 +1719,7 @@ macro_rules! init_python {
     }};
 
     // 15. Stepped multi obj - cost only > CostMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1755,7 +1755,7 @@ macro_rules! init_python {
     }};
 
     // 16. Stepped multi obj - constraints + cost > CostConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1802,7 +1802,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 1. Single obj - no constraints, no cost > SpikeCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1834,7 +1834,7 @@ macro_rules! init_python {
     }};
 
     // 2. Single obj - constraints only > SpikeConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1873,7 +1873,7 @@ macro_rules! init_python {
     }};
 
     // 3. Single obj - cost only > SpikeCostCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1907,7 +1907,7 @@ macro_rules! init_python {
     }};
 
     // 4. Single obj - constraints + cost > SpikeCostConstCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -1952,7 +1952,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 5. Multi obj - no constraints, no cost > SpikeMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -1990,7 +1990,7 @@ macro_rules! init_python {
     }};
 
     // 6. Multi obj - constraints only > SpikeConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2035,7 +2035,7 @@ macro_rules! init_python {
     }};
 
     // 7. Multi obj - cost only > SpikeCostMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2075,7 +2075,7 @@ macro_rules! init_python {
     }};
 
     // 8. Multi obj - constraints + cost > SpikeCostConstMultiCodomain
-    (Objective, $ss:path,
+    (OneStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2126,7 +2126,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 9. Stepped single obj - no constraints, no cost > SpikeCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -2160,7 +2160,7 @@ macro_rules! init_python {
     }};
 
     // 10. Stepped single obj - constraints only > SpikeConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -2201,7 +2201,7 @@ macro_rules! init_python {
     }};
 
     // 11. Stepped single obj - cost only > SpikeCostCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -2237,7 +2237,7 @@ macro_rules! init_python {
     }};
 
     // 12. Stepped single obj - constraints + cost > SpikeCostConstCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr],
@@ -2284,7 +2284,7 @@ macro_rules! init_python {
     // ============================================================
 
     // 13. Stepped multi obj - no constraints, no cost > SpikeMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2324,7 +2324,7 @@ macro_rules! init_python {
     }};
 
     // 14. Stepped multi obj - constraints only > SpikeConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2371,7 +2371,7 @@ macro_rules! init_python {
     }};
 
     // 15. Stepped multi obj - cost only > SpikeCostMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],
@@ -2413,7 +2413,7 @@ macro_rules! init_python {
     }};
 
     // 16. Stepped multi obj - constraints + cost > SpikeCostConstMultiCodomain + FidOutcome
-    (Stepped, $ss:path,
+    (MultiStep, $ss:path,
      $ff:expr, $fm:expr, $fn_:expr,
      $of:expr, $om:expr, $on:expr,
      objectives: [$d0:ident $o0:expr, $($d:ident $o:expr),+ $(,)?],

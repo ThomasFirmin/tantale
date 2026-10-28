@@ -19,24 +19,20 @@
 //!
 //! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
 
+use log::warn;
 use tantale_core::{
-    Domain, Dominate, HasFidelity, HasState, HasStep, Problem, Sampled, Sampler, State, Step, aliases::{Accum, CodElem, CompShape, Opt, Shape}, domain::codomain::ElemMulti, optimizer::opt::{Prunable, Pruner}, solution::shape::IntoComputedShape,
+    Domain, Dominate, HasFidelity, HasInfo, HasState, HasStep, Problem, Sampled, Sampler, SolInfo, State, Step, aliases::{Accum, CompShape, Opt, Shape}, optimizer::opt::{Prunable, Pruner}, solution::shape::IntoComputedShape, utils::WrappedInfo,
 };
 
-use rand::rngs::StdRng;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, Visitor},
     ser::SerializeStruct,
 };
 use tantale_macros::fidelity_bounds;
-use std::{cell::RefCell, fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
 
-use crate::{mo::{CandidateSelector, SelectorError}, utils::{PromotableShape, PrunerError, Rungs, build_halving_budgets}};
-
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
+use crate::{mo::{CandidateSelector, SelectorError}, utils::{BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets, build_halving_budgets_with_levels}};
 
 /// A helper macro to simplify the type signature of [`MoAsha`].
 /// You can write:
@@ -54,6 +50,17 @@ macro_rules! moasha {
     };
     ($sampler : ty, $selector: ident) => {
         MoAsha<$sampler, $selector, _>
+    };
+}
+
+/// A helper macro to simplify the type signature of [`BrackettedMoAsha`].
+#[macro_export]
+macro_rules! bracketted_moasha {
+    ($sampler : ident) => {
+        BrackettedMoAsha<$sampler, _>
+    };
+    ($sampler : ty) => {
+        BrackettedMoAsha<$sampler, _>
     };
 }
 
@@ -127,7 +134,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
@@ -150,7 +156,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -170,7 +175,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     fn clone(&self) -> Self {
@@ -183,7 +187,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
 }
@@ -193,7 +196,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     type State = Self;
@@ -211,12 +213,11 @@ where
     }
 }
 
+#[fidelity_bounds(P)]
 impl<Smpl, Selector, P> MoAsha<Smpl, Selector, P>
 where
-    P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     /// Creates a new [`MoAsha`] optimizer with the specified parameters.
@@ -268,20 +269,53 @@ where
     ///
     /// Returns the indices, within the rung, of the selected candidates.
     pub fn select(&self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
-        let (positions, promotable): (Vec<usize>, Vec<&PromotableShape<P>>) = self.rungs[index]
-            .iter()
-            .enumerate()
-            .filter(|(_, s)| !s.is_promoted())
-            .unzip();
-        let selected = self.selector.arg_select_candidates(&promotable, n)?;
-        Ok(selected.into_iter().map(|i| positions[i]).collect())
+        let selected = self.selector.arg_select_candidates(&self.rungs[index], n)?;
+        let promotable = selected
+            .into_iter()
+            .filter(|&i| !self.rungs[index][i].is_promoted())
+            .collect::<Vec<usize>>();
+        Ok(promotable)
     }
+    
+    pub fn into_hyperband(self) -> BrackettedMoAsha<Smpl, Selector,P> {
+        let (budget_min, budget_max) = self.get_budgets();
+        let sampler = self.sampler;
+        let selector = self.selector;
+        let scaling = self.scaling;
+        
+        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+        let num_brackets = s_max + 1;
+        let admissions = vec![0; num_brackets];
 
-    pub fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+
+        let mut max_admissions = Vec::with_capacity(num_brackets);
+        let mut budgets = Vec::with_capacity(num_brackets);
+        let mut rungs = Vec::with_capacity(num_brackets);
+
+        (0..num_brackets).rev().for_each(
+            |s|
+            {
+                let admission = (num_brackets as f64 * scaling.powi(s as i32)/((s + 1) as f64)).ceil() as usize;
+                let bmin = budget_max * scaling.powi(-(s as i32));
+                let bracket_budgets = build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
+                let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
+                max_admissions.push(admission);
+                budgets.push(bracket_budgets);
+                rungs.push(bracket_rungs);
+                
+            }
+        );
+
+        BrackettedMoAsha { 
+            sampler, 
+            selector,
+            budgets, 
+            scaling, 
+            rungs, 
+            admissions, 
+            max_admissions, 
+            num_brackets,
+        }
     }
 }
 
@@ -294,7 +328,6 @@ where
     Opt:Domain,
     Smpl: Sampler<P, Opt> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     type Info = Smpl::Info;
@@ -340,7 +373,6 @@ where
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
     ///
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-
         let mut i = self.budgets.len() - 1;
         while i > 0 {
             let length = self.rungs[i].len();
@@ -349,8 +381,8 @@ where
                 let selected = self.select(i, k);
                 if let Ok(candidates) = selected && !candidates.is_empty() {
                     let candidate = &mut self.rungs[i][candidates[0]];
-                    let mut sol: Shape<P> = IntoComputedShape::extract(candidate.result.clone()).0;
                     candidate.promote();
+                    let mut sol: Shape<P> = IntoComputedShape::extract(candidate.result.clone()).0;
                     self.current_budget = self.budgets[i];
                     sol.set_fidelity(self.current_budget);
                     return Some((sol, Sampled::Reused))
@@ -358,23 +390,56 @@ where
             }
             i -= 1;
         }
+
         self.current_budget = self.budgets[0];
-        let sample= self.sampler.sample_info(scp, acc);
-        sample.map(|(mut sol, info)| {
+        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
             sol.set_fidelity(self.current_budget);
             (sol, info)
         })
     }
     
-    fn update(&mut self,x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
-        if let Step::Partially(_s) = x.step() {
-            let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
-            if let Some(i) = idx {
-                self.rungs[i + 1].push(PromotableShape::new(x.clone()));
-            }
+    fn update(&mut self,x: &CompShape<P>, scp: &P::Scp, acc: &Accum<P>) {
+        match x.step() {
+            Step::Partially(s)  => {
+                let fid = x.fidelity().0;
+                if fid >= self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max(), s
+                    );
+                }
+                let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs.len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+                self.sampler.update(x, scp, acc)
+            },
+            Step::Evaluated  => {
+                let fid = x.fidelity().0;
+                if fid < self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max()
+                    );
+                }
+                self.sampler.update(x, scp, acc)
+            },
+            _ =>(),
         }
     }
-
 }
 
 #[fidelity_bounds(P, Opt)]
@@ -383,23 +448,15 @@ where
     Opt:Domain,
     Smpl: Sampler<P, Opt> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     /// Reinitializes the budget parameters for this optimizer.
     /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
     /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.budgets = (0..)
-            .map(|i| budget_min * self.scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *self.budgets.last().unwrap() != budget_max {
-            let last = self.budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+        self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
         self.current_budget = self.budgets[0];
+        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -412,7 +469,7 @@ where
 
     /// Updates the scaling factor for this optimizer.
     fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
+        assert!(scaling > 1.0, "Scaling factor must be >= 1.0");
         self.scaling = scaling;
     }
 
@@ -433,35 +490,6 @@ where
     fn get_current_budget(&self) -> f64 {
         self.current_budget
     }
-
-    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
-    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
-    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Shape<P>> {
-        let clear = self
-            .rungs
-            .drain(..)
-            .flatten()
-            .map(|comp| {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result.clone()).0;
-                sol.discard();
-                sol
-            })
-            .collect();
-        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
-        clear
-    }
-
-    fn drain_one(&mut self) -> Option<Shape<P>> {
-        for rung in self.rungs.iter_mut() {
-            if let Some(comp) = rung.pop() {
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result.clone()).0;
-                sol.discard();
-                return Some(sol);
-            }
-        }
-        None
-    }
 }
 
 //-------------//
@@ -473,7 +501,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate;
 
 enum MoAshaField {
@@ -492,7 +519,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -515,7 +541,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     fn new() -> Self {
@@ -569,7 +594,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     type Value = MoAsha<Smpl, Selector, P>;
@@ -686,7 +710,6 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-    CodElem<P>: ElemMulti,
     CompShape<P>: Dominate,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -694,5 +717,485 @@ where
         D: Deserializer<'de>,
     {
         deserializer.deserialize_map(MoAshaVisitor::new())
+    }
+}
+
+
+
+
+//------------------//
+//  BrackettedMoAsha  //
+//------------------//
+
+/// [`BrackettedMoAsha`] is a variant of the Asynchronous Successive Halving algorithm 
+/// that organizes the optimization process into multiple brackets,
+///  each with its own set of budget levels and rungs. 
+/// This allows for more flexible and efficient exploration of the search space, 
+/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets. 
+pub struct BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
+    /// The candidate selection strategy used for promoting candidates between rungs.
+    /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
+    pub selector: Selector,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<Vec<f64>>,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    pub scaling: f64,
+    /// A vector of vectors of vectors representing the rungs of the Asynchronous Successive Halving process.
+    pub rungs: Vec<Rungs<P>>,
+    /// The number of admissions per bracket.
+    pub admissions: Vec<usize>,
+    /// The maximum number of admissions per bracket.
+    pub max_admissions: Vec<usize>,
+    /// The number of brackets.
+    pub num_brackets: usize,
+}
+
+impl<P,Smpl, Selector> BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    pub fn select(&self, bracket: usize, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
+        let selected = self.selector.arg_select_candidates(&self.rungs[bracket][index], n)?;
+        let promotable = selected
+            .into_iter()
+            .filter(|&i| !self.rungs[bracket][index][i].is_promoted())
+            .collect::<Vec<usize>>();
+        Ok(promotable)
+    }
+}
+
+impl<P,Smpl, Selector> Debug for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+        .field("sampler", &self.sampler)
+        .field("selector", &self.selector)
+        .field("budgets", &self.budgets)
+        .field("scaling", &self.scaling)
+        .field("rungs", &self.rungs)
+        .field("admissions", &self.admissions)
+        .field("max_admissions", &self.max_admissions)
+        .field("num_brackets", &self.num_brackets)
+        .finish()
+    }
+}
+
+impl<P,Smpl,Selector> Clone for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn clone(&self) -> Self {
+        Self { 
+            sampler: self.sampler.clone(), 
+            selector: self.selector.clone(),
+            budgets: self.budgets.clone(), 
+            scaling: self.scaling, 
+            rungs: self.rungs.clone(), 
+            admissions: self.admissions.clone(),
+            max_admissions: self.max_admissions.clone(),
+            num_brackets: self.num_brackets
+        }
+    }
+}
+
+impl<P,Smpl,Selector> State for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{ }
+
+impl<P,Smpl,Selector> HasState for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    type State = Self;
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+/// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
+///
+/// Defines the state management and codomain configuration for Asynchronous Successive Halving.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Sampler<P, Opt> for BrackettedMoAsha<Smpl, Selector, P>
+where
+    Smpl: Sampler<P, Opt> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
+    
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut b = 0;
+        while b < self.num_brackets {
+            let mut i = self.budgets[b].len() - 1;
+            while i > 0 {
+                let length = self.rungs[b][i].len();
+                let k = (length as f64 / self.scaling) as usize;
+                if k > 0 {
+                    let selected = self.select(b, i, k);
+                    if let Ok(candidates) = selected && !candidates.is_empty() {
+                        let candidate = &mut self.rungs[b][i][candidates[0]];
+                        candidate.promote();
+                        let mut sol: Shape<P> = IntoComputedShape::extract(candidate.result.clone()).0;
+                        sol.set_fidelity(self.budgets[b][i]);
+                        return Some((sol, Sampled::Reused))
+                    }
+                }
+                i -= 1;
+            }
+
+            if self.admissions[b] < self.max_admissions[b] {
+                self.admissions[b] += 1;
+                return self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+                    sol.set_fidelity(self.budgets[b][0]);
+                    let info = match info {
+                        Sampled::Fresh(inf) => inf,
+                        Sampled::Reused => sol.sinfo().find_info::<Smpl::Info>().expect("Sampler info not found in solution info").clone(),
+                    };
+                    let sinfo = WrappedInfo::new(info, BracketInfo(b).into());
+                    (sol, Sampled::Fresh(sinfo.into()))
+                });
+            }
+            b += 1;
+        }
+        self.admissions = vec![0; self.num_brackets];
+        self.rungs.iter_mut().for_each(|bracket| {bracket.iter_mut().for_each(|rung| {rung.drain(..);})});
+        self.sample_info(scp, acc)
+    }
+
+    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s)  => {
+                let fid = x.fidelity().0;
+                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget{
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, max_budget, s
+                    );
+                }
+
+                let idx = self.budgets[bracket].iter().position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs[bracket].len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+            },
+            Step::Evaluated  => {
+                let fid = x.fidelity().0;
+                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget{
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, max_budget
+                    );
+                }
+            },
+            _ =>(),
+        }
+    }
+}
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct BrackettedMoAshaVisitor<Smpl, Selector, P>(PhantomData<(Smpl, Selector, P)>)
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>>;
+
+enum BrackettedMoAshaField {
+    Sampler,
+    Selector,
+    Budgets,
+    Scaling,
+    Rung,
+    Admissions,
+    MaxAdmissions,
+    NumBrackets,
+}
+
+struct BrackettedMoAshaFieldVisitor;
+
+impl<Smpl, Selector, P> Serialize for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("BrackettedMoAsha", 9)?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
+        state.serialize_field("selector", &self.selector)?;
+        state.serialize_field("selector", &self.selector)?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rungs)?;
+        state.serialize_field("admissions", &self.admissions)?;
+        state.serialize_field("max_admissions", &self.max_admissions)?;
+        state.serialize_field("num_brackets", &self.num_brackets)?;
+        state.end()
+    }
+}
+
+impl<Smpl, Selector, P> BrackettedMoAshaVisitor<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn new() -> Self {
+        BrackettedMoAshaVisitor(PhantomData)
+    }
+}
+
+impl<'de> Visitor<'de> for BrackettedMoAshaFieldVisitor {
+    type Value = BrackettedMoAshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("`sampler`, 'selector', `budgets`, `scaling`, `rung`, `admissions`, `max_admissions` or `num_brackets`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(BrackettedMoAshaField::Sampler),
+            "selector" => Ok(BrackettedMoAshaField::Selector),
+            "budgets" => Ok(BrackettedMoAshaField::Budgets),
+            "scaling" => Ok(BrackettedMoAshaField::Scaling),
+            "rung" => Ok(BrackettedMoAshaField::Rung),
+            "admissions" => Ok(BrackettedMoAshaField::Admissions),
+            "max_admissions" => Ok(BrackettedMoAshaField::MaxAdmissions),
+            "num_brackets" => Ok(BrackettedMoAshaField::NumBrackets),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &["sampler", "selector", "budgets", "scaling", "rung", "admissions", "max_admissions", "num_brackets"],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for BrackettedMoAshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(BrackettedMoAshaFieldVisitor)
+    }
+}
+
+impl<'de, Smpl, Selector, P> Visitor<'de> for BrackettedMoAshaVisitor<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    type Value = BrackettedMoAsha<Smpl, Selector, P>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct Asha")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let selector = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        let max_admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+        let num_brackets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(7, &self))?;
+        Ok(BrackettedMoAsha {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut selector = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut admissions = None;
+        let mut max_admissions = None;
+        let mut num_brackets = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                BrackettedMoAshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Selector => {
+                    if selector.is_some() {
+                        return Err(de::Error::duplicate_field("selector"));
+                    }
+                    selector = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Admissions => {
+                    if admissions.is_some() {
+                        return Err(de::Error::duplicate_field("admissions"));
+                    }
+                    admissions = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::MaxAdmissions => {
+                    if max_admissions.is_some() {
+                        return Err(de::Error::duplicate_field("max_admissions"));
+                    }
+                    max_admissions = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::NumBrackets => {
+                    if num_brackets.is_some() {
+                        return Err(de::Error::duplicate_field("num_brackets"));
+                    }
+                    num_brackets = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let selector = selector.ok_or_else(|| de::Error::missing_field("selector"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let admissions = admissions.ok_or_else(|| de::Error::missing_field("admissions"))?;
+        let max_admissions = max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
+        let num_brackets = num_brackets.ok_or_else(|| de::Error::missing_field("num_brackets"))?;
+
+        Ok(BrackettedMoAsha {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+}
+
+impl<'de, Smpl, Selector, P> Deserialize<'de> for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(BrackettedMoAshaVisitor::new())
     }
 }

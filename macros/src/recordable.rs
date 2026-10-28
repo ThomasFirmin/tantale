@@ -3,6 +3,8 @@ extern crate proc_macro;
 use quote::quote;
 use syn::{ItemStruct, Type, parse_macro_input, spanned::Spanned};
 
+use crate::schema_crate_path;
+
 fn is_vec_type(ty: &Type) -> bool {
     matches!(ty, Type::Path(p) if p.path.segments.last().unwrap().ident == "Vec")
 }
@@ -27,6 +29,8 @@ fn is_evalstate_type(ty: &Type) -> bool {
 ///
 /// This function processes a struct and derives implementations for automatic recordable functionality.
 pub fn proc_recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let tantale_crate = schema_crate_path();
+    
     let input = parse_macro_input!(input as ItemStruct);
 
     let eident = input.ident;
@@ -61,7 +65,7 @@ pub fn proc_recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
     });
 
     quote!{
-        impl #egenerics tantale::core::Recordable<()> for #eident #egenerics #ewhere
+        impl #egenerics #tantale_crate::Recordable<()> for #eident #egenerics #ewhere
         {
             type Parts = ();
             fn record(&self, context: &(), part: ()) -> Vec<String>{

@@ -31,6 +31,12 @@ use std::{
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Fidelity(pub f64);
 
+impl Default for Fidelity {
+    fn default() -> Self {
+        Fidelity(0.0)
+    }
+}
+
 impl Display for Fidelity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -137,6 +143,10 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info>
 impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info>
 {
     type Dom = Dom;
+    type MetaData = (Id, Arc<Info>);
+    fn meta(&self) -> Self::MetaData {
+        (self.id, self.info.clone())
+    }
 }
 
 impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info>
@@ -157,14 +167,14 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
     /// }
     ///
     /// ```
-    fn new<T>(id: Id, x: T, info: Arc<Info>) -> Self
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>,
     {
         BaseSol {
-            id,
+            id: meta.0,
             x: x.into(),
-            info,
+            info: meta.1,
         }
     }
 
@@ -356,21 +366,25 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, In
 impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info>
 {
     type Dom =  Dom;
+    type MetaData = (Id, Arc<Info>, EvalStep, Fidelity);
+    fn meta(&self) -> Self::MetaData {
+        (self.id, self.info.clone(), self.step, self.fid)
+    }
 }
 
 impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info>
 {
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
-    fn new<T>(id: Id, x: T, info: Arc<Info>) -> Self
+    fn new<T>(meta:Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>,
     {
         FidelitySol {
-            id,
+            id: meta.0,
             x: x.into(),
-            step: EvalStep::pending(),
-            fid: Fidelity(0.0),
-            info,
+            step: meta.2,
+            fid: meta.3,
+            info: meta.1,
         }
     }
 

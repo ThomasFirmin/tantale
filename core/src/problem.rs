@@ -13,7 +13,7 @@ impl PbMode for SimpleMode {}
 pub struct FidelityMode;
 impl PbMode for FidelityMode {}
 
-pub trait Problem: Sized
+pub trait Problem: Sized + Send + Sync
 where
     GetFuncSol<Self::Func, LinkObj<Self::Scp>>: Uncomputed<Dom= LinkObj<Self::Scp>, X = Self::XObj, Id = Self::Id, Info = Self::Info>,
     GetFuncSol<Self::Func, LinkOpt<Self::Scp>>: Uncomputed<Dom= LinkOpt<Self::Scp>, X = Self::XOpt, Id = Self::Id, Info = Self::Info>,
@@ -40,6 +40,9 @@ where
     fn get_searchspace(&self) -> &Self::Scp;
     fn get_mut_searchspace(&mut self) -> &mut Self::Scp;
     fn get_objective(&self) -> &Self::Func;
+    fn clone_objective(&self) -> Self::Func {
+        self.get_objective().clone()
+    }
     fn get_mut_objective(&mut self) -> &mut Self::Func;
     fn get_codomain(&self) -> &<<Self::Func as FuncWrapper>::Out as Outcome>::Cod;
     fn get_mut_codomain(&mut self) -> &mut <<Self::Func as FuncWrapper>::Out as Outcome>::Cod;

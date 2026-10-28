@@ -233,6 +233,11 @@ impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out>
 impl<S: Uncomputed, Out: Outcome> Solution for Computed<S, Out>
 {
     type Dom = S::Dom;
+    type MetaData = S::MetaData;
+
+    fn meta(&self) -> Self::MetaData {
+        self.sol.meta()
+    }
 }
 
 impl<S: Uncomputed, Out: Outcome> PartialEq for Computed<S, Out>

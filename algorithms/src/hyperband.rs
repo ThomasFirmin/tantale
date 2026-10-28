@@ -87,14 +87,14 @@ use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tantale_core::aliases::{Accum, CompShape, Opt, Shape};
 use tantale_core::optimizer::opt::{Batched, Pruner};
-use tantale_core::{HasFidelity, HasState, HasStep, Orderable, Prunable, Sampled, Step};
+use tantale_core::{HasState, Orderable, Prunable, Sampled};
 use tantale_core::utils::WrappedInfo;
-use tantale_core::utils::record::{Recordable, Schema};
-use tantale_core::{Domain, Problem, SolInfo};
+use tantale_core::{Domain, Problem};
 use tantale_core::{State, Sampler};
 use tantale_macros::{fidelity_bounds};
 
-use crate::{Asha, Sha};
+use crate::Sha;
+use crate::utils::BracketInfo;
 
 /// A helper macro to simplify the type signature of [`Hyperband`].
 /// You can write:
@@ -110,49 +110,6 @@ macro_rules! hyperband {
     ($inner : ty) => {
         Hyperband<$inner, _>
     };
-}
-
-/// Metadata for Hyperband optimization steps, wrapping inner optimizer metadata.
-///
-/// Each evaluation iteration in Hyperband includes metadata about:
-/// - Which bracket is currently executing
-/// - The inner optimizer's own metadata (e.g., iteration number for SHA)
-///
-/// This allows tracking which bracket a solution belongs to when analyzing results.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
-pub struct HyperbandInfo {
-    /// The bracket index ($s$) for the current iteration.
-    /// Ranges from $0$ (exploration-focused) to $s_{\max}$ (exploitation-focused).
-    pub bracket: usize,
-}
-impl SolInfo for HyperbandInfo {}
-
-impl Schema<()> for HyperbandInfo {
-    type Parts = ();
-    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
-        vec!["bracket".to_string()]
-    }
-}
-
-impl Recordable<()> for HyperbandInfo {
-    type Parts = ();
-    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
-        vec![self.bracket.to_string()]
-    }
-}
-
-impl HyperbandInfo {
-    /// Creates a new instance of [`HyperbandInfo`] with the specified bracket index and inner information.
-    ///
-    /// # Arguments
-    ///
-    /// * `bracket` - The bracket index (0 to $s_{\max}$)
-    /// * `inner_info` - The metadata produced by the inner optimizer for this iteration
-    pub fn new(bracket: usize) -> Self {
-        HyperbandInfo {
-            bracket,
-        }
-    }
 }
 
 /// Hyperband multi-fidelity optimizer.
@@ -240,9 +197,10 @@ impl HyperbandInfo {
 /// - [`Sha`](crate::Sha) - Successive Halving (batch optimizer)
 /// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
 #[fidelity_bounds(P)]
-pub struct Hyperband<Prnr, P>
+pub struct Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     /// Minimum budget across all brackets ($b_{\min}$)
     pub budget_min: f64,
@@ -254,23 +212,18 @@ where
     pub s_max: usize,
     /// Current bracket index being executed (ranges from 0 to `s_max`)
     pub current_s: usize,
-    /// Size of the current bracket
-    pub bracket_size: usize,
-    /// Number of configurations admitted in the current bracket
-    pub bracket_admitted: usize,
-    /// Number of admitted candidates with an evaluation currently in flight
-    pub bracket_pending: usize,
     /// The inner optimizer state managing the current bracket
-    pub inner: Prnr,
+    pub inner: Sha<Smpl, P>,
     _p: PhantomData<P>,
 }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> Hyperband<Prnr, P>
+impl<Smpl, P> Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    pub fn new(budget_min : f64, budget_max : f64, scaling : f64, s_max : usize, bracket_size : usize, inner : Prnr) -> Self {
+    pub fn new(budget_min : f64, budget_max : f64, scaling : f64, s_max : usize, inner : Sha<Smpl, P>) -> Self {
         let current_s = s_max; // Start with the highest bracket
         Hyperband {
             budget_min,
@@ -278,9 +231,6 @@ where
             scaling,
             s_max,
             current_s,
-            bracket_size,
-            bracket_admitted: 0,
-            bracket_pending: 0,
             inner,
             _p: PhantomData,
         }
@@ -288,9 +238,10 @@ where
 }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> Clone for Hyperband<Prnr, P>
+impl<Smpl, P> Clone for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn clone(&self) -> Self {
         Self { 
@@ -300,18 +251,16 @@ where
             s_max: self.s_max,
             current_s: self.current_s,
             inner: self.inner.clone(),
-            bracket_size: self.bracket_size,
-            bracket_admitted: self.bracket_admitted,
-            bracket_pending: self.bracket_pending,
             _p: self._p
         }
     }
 }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> Debug for Hyperband<Prnr, P>
+impl<Smpl, P> Debug for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Hyperband")
@@ -321,23 +270,21 @@ where
             .field("s_max", &self.s_max)
             .field("current_s", &self.current_s)
             .field("inner", &self.inner)
-            .field("bracket_size", &self.bracket_size)
-            .field("bracket_admitted", &self.bracket_admitted)
-            .field("bracket_pending", &self.bracket_pending)
             .finish()
     }
 }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> Hyperband<Prnr, P>
+impl<Smpl, P> Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     #[allow(clippy::type_complexity)]
-    fn wrap(&self, sampled: Option<(Shape<P>, Sampled<Prnr::Info>)>) -> Option<(Shape<P>, Sampled<WrappedInfo<Prnr::Info, HyperbandInfo>>)> {
+    fn wrap(&self, sampled: Option<(Shape<P>, Sampled<Smpl::Info>)>) -> Option<(Shape<P>, Sampled<WrappedInfo<Smpl::Info, BracketInfo>>)> {
         sampled.map(|(sol, info)| match info {
             Sampled::Fresh(inner) => {
-                let hinfo = Arc::new(HyperbandInfo::new(self.current_s));
+                let hinfo = Arc::new(BracketInfo(self.current_s));
                 (sol, Sampled::Fresh(Arc::new(WrappedInfo::new(inner, hinfo))))
             }
             Sampled::Reused => (sol, Sampled::Reused),
@@ -347,15 +294,17 @@ where
 
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> State for Hyperband<Prnr, P>
+impl<Smpl, P> State for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 { }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> HasState for Hyperband<Prnr, P>
+impl<Smpl, P> HasState for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     type State = Self;
 
@@ -373,46 +322,30 @@ where
 }
 
 #[fidelity_bounds(P, Opt)]
-impl<Smpl, P, Opt> Sampler<P, Opt> for Hyperband<Sha<Smpl, P>, P>
+impl<Smpl, P, Opt> Sampler<P, Opt> for Hyperband<Smpl, P>
 where
-    Smpl: Sampler<P, Opt> + Batched<P, Opt> + Prunable,
+    Smpl: Sampler<P, Opt> + Prunable,
     CompShape<P>: Orderable,
     Opt: Domain,
 {
-    type Info = WrappedInfo<Smpl::Info, HyperbandInfo>;
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
     
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if !self.inner.bracket_complete() {
             let sampled = self.inner.sample_info(scp, acc); 
             self.wrap(sampled)
         } else {
-            let to_discard = self.inner.drain_one();
-
-            if let Some(mut discard) = to_discard {
-                if discard.fidelity().0 == self.inner.get_budget_max() {
-                    // If the drained solution has reached the maximum budget, then finish the current bracket and move to the next one
-                    Some((discard, Sampled::Reused))
-                } else {
-                    // If the drained solution has not reached the maximum budget, discard it.
-                    discard.set_step(Step::Discard);
-                    Some((discard, Sampled::Reused))
-                }
+            if self.current_s == 0 {
+                self.current_s = self.s_max;
             } else {
-                if self.current_s == 0 {
-                    self.current_s = self.s_max;
-                } else {
-                    self.current_s -= 1;
-                }
-                let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.) * self.scaling.powi(self.current_s as i32);
-                self.inner.set_batch_size((n.ceil() as usize).max(1));
-                self.bracket_size = (n.ceil() as usize).max(1);
-                self.bracket_admitted = 0;
-                self.bracket_pending = 0;
-                let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
-                self.inner.set_budgets(self.budget_min, r);
-                let sampled = self.inner.sample_info(scp, acc);
-                self.wrap(sampled)
+                self.current_s -= 1;
             }
+            let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.) * self.scaling.powi(self.current_s as i32);
+            self.inner.set_batch_size((n.ceil() as usize).max(1));
+            let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
+            self.inner.set_budgets(r, self.budget_max);
+            let sampled = self.inner.sample_info(scp, acc);
+            self.wrap(sampled)
         }
     }
     
@@ -420,115 +353,16 @@ where
         self.inner.update(x, scp, acc);
     }
 }
-
-#[fidelity_bounds(P, Opt)]
-impl<Smpl, P, Opt> Sampler<P, Opt> for Hyperband<Asha<Smpl, P>, P>
-where
-    Smpl: Sampler<P, Opt> + Prunable,
-    CompShape<P>: Orderable,
-    Opt: Domain,
-{
-    type Info = WrappedInfo<Smpl::Info, HyperbandInfo>;
-    
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        if self.bracket_admitted < self.bracket_size {
-            let sampled = self.inner.sample_info_with_new_samples(scp, acc, true);
-            if let Some((_, Sampled::Fresh(_))) = &sampled {
-                self.bracket_admitted += 1;
-            }
-            if sampled.is_some() {
-                self.bracket_pending += 1;
-            }
-            return self.wrap(sampled);
-        }
-
-        let promoted = self.inner.sample_info_with_new_samples(scp, acc, false);
-        if promoted.is_some() {
-            self.bracket_pending += 1;
-            return self.wrap(promoted);
-        }
-
-        if self.bracket_pending > 0 {
-            return None;
-        }
-
-        if let Some(discard) = self.inner.drain_one() {
-            return Some((discard, Sampled::Reused));
-        }
-
-        if self.current_s == 0 {
-            self.current_s = self.s_max;
-        } else {
-            self.current_s -= 1;
-        }
-        let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.)
-            * self.scaling.powi(self.current_s as i32);
-        self.bracket_size = (n.ceil() as usize).max(1);
-        self.bracket_admitted = 0;
-        self.bracket_pending = 0;
-        let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
-        self.inner.set_budgets(self.budget_min, r);
-
-        let sampled = self.inner.sample_info_with_new_samples(scp, acc, true);
-        if let Some((_, Sampled::Fresh(_))) = &sampled {
-            self.bracket_admitted += 1;
-        }
-        if sampled.is_some() {
-            self.bracket_pending += 1;
-        }
-        self.wrap(sampled)
-    }
-    
-    fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
-        self.inner.update(x, scp, acc);
-        if !matches!(x.step(), Step::Discard) {
-            self.bracket_pending = self.bracket_pending.saturating_sub(1);
-        }
-    }
-}
-
-// fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-//     if self.inner.get_current_budget() < self.inner.get_budget_max() {
-//         let sampled = self.inner.sample_info(scp, acc);
-//         self.wrap(sampled)
-//     } else {
-//         let to_discard = self.inner.drain_one();
-
-//         if let Some(mut discard) = to_discard {
-//             if discard.fidelity().0 == self.inner.get_budget_max() {
-//                 // If the drained solution has reached the maximum budget, then finish the current bracket and move to the next one
-//                 Some((discard, Sampled::Reused))
-//             } else {
-//                 // If the drained solution has not reached the maximum budget, discard it.
-//                 discard.set_step(Step::Discard);
-//                 Some((discard, Sampled::Reused))
-//             }
-//         } else {
-//             if self.current_s == 0 {
-//                 self.current_s = self.s_max;
-//             } else {
-//                 self.current_s -= 1;
-//             }
-//             let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
-//             self.inner.set_budgets(r, self.budget_max);
-//             let sampled = self.inner.sample_info(scp, acc);
-//             self.wrap(sampled)
-//         }
-//     }
-// }
-
-// fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
-//     self.inner.update(x, scp, acc);
-// }
 
 //-------------//
 //--- SERDE ---//
 //-------------//
 
 #[fidelity_bounds(P)]
-struct HyperbandStateVisitor<Prnr, P>(PhantomData<(Prnr, P)>)
+struct HyperbandStateVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
-    Prnr: Pruner<P, Opt<P>>;
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable;
 
 enum HBField {
     BudgetMin,
@@ -536,41 +370,37 @@ enum HBField {
     Scaling,
     SMax,
     CurrentS,
-    BracketSize,
-    BracketAdmitted,
-    BracketPending,
     Inner,
 }
 
 struct HBFieldVisitor;
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> Serialize for Hyperband<Prnr, P>
+impl<Smpl, P> Serialize for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("HyperbandState", 9)?;
+        let mut state = serializer.serialize_struct("HyperbandState", 6)?;
         state.serialize_field("budget_min", &self.budget_min)?;
         state.serialize_field("budget_max", &self.budget_max)?;
         state.serialize_field("scaling", &self.scaling)?;
         state.serialize_field("s_max", &self.s_max)?;
         state.serialize_field("current_s", &self.current_s)?;
-        state.serialize_field("bracket_size", &self.bracket_size)?;
-        state.serialize_field("bracket_admitted", &self.bracket_admitted)?;
-        state.serialize_field("bracket_pending", &self.bracket_pending)?;
         state.serialize_field("inner", &self.inner.get_state())?;
         state.end()
     }
 }
 
 #[fidelity_bounds(P)]
-impl<Prnr, P> HyperbandStateVisitor<Prnr, P>
+impl<Smpl, P> HyperbandStateVisitor<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn new() -> Self {
         HyperbandStateVisitor(PhantomData)
@@ -594,9 +424,6 @@ impl<'de> Visitor<'de> for HBFieldVisitor {
             "scaling" => Ok(HBField::Scaling),
             "s_max" => Ok(HBField::SMax),
             "current_s" => Ok(HBField::CurrentS),
-            "bracket_size" => Ok(HBField::BracketSize),
-            "bracket_admitted" => Ok(HBField::BracketAdmitted),
-            "bracket_pending" => Ok(HBField::BracketPending),
             "inner" => Ok(HBField::Inner),
             _ => Err(de::Error::unknown_field(
                 value,
@@ -606,9 +433,6 @@ impl<'de> Visitor<'de> for HBFieldVisitor {
                     "scaling",
                     "s_max",
                     "current_s",
-                    "bracket_size",
-                    "bracket_admitted",
-                    "bracket_pending",
                     "inner",
                 ],
             )),
@@ -625,11 +449,12 @@ impl<'de> Deserialize<'de> for HBField {
 }
 
 #[fidelity_bounds(P)]
-impl<'de, Prnr, P> Visitor<'de> for HyperbandStateVisitor<Prnr, P>
+impl<'de, Smpl, P> Visitor<'de> for HyperbandStateVisitor<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    type Value = Hyperband<Prnr, P>;
+    type Value = Hyperband<Smpl, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("struct HyperbandState")
@@ -654,15 +479,6 @@ where
         let current_s = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
-        let bracket_size = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
-        let bracket_admitted = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
-        let bracket_pending = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(7, &self))?;
         let inner_state = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(8, &self))?;
@@ -672,10 +488,7 @@ where
             scaling,
             current_s,
             s_max,
-            bracket_size,
-            bracket_admitted,
-            bracket_pending,
-            inner: Prnr::from_state(inner_state),
+            inner: Sha::<Smpl, P>::from_state(inner_state),
             _p: PhantomData,
         })
     }
@@ -689,9 +502,6 @@ where
         let mut scaling = None;
         let mut current_s = None;
         let mut s_max = None;
-        let mut bracket_size = None;
-        let mut bracket_admitted = None;
-        let mut bracket_pending = None;
         let mut inner_state = None;
 
         while let Some(key) = map.next_key()? {
@@ -726,24 +536,6 @@ where
                     }
                     current_s = Some(map.next_value()?);
                 }
-                HBField::BracketSize => {
-                    if bracket_size.is_some() {
-                        return Err(de::Error::duplicate_field("bracket_size"));
-                    }
-                    bracket_size = Some(map.next_value()?);
-                }
-                HBField::BracketAdmitted => {
-                    if bracket_admitted.is_some() {
-                        return Err(de::Error::duplicate_field("bracket_admitted"));
-                    }
-                    bracket_admitted = Some(map.next_value()?);
-                }
-                HBField::BracketPending => {
-                    if bracket_pending.is_some() {
-                        return Err(de::Error::duplicate_field("bracket_pending"));
-                    }
-                    bracket_pending = Some(map.next_value()?);
-                }
                 HBField::Inner => {
                     if inner_state.is_some() {
                         return Err(de::Error::duplicate_field("inner"));
@@ -758,9 +550,6 @@ where
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
         let current_s = current_s.ok_or_else(|| de::Error::missing_field("current_s"))?;
         let s_max = s_max.ok_or_else(|| de::Error::missing_field("s_max"))?;
-        let bracket_size = bracket_size.ok_or_else(|| de::Error::missing_field("bracket_size"))?;
-        let bracket_admitted = bracket_admitted.ok_or_else(|| de::Error::missing_field("bracket_admitted"))?;
-        let bracket_pending = bracket_pending.ok_or_else(|| de::Error::missing_field("bracket_pending"))?;
         let inner_state = inner_state.ok_or_else(|| de::Error::missing_field("inner"))?;
 
         Ok(Hyperband {
@@ -769,19 +558,17 @@ where
             scaling,
             current_s,
             s_max,
-            bracket_size,
-            bracket_admitted,
-            bracket_pending,
-            inner: Prnr::from_state(inner_state),
+            inner: Sha::<Smpl,P>::from_state(inner_state),
             _p: PhantomData,
         })
     }
 }
 
 #[fidelity_bounds(P)]
-impl<'de, Prnr, P> Deserialize<'de> for Hyperband<Prnr, P>
+impl<'de, Smpl, P> Deserialize<'de> for Hyperband<Smpl, P>
 where
-    Prnr: Pruner<P, Opt<P>>,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

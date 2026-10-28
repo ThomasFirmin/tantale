@@ -148,6 +148,8 @@ impl Attributes {
 /// 2. `FidOutcome` - Multi-fidelity tracking (if Step field exists)
 ///
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let tantale_crate = schema_crate_path();
+    
     let mut attr = Attributes::new();
 
     let input = parse_macro_input!(input as ItemStruct);
@@ -183,10 +185,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         (false, false, false) => {
             let obj = &attr.objectives[0];
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SingleCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SingleCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SingleCodomain::new(
+                        #tantale_crate::SingleCodomain::new(
                             | o: &#eident | #obj
                         )
                     }
@@ -196,10 +198,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         (true, false, false) => {
             let obj = attr.objectives;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::MultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::MultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::MultiCodomain::new(
+                        #tantale_crate::MultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -214,10 +216,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = &attr.objectives[0];
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::ConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::ConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::ConstCodomain::new(
+                        #tantale_crate::ConstCodomain::new(
                             | o: &#eident | #obj,
                             Box::new(
                                 [
@@ -233,10 +235,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = &attr.objectives[0];
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostCodomain::new(
+                        #tantale_crate::CostCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost
                         )
@@ -249,10 +251,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let cost = attr.cost.unwrap();
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostConstCodomain::new(
+                        #tantale_crate::CostConstCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost,
                             Box::new(
@@ -269,10 +271,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = attr.objectives;
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::ConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::ConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::ConstMultiCodomain::new(
+                        #tantale_crate::ConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -292,10 +294,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = attr.objectives;
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostMultiCodomain::new(
+                        #tantale_crate::CostMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -312,10 +314,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let constraints = attr.constraint;
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostConstMultiCodomain::new(
+                        #tantale_crate::CostConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -336,8 +338,8 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let fid_outcome = if let Some(step) = attr.step {
         quote! {
-            impl tantale::core::FidOutcome for #eident {
-                fn get_step(&self) -> tantale::core::EvalStep { self.#step.into() }
+            impl #tantale_crate::FidOutcome for #eident {
+                fn get_step(&self) -> #tantale_crate::EvalStep { self.#step.into() }
             }
         }
     } else {
@@ -560,6 +562,10 @@ impl Attributes {
 /// 2. `FidOutcome` - Multi-fidelity tracking (if Step field exists)
 ///
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    use crate::schema_crate_path;
+
+    let tantale_crate = schema_crate_path();
+
     let mut attr = Attributes::new();
 
     let input = parse_macro_input!(input as ItemStruct);
@@ -595,10 +601,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         (false, false, false, false) => {
             let obj = &attr.objectives[0];
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SingleCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SingleCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SingleCodomain::new(
+                        #tantale_crate::SingleCodomain::new(
                             | o: &#eident | #obj
                         )
                     }
@@ -608,10 +614,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         (true, false, false, false) => {
             let obj = attr.objectives;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::MultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::MultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::MultiCodomain::new(
+                        #tantale_crate::MultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -626,10 +632,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = &attr.objectives[0];
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::ConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::ConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::ConstCodomain::new(
+                        #tantale_crate::ConstCodomain::new(
                             | o: &#eident | #obj,
                             Box::new(
                                 [
@@ -645,10 +651,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = &attr.objectives[0];
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostCodomain::new(
+                        #tantale_crate::CostCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost
                         )
@@ -661,10 +667,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let cost = attr.cost.unwrap();
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostConstCodomain::new(
+                        #tantale_crate::CostConstCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost,
                             Box::new(
@@ -681,10 +687,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = attr.objectives;
             let constraints = attr.constraint;
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::ConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::ConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::ConstMultiCodomain::new(
+                        #tantale_crate::ConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -704,10 +710,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let obj = attr.objectives;
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostMultiCodomain::new(
+                        #tantale_crate::CostMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -724,10 +730,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let constraints = attr.constraint;
             let cost = attr.cost.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::CostConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::CostConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::CostConstMultiCodomain::new(
+                        #tantale_crate::CostConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -749,10 +755,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = &attr.samples.unwrap();
             let spiking = &attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeCodomain::new(
+                        #tantale_crate::SpikeCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#samples,
                             | o: &#eident | o.#spiking,
@@ -766,10 +772,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeMultiCodomain::new(
+                        #tantale_crate::SpikeMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -788,10 +794,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeConstCodomain::new(
+                        #tantale_crate::SpikeConstCodomain::new(
                             | o: &#eident | #obj,
                             Box::new(
                                 [
@@ -811,10 +817,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeCostCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeCostCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeCostCodomain::new(
+                        #tantale_crate::SpikeCostCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost,
                             | o: &#eident | o.#samples,
@@ -831,10 +837,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeCostConstCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeCostConstCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeCostConstCodomain::new(
+                        #tantale_crate::SpikeCostConstCodomain::new(
                             | o: &#eident | #obj,
                             | o: &#eident | o.#cost,
                             Box::new(
@@ -855,10 +861,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeConstMultiCodomain::new(
+                        #tantale_crate::SpikeConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -882,10 +888,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeCostMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeCostMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeCostMultiCodomain::new(
+                        #tantale_crate::SpikeCostMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -906,10 +912,10 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let samples = attr.samples.unwrap();
             let spiking = attr.spiking.unwrap();
             quote! {
-                impl tantale::core::Outcome for #eident {
-                    type Cod = tantale::core::SpikeCostConstMultiCodomain<Self>;
+                impl #tantale_crate::Outcome for #eident {
+                    type Cod = #tantale_crate::SpikeCostConstMultiCodomain<Self>;
                     fn codomain() -> Self::Cod {
-                        tantale::core::SpikeCostConstMultiCodomain::new(
+                        #tantale_crate::SpikeCostConstMultiCodomain::new(
                             Box::new(
                                 [
                                      #( | o: &#eident | #obj ),*
@@ -932,8 +938,8 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let fid_outcome = if let Some(step) = attr.step {
         quote! {
-            impl tantale::core::FidOutcome for #eident {
-                fn get_step(&self) -> tantale::core::EvalStep { self.#step.into() }
+            impl #tantale_crate::FidOutcome for #eident {
+                fn get_step(&self) -> #tantale_crate::EvalStep { self.#step.into() }
             }
         }
     } else {

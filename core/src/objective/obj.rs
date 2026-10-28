@@ -143,10 +143,12 @@
 //! }
 //! ```
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     BaseSol, Domain, FidOutcome, FidelitySol, HasX, SolId, SolInfo, Solution, StepId, Uncomputed, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity,
 };
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 type OptimFn<Raw, Out> = fn(Raw) -> Out;
 type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, FnState);
@@ -161,7 +163,7 @@ type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, Fn
 ///
 /// The `FuncWrapper` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait FuncWrapper
+pub trait FuncWrapper: Send + Sync + Clone
 {
     type Context;
     type Out: Outcome;
@@ -169,6 +171,7 @@ pub trait FuncWrapper
     type Dom: Domain;
     type Id: SolId;
     type Info: SolInfo;
+    type MetaData: Clone + Default + Debug + Send + Sync + Serialize + for<'de> Deserialize<'de>;
     type Sol<Dom:Domain>: Uncomputed<Dom=Dom, Id= Self::Id, Info=Self::Info>; 
     /// Evaluate the objective at a given `x` [`Raw`](crate::Solution::Raw) with a given `context`.
     fn compute(&self, x: <Self::Sol::<Self::Dom> as HasX>::X , context: Self::Context) -> Self::OutShape;
@@ -219,6 +222,7 @@ where
     type Dom = Obj;
     type Id = Id;
     type Info = Info;
+    type MetaData = <BaseSol<Id, Obj, Info> as Solution>::MetaData;
     type Sol<Dom:Domain> = BaseSol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, _context: Self::Context) -> Self::OutShape {
@@ -286,6 +290,7 @@ where
     type Dom = Obj;
     type Id = Id;
     type Info = Info;
+    type MetaData = <FidelitySol<Id, Obj, Info> as Solution>::MetaData;
     type Sol<Dom:Domain> = FidelitySol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, context: Self::Context) -> Self::OutShape {

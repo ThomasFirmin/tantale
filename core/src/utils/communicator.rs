@@ -1,91 +1,168 @@
+use std::{any::Any, fmt::Debug};
+
+use bincode::{config, serde::Compat};
 use bitvec::{bitvec, slice::{IterOnes, IterZeros}, vec::BitVec};
 use serde::{Deserialize, Serialize};
 
-use crate::{EvalStep, Fidelity, errors::CommunicatorError};
+use crate::{Fidelity, Problem, SolId, aliases::{Out, XObj}, errors::CommunicatorError};
 
 /// A simple message for a [`Communicator`].
 pub trait Msg : Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static
 {
-    /// Returns a unique tag for the message type, used for identifying the message in communication protocols. 
-    fn get_tag(&self) -> u32;
+    const TAG: u32;
+}
+
+pub trait ErasedMsg: Any + Send {
+    fn tag(&self) -> u32;
+
+    fn encode(&self) -> Result<Vec<u8>, CommunicatorError>;
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any + Send>;
+}
+
+impl<T: Msg> ErasedMsg for T {
+    fn tag(&self) -> u32 {
+        T::TAG
+    }
+
+    fn encode(&self) -> Result<Vec<u8>, CommunicatorError> {
+        bincode::encode_to_vec(Compat(self), config::standard()).map_err(|e| CommunicatorError::SerializeError(e.to_string()))
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any + Send> {
+        self
+    }
+}
+
+/// A message that can be sent via a [`Communicator`] to signal that the worker should stop.
+#[derive(Serialize, Deserialize)]
+pub struct StopMsg(pub isize);
+
+impl Msg for StopMsg {
+    const TAG: u32 = 0;
+}
+
+/// A message that can be sent via a [`Communicator`] to signal that the worker asks for a new task.
+#[derive(Serialize, Deserialize)]
+pub struct AskMsg(pub isize);
+
+impl Msg for AskMsg {
+    const TAG: u32 = 1;
+}
+
+/// A message that can be sent via a [`Communicator`] containing an [`X`](crate::HasX::X) to be evaluated by a worker.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "P::Id: SolId, XObj<P>: Serialize + for<'a> Deserialize<'a>")]
+pub struct XMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>);
+
+impl<P: Problem + 'static> Msg for XMsg<P>
+{
+    const TAG: u32 = 2;
+}
+
+/// A message that can be sent via a [`Communicator`] containing an [`X`](crate::HasX::X) and a [`Fidelity`] to be evaluated by a worker.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "P::Id: SolId, XObj<P>: Serialize + for<'a> Deserialize<'a>")]
+pub struct FidMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>, pub Fidelity);
+
+impl<P: Problem + 'static> Msg for FidMsg<P>
+{
+    const TAG: u32 = 3;
+}
+
+/// A message that can be sent via a [`Communicator`] containing an [`Outcome`](crate::Outcome).
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "P::Id: SolId, Out<P>: Serialize + for<'a> Deserialize<'a>")]
+pub struct OutMsg<P: Problem + 'static>(pub P::Id, pub Out<P>);
+
+impl<P: Problem + 'static> Msg for OutMsg<P>
+{
+    const TAG: u32 = 4;
+}
+
+/// A message that can be sent via a [`Communicator`] asking for checkpointing.
+#[derive(Serialize, Deserialize)]
+pub struct CheckpointMsg(pub isize);
+
+impl Msg for CheckpointMsg
+{
+    const TAG: u32 = 5;
+}
+
+/// A message that can be sent via a [`Communicator`] containing bytes to be deserialized.
+#[derive(Serialize, Deserialize)]
+pub struct ByteMsg(pub u32, pub Vec<u8>);
+
+impl Msg for ByteMsg
+{
+    const TAG: u32 = 6;
+}
+
+/// A message envelope that can hold any type of message, 
+/// allowing for dynamic message passing in a communication system.
+pub struct Envelope {
+    pub from: usize,
+    pub to: usize,
+    pub tag: u32,
+    pub content:  Box<dyn ErasedMsg>,
+}
+
+impl Envelope {
+    pub fn new<M: Msg>(from:usize, to:usize, content: M) -> Self {
+        Envelope {
+            from,
+            to,
+            tag: M::TAG,
+            content: Box::new(content),
+        }
+    }
 }
 
 pub trait Channel {
-    type Peer: Copy;
+    /// Returns the identifier of the current channel.
+    fn me(&self) -> usize;
 
     /// Send a message to a peer.
-    fn send<M: Msg>(&self,peer: &Self::Peer, message: M) -> Result<(), CommunicatorError>;
+    fn send(&self, message: Envelope) -> Result<(), CommunicatorError>;
 
     /// Receive a message from any peer.
-    fn receive<M: Msg>(&self) -> Result<(Self::Peer, M), CommunicatorError>;
+    fn receive(&self) -> Result<Envelope, CommunicatorError>;
 
     /// Flush the channel. Receives any pending messages and returns the peer that sent the message.
-    fn flush(&self) -> Result<Self::Peer, CommunicatorError>;
+    fn flush(&self) -> Result<usize, CommunicatorError>;
 }
 
 
-pub trait Communicator {
+pub trait Communicator: Sized {
 
     type Channel: Channel;
 
     /// Returns a reference to the underlying channel.
     /// Takes a peer identifier and returns the corresponding channel for communication with that peer.
-    fn channel(&self, me: <Self::Channel as Channel>::Peer) -> &Self::Channel;
-
-    /// Send a message to any available peer.
-    fn send_to_any<M: Msg>(&mut self, me: <Self::Channel as Channel>::Peer, msg: M) -> Result<Option<<Self::Channel as Channel>::Peer>, CommunicatorError>{
-        if let Some(peer) = self.get_idle() {
-            self.channel(me).send(&peer, msg)?;
-            Ok(Some(peer))
-        } else {
-            Ok(None)
-        }
-    }
-    /// Send a message to all available peers.
-    fn send_to_idles<M: Msg + Clone>(&mut self, me: <Self::Channel as Channel>::Peer, msg: M) -> Result<(), CommunicatorError> {
-        let channel = self.channel(me);
-        for idle in self.idle() {
-            channel.send(&idle, msg.clone())?;
-        }
-        Ok(())
-    }
-    /// Send a message to a specific peer.
-    fn send<M: Msg>(&mut self, me: <Self::Channel as Channel>::Peer, peer: <Self::Channel as Channel>::Peer, msg: M) -> Result<(), CommunicatorError>{
-        self.channel(me).send(&peer, msg)?;
-        Ok(())
-    }
-
-    /// Receive a message from any peer.
-    fn receive<M: Msg>(&mut self, me: <Self::Channel as Channel>::Peer) -> Result<(<Self::Channel as Channel>::Peer, M), CommunicatorError>{
-        let res: (<Self::Channel as Channel>::Peer, M) = self.channel(me).receive::<M>()?;
-        Ok(res)
-    }
-
-    fn flush(&mut self, me: <Self::Channel as Channel>::Peer) -> Result<(), CommunicatorError>{
-        while !self.all_idle() {
-            let peer = self.channel(me).flush()?;
-            self.set_idle(peer);
-        }
-        Ok(())
-    }
-
+    fn channel(&self, peer:usize) -> &Self::Channel;
     /// Returns an iterator over all peers managed by the communicator.
-    fn peers(&self) -> impl Iterator<Item = <Self::Channel as Channel>::Peer>;
+    fn peers(&self) -> impl Iterator<Item = usize>;
     /// Sets the state of a peer to idle.
-    fn set_idle(&mut self, peer: <Self::Channel as Channel>::Peer);
+    fn set_idle(&mut self, peer: usize);
     /// Sets the state of a peer to busy.
-    fn set_busy(&mut self, peer: <Self::Channel as Channel>::Peer);
+    fn set_busy(&mut self, peer: usize);
     /// Checks if a peer is idle.
-    fn is_idle(&self, peer: <Self::Channel as Channel>::Peer) -> bool;
+    fn is_idle(&self, peer: usize) -> bool;
     /// Checks if a peer is busy.
-    fn is_busy(&self, peer: <Self::Channel as Channel>::Peer) -> bool;
+    fn is_busy(&self, peer: usize) -> bool;
 
     /// Returns an iterator over all idle peers.
-    fn idle(&self) -> impl Iterator<Item = <Self::Channel as Channel>::Peer> {
+    fn idle(&self) -> impl Iterator<Item = usize> {
         self.peers().filter(|peer| self.is_idle(*peer))
     }
     /// Returns an iterator over all busy peers.
-    fn busy(&self) -> impl Iterator<Item = <Self::Channel as Channel>::Peer> {
+    fn busy(&self) -> impl Iterator<Item = usize> {
         self.peers().filter(|peer| self.is_busy(*peer))
     }
     /// Returns true if all peers are idle.
@@ -97,11 +174,11 @@ pub trait Communicator {
         self.peers().all(|peer| self.is_busy(peer))
     }
     /// Returns an idle peer if one exists, otherwise returns None.
-    fn get_idle(&self) -> Option<<Self::Channel as Channel>::Peer>{
+    fn get_idle(&self) -> Option<usize>{
         self.peers().find(|peer| self.is_idle(*peer))
     }
     /// Returns a busy peer if one exists, otherwise returns None.
-    fn get_busy(&self) -> Option<<Self::Channel as Channel>::Peer>{
+    fn get_busy(&self) -> Option<usize>{
         self.peers().find(|peer| self.is_busy(*peer))
     }
 }
@@ -110,17 +187,19 @@ pub trait Communicator {
 pub struct NoChannel;
 
 impl Channel for NoChannel {
-    type Peer = ();
-
-    fn send<M: Msg>(&self, _peer: &Self::Peer, _message: M) -> Result<(), CommunicatorError> {
+    fn send(&self, _message: Envelope) -> Result<(), CommunicatorError> {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
 
-    fn receive<M: Msg>(&self) -> Result<(Self::Peer, M), CommunicatorError> {
+    fn receive(&self) -> Result<Envelope, CommunicatorError> {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
 
-    fn flush(&self) -> Result<Self::Peer, CommunicatorError> {
+    fn flush(&self) -> Result<usize, CommunicatorError> {
+        unreachable!("NoChannel is not meant to be used for actual communication")
+    }
+    
+    fn me(&self) -> usize {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
 }
@@ -130,68 +209,33 @@ pub struct NoCommunicator;
 impl Communicator for NoCommunicator {
     type Channel = NoChannel;
 
-    fn channel(&self, _me: <Self::Channel as Channel>::Peer) -> &Self::Channel {
+    fn channel(&self, _peer: usize) -> &Self::Channel {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 
-    fn peers(&self) -> impl Iterator<Item = <Self::Channel as Channel>::Peer> {
+    fn peers(&self) -> impl Iterator<Item = usize> {
         std::iter::empty()
     }
 
-    fn set_idle(&mut self, _peer: <Self::Channel as Channel>::Peer) {
+    fn set_idle(&mut self, _peer: usize) {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 
-    fn set_busy(&mut self, _peer: <Self::Channel as Channel>::Peer) {
+    fn set_busy(&mut self, _peer: usize) {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 
-    fn is_idle(&self, _peer: <Self::Channel as Channel>::Peer) -> bool {
+    fn is_idle(&self, _peer: usize) -> bool {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 
-    fn is_busy(&self, _peer: <Self::Channel as Channel>::Peer) -> bool {
+    fn is_busy(&self, _peer: usize) -> bool {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 }
 
-//-----------------//
-// --- MESSAGES ---//
-//-----------------//
-
-/// A message that contains a reference to an [`SolId`] and a reference to some content.
-#[derive(Serialize, Deserialize)]
-#[serde(bound = "Content: Serialize + for<'a> Deserialize<'a>")]
-pub struct MessageWithTag<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static>(pub u32, pub Content);
-unsafe impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Send for MessageWithTag<Content> {}
-
-impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Msg for MessageWithTag<Content>
-{   
-    fn get_tag(&self) -> u32 {
-        self.0
-    }
-}
-
-/// A message that contains a reference to an [`SolId`], a reference to some content, an [`EvalStep`], and a [`Fidelity`].
-#[derive(Serialize, Deserialize)]
-#[serde(bound = "Content: Serialize + for<'a> Deserialize<'a>")]
-pub struct MessageWithFid<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static>(pub MessageWithTag<Content>, pub EvalStep, pub Fidelity);
-
-impl<Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> MessageWithFid<Content> {
-    pub fn new(tag: u32, content: Content, step: EvalStep, fidelity: Fidelity) -> Self {
-        MessageWithFid(MessageWithTag(tag, content), step, fidelity)
-    }
-}
-
-impl <Content: Send + Serialize + for<'a> Deserialize<'a> + 'static> Msg for MessageWithFid<Content>
-{   
-    fn get_tag(&self) -> u32 {
-        self.0.0
-    }
-}
-
-/// A structure allowing to know which [`Worker`](crate::Worker) is idle, and if there is at least one idle worker.
-/// It uses a [`BitVec`] of [`size`](MPIProcess::size) to store the idle status of each worker [`Rank`].
+/// A structure allowing to know which worker is idle, and if there is at least one idle worker.
+/// It uses a [`BitVec`] to store the idle status of each worker.
 #[derive(Debug, Clone)]
 pub struct IdlePeers(pub BitVec);
 

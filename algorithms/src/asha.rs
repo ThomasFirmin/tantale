@@ -67,17 +67,15 @@
 //!
 //! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
 
-use std::{cell::RefCell, fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step,
-    aliases::{Accum, CompShape, Opt, Shape}, 
-    optimizer::opt::{Prunable, Pruner}, 
-    solution::shape::IntoComputedShape,
+    HasFidelity, HasInfo, HasState, HasStep, Orderable, Problem, Sampled, Sampler, SolInfo, State, Step,
+    aliases::{Accum, CompShape, Opt, Shape}, optimizer::opt::{Prunable, Pruner},
+    solution::shape::IntoComputedShape, utils::WrappedInfo,
 };
 
-use rand::rngs::StdRng;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, Visitor},
@@ -85,11 +83,7 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::{Hyperband, utils::{PromotableShape, PrunerError, Rungs, build_halving_budgets}};
-
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
+use crate::utils::{BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets, build_halving_budgets_with_levels};
 
 /// A helper macro to simplify the type signature of [`Asha`].
 #[macro_export]
@@ -99,6 +93,17 @@ macro_rules! asha {
     };
     ($sampler : ty) => {
         Asha<$sampler, _>
+    };
+}
+
+/// A helper macro to simplify the type signature of [`BrackettedAsha`].
+#[macro_export]
+macro_rules! bracketted_asha {
+    ($sampler : ident) => {
+        tantale::algos::asha::BrackettedAsha<$sampler, _>
+    };
+    ($sampler : ty) => {
+        tantale::algos::asha::BrackettedAsha<$sampler, _>
     };
 }
 
@@ -275,66 +280,43 @@ where
         })
     }
 
-    pub fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
-    }
-
-    pub fn sample_info_with_new_samples(
-        &mut self,
-        scp: &<P as Problem>::Scp,
-        acc: &Accum<P>,
-        allow_new_samples: bool,
-    ) -> Option<(Shape<P>, Sampled<Smpl::Info>)> {
-        let mut i = self.budgets.len() - 1;
-        while i > 0 {
-            let length = self.rungs[i].len();
-            let k = (length as f64 / self.scaling) as usize;
-            if k > 0 {
-                self.rungs[i].select_nth_unstable_by(length - k, |a, b| a.ord_cmp(b).unwrap());
-                let mut promotable = self.rungs[i]
-                    .iter_mut()
-                    .rev()
-                    .take(k)
-                    .filter(|x| !x.is_promoted())
-                    .collect::<Vec<_>>();
-                if !promotable.is_empty() {
-                    promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
-                    let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
-                    promotable[0].promote();
-                    self.current_budget = self.budgets[i];
-                    sol.set_fidelity(self.current_budget);
-                    return Some((sol, Sampled::Reused));
-                }
-            }
-            i -= 1;
-        }
-
-        if !allow_new_samples {
-            return None;
-        }
-
-        self.current_budget = self.budgets[0];
-        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
-            sol.set_fidelity(self.current_budget);
-            (sol, info)
-        })
-    }
-
-    pub fn into_hyperband(mut self) -> Hyperband<Self, P> {
+    pub fn into_hyperband(self) -> BrackettedAsha<Smpl, P> {
         let (budget_min, budget_max) = self.get_budgets();
-        let scaling = self.get_scaling();
-
+        let sampler = self.sampler;
+        let scaling = self.scaling;
+        
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+        let num_brackets = s_max + 1;
+        let admissions = vec![0; num_brackets];
 
-        let n = scaling.powi(s_max as i32);
-        let bracket_size = n.ceil() as usize;
-        let r = budget_max * scaling.powi(-(s_max as i32));
-        self.set_budgets(budget_min, r);
 
-        Hyperband::new(budget_min, budget_max, scaling, s_max, bracket_size, self)
+        let mut max_admissions = Vec::with_capacity(num_brackets);
+        let mut budgets = Vec::with_capacity(num_brackets);
+        let mut rungs = Vec::with_capacity(num_brackets);
+
+        (0..num_brackets).rev().for_each(
+            |s|
+            {
+                let admission = (num_brackets as f64 * scaling.powi(s as i32)/((s + 1) as f64)).ceil() as usize;
+                let bmin = budget_max * scaling.powi(-(s as i32));
+                let bracket_budgets = build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
+                let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
+                max_admissions.push(admission);
+                budgets.push(bracket_budgets);
+                rungs.push(bracket_rungs);
+                
+            }
+        );
+
+        BrackettedAsha { 
+            sampler, 
+            budgets, 
+            scaling, 
+            rungs, 
+            admissions, 
+            max_admissions, 
+            num_brackets,
+        }
     }
 }
 
@@ -347,7 +329,7 @@ where
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
         self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
         self.current_budget = self.budgets[0];
-        self.drain();
+        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -380,39 +362,6 @@ where
 
     fn get_current_budget(&self) -> f64 {
         self.current_budget
-    }
-
-    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
-    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
-    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Shape<P>> { 
-        let clear = self
-            .rungs
-            .drain(..)
-            .flatten()
-            .filter_map(|comp| {
-                if comp.is_promoted(){
-                    None
-                } else {
-                    let mut sol: Shape<P> = IntoComputedShape::extract(comp.result).0;
-                    sol.discard();
-                    Some(sol)
-                }
-            })
-            .collect();
-        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
-        clear
-    }
-
-    fn drain_one(&mut self) -> Option<Shape<P>> {
-        for rung in self.rungs.iter_mut() {
-            if let Some(comp) = rung.pop() && !comp.is_promoted(){
-                let mut sol: Shape<P> = IntoComputedShape::extract(comp.result).0;
-                sol.discard();
-                return Some(sol);   
-            }
-        }
-        None
     }
 }
 
@@ -467,25 +416,74 @@ where
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        self.sample_info_with_new_samples(scp, acc, true)
+        let mut i = self.budgets.len() - 1;
+        while i > 0 {
+            let k = (self.rungs[i].len() as f64 / self.scaling) as usize;
+            if k > 0 {
+                self.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
+                let mut promotable = self.rungs[i]
+                    .iter_mut()
+                    .take(k)
+                    .filter(|x| !x.is_promoted())
+                    .collect::<Vec<_>>();
+                if !promotable.is_empty() {
+                    promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
+                    promotable[0].promote();
+                    let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
+                    self.current_budget = self.budgets[i];
+                    sol.set_fidelity(self.current_budget);
+                    return Some((sol, Sampled::Reused));
+                }
+            }
+            i -= 1;
+        }
+
+        self.current_budget = self.budgets[0];
+        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+            sol.set_fidelity(self.current_budget);
+            (sol, info)
+        })
     }
 
     fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
-        if let Step::Partially(_s) = x.step() {
-            self.sampler.update(x, scp, acc);
-            let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
-            if let Some(i) = idx {
-                let rung_idx = i + 1;
-                if rung_idx >= self.rungs.len() {
-                    warn!("
-                        Warning: Rung index out of bounds due to wrong Step. 
-                        Most probably within user-defined objective function.
-                        Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
-                    ");
-                } else {
-                    self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s)  => {
+                let fid = x.fidelity().0;
+                if fid >= self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max(), s
+                    );
                 }
-            }
+                let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs.len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+            },
+            Step::Evaluated  => {
+                let fid = x.fidelity().0;
+                if fid < self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max()
+                    );
+                }
+            },
+            _ =>(),
         }
     }
 }
@@ -520,7 +518,7 @@ where
         S: Serializer,
     {
         let mut state = serializer.serialize_struct("Asha", 5)?;
-        state.serialize_field("sampler", &self.sampler.get_state())?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
         state.serialize_field("rung", &self.rungs)?;
@@ -685,5 +683,438 @@ where
         D: Deserializer<'de>,
     {
         deserializer.deserialize_map(AshaVisitor::new())
+    }
+}
+
+
+//------------------//
+//  BrackettedAsha  //
+//------------------//
+
+/// [`BrackettedAsha`] is a variant of the Asynchronous Successive Halving algorithm 
+/// that organizes the optimization process into multiple brackets,
+///  each with its own set of budget levels and rungs. 
+/// This allows for more flexible and efficient exploration of the search space, 
+/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets. 
+pub struct BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<Vec<f64>>,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    pub scaling: f64,
+    /// A vector of vectors of vectors representing the rungs of the Asynchronous Successive Halving process.
+    pub rungs: Vec<Rungs<P>>,
+    /// The number of admissions per bracket.
+    pub admissions: Vec<usize>,
+    /// The maximum number of admissions per bracket.
+    pub max_admissions: Vec<usize>,
+    /// The number of brackets.
+    pub num_brackets: usize,
+}
+
+impl<P,Smpl> Debug for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+        .field("sampler", &self.sampler)
+        .field("budgets", &self.budgets)
+        .field("scaling", &self.scaling)
+        .field("rungs", &self.rungs)
+        .field("admissions", &self.admissions)
+        .field("max_admissions", &self.max_admissions)
+        .field("num_brackets", &self.num_brackets)
+        .finish()
+    }
+}
+
+impl<P,Smpl> Clone for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Self { 
+            sampler: self.sampler.clone(), 
+            budgets: self.budgets.clone(), 
+            scaling: self.scaling, 
+            rungs: self.rungs.clone(), 
+            admissions: self.admissions.clone(),
+            max_admissions: self.max_admissions.clone(),
+            num_brackets: self.num_brackets
+        }
+    }
+}
+
+impl<Smpl, P> State for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{ }
+
+impl<Smpl, P> HasState for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type State = Self;
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+/// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
+///
+/// Defines the state management and codomain configuration for Asynchronous Successive Halving.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, P, Opt> Sampler<P, Opt> for BrackettedAsha<Smpl, P>
+where
+    Smpl: Sampler<P, Opt> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
+
+    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut b = 0;
+        while b < self.num_brackets {
+            let mut i = self.budgets[b].len() - 1;
+            while i > 0 {
+                let length = self.rungs[b][i].len();
+                let k = (length as f64 / self.scaling) as usize;
+                if k > 0 {
+                    self.rungs[b][i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
+                    let mut promotable = self.rungs[b][i]
+                        .iter_mut()
+                        .take(k)
+                        .filter(|x| !x.is_promoted())
+                        .collect::<Vec<_>>();
+                    if !promotable.is_empty() {
+                        promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
+                        promotable[0].promote();
+                        let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
+                        sol.set_fidelity(self.budgets[b][i]);
+                        return Some((sol, Sampled::Reused));
+                    }
+                }
+                i -= 1;
+            }
+
+            if self.admissions[b] < self.max_admissions[b] {
+                self.admissions[b] += 1;
+                return self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+                    sol.set_fidelity(self.budgets[b][0]);
+                    let info = match info {
+                        Sampled::Fresh(inf) => inf,
+                        Sampled::Reused => sol.sinfo().find_info::<Smpl::Info>().expect("Sampler info not found in solution info").clone(),
+                    };
+                    let sinfo = WrappedInfo::new(info, BracketInfo(b).into());
+                    (sol, Sampled::Fresh(sinfo.into()))
+                });
+            }
+            b += 1;
+        }
+        self.admissions = vec![0; self.num_brackets];
+        self.rungs.iter_mut().for_each(|bracket| {bracket.iter_mut().for_each(|rung| {rung.drain(..);})});
+        self.sample_info(scp, acc)
+    }
+
+    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s)  => {
+                let fid = x.fidelity().0;
+                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget{
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, max_budget, s
+                    );
+                }
+
+                let idx = self.budgets[bracket].iter().position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs[bracket].len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+            },
+            Step::Evaluated  => {
+                let fid = x.fidelity().0;
+                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget{
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, max_budget
+                    );
+                }
+            },
+            _ =>(),
+        }
+    }
+}
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct BrackettedAshaVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>>;
+
+enum BrackettedAshaField {
+    Sampler,
+    Budgets,
+    Scaling,
+    Rung,
+    Admissions,
+    MaxAdmissions,
+    NumBrackets,
+}
+
+struct BrackettedAshaFieldVisitor;
+
+impl<Smpl, P> Serialize for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Asha", 7)?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rungs)?;
+        state.serialize_field("admissions", &self.admissions)?;
+        state.serialize_field("max_admissions", &self.max_admissions)?;
+        state.serialize_field("num_brackets", &self.num_brackets)?;
+        state.end()
+    }
+}
+
+impl<Smpl, P> BrackettedAshaVisitor<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn new() -> Self {
+        BrackettedAshaVisitor(PhantomData)
+    }
+}
+
+impl<'de> Visitor<'de> for BrackettedAshaFieldVisitor {
+    type Value = BrackettedAshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("`sampler`, `budgets`, `scaling`, `rung`, `admissions`, `max_admissions` or `num_brackets`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(BrackettedAshaField::Sampler),
+            "budgets" => Ok(BrackettedAshaField::Budgets),
+            "scaling" => Ok(BrackettedAshaField::Scaling),
+            "rung" => Ok(BrackettedAshaField::Rung),
+            "admissions" => Ok(BrackettedAshaField::Admissions),
+            "max_admissions" => Ok(BrackettedAshaField::MaxAdmissions),
+            "num_brackets" => Ok(BrackettedAshaField::NumBrackets),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &["sampler", "budgets", "scaling", "rung", "admissions", "max_admissions", "num_brackets"],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for BrackettedAshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(BrackettedAshaFieldVisitor)
+    }
+}
+
+impl<'de, Smpl, P> Visitor<'de> for BrackettedAshaVisitor<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type Value = BrackettedAsha<Smpl, P>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct Asha")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let max_admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        let num_brackets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+        Ok(BrackettedAsha {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut admissions = None;
+        let mut max_admissions = None;
+        let mut num_brackets = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                BrackettedAshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Admissions => {
+                    if admissions.is_some() {
+                        return Err(de::Error::duplicate_field("admissions"));
+                    }
+                    admissions = Some(map.next_value()?);
+                }
+                BrackettedAshaField::MaxAdmissions => {
+                    if max_admissions.is_some() {
+                        return Err(de::Error::duplicate_field("max_admissions"));
+                    }
+                    max_admissions = Some(map.next_value()?);
+                }
+                BrackettedAshaField::NumBrackets => {
+                    if num_brackets.is_some() {
+                        return Err(de::Error::duplicate_field("num_brackets"));
+                    }
+                    num_brackets = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let admissions = admissions.ok_or_else(|| de::Error::missing_field("admissions"))?;
+        let max_admissions = max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
+        let num_brackets = num_brackets.ok_or_else(|| de::Error::missing_field("num_brackets"))?;
+
+        Ok(BrackettedAsha {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+}
+
+impl<'de, Smpl, P> Deserialize<'de> for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(BrackettedAshaVisitor::new())
     }
 }

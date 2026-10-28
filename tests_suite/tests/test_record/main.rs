@@ -13,6 +13,9 @@ pub mod init_cod;
 #[path = "../init_func.rs"]
 pub mod init_func;
 
+#[path = "../cleaner.rs"]
+pub mod cleaner;
+
 pub mod test_cod_record;
 pub mod test_folder_csv;
 pub mod test_folder_csv_fid;

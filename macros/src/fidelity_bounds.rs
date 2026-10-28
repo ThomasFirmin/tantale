@@ -3,63 +3,71 @@ use syn::{
     Generics, Item, Type, parse_macro_input,
 };
 
+use crate::schema_crate_path;
+
 fn add_basic_bounds(
     generics: &mut Generics,
     p: &Type,
     domain: &Option<Type>,
 ) {
+    let tantale_crate = schema_crate_path();
     let where_clause = generics.make_where_clause();
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::SOpt<#p>: ::tantale_core::HasX<X = <#p as ::tantale_core::Problem>::XOpt>
+        #tantale_crate::utils::aliases::SOpt<#p>: #tantale_crate::HasX<X = <#p as #tantale_crate::Problem>::XOpt>
     });
 
     if let Some(opt) = domain {
         where_clause.predicates.push(
             syn::parse_quote!(
-                #p: ::tantale_core::Problem<XOpt = ::std::sync::Arc<[<#opt as ::tantale_core::Domain>::Element]>>
+                #p: #tantale_crate::Problem<XOpt = ::std::sync::Arc<[<#opt as #tantale_crate::Domain>::Element]>>
             )
         );
         where_clause.predicates.push(
             syn::parse_quote!(
-                <#p as ::tantale_core::Problem>::Scp: ::tantale_core::Linked<Opt = #opt>
+                <#p as #tantale_crate::Problem>::Scp: #tantale_crate::Linked<Opt = #opt>
             )
         );
         where_clause.predicates.push(
             syn::parse_quote!(
-                #opt: ::tantale_core::Domain
+                #opt: #tantale_crate::Domain
             )
         );
     } else {
         where_clause.predicates.push(
             syn::parse_quote!(
-                #p: ::tantale_core::Problem<XOpt = ::std::sync::Arc<[::tantale_core::utils::aliases::TOpt<#p>]>>
+                #p: #tantale_crate::Problem<XOpt = ::std::sync::Arc<[#tantale_crate::utils::aliases::TOpt<#p>]>>
             )
         );
     }
     
     where_clause.predicates.push(syn::parse_quote!(
-            <#p as ::tantale_core::Problem>::Scp: ::tantale_core::utils::has_trait::HasVariables
+            <#p as #tantale_crate::Problem>::Scp: #tantale_crate::utils::has_trait::HasVariables
+        )
+    );
+
+    where_clause.predicates.push(syn::parse_quote!(
+            <#p as #tantale_crate::Problem>::Id: #tantale_crate::StepId
         )
     );
 
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::SOpt<#p>: ::tantale_core::HasX<X = <#p as ::tantale_core::Problem>::XOpt> + ::tantale_core::HasFidelity + ::tantale_core::HasStep
+        #tantale_crate::utils::aliases::SOpt<#p>: #tantale_crate::HasX<X = <#p as #tantale_crate::Problem>::XOpt> + #tantale_crate::HasFidelity + #tantale_crate::HasStep + #tantale_crate::HasStepId
     });
 
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::SObj<#p>: ::tantale_core::HasFidelity + ::tantale_core::HasStep
+        #tantale_crate::utils::aliases::SObj<#p>: #tantale_crate::HasFidelity + #tantale_crate::HasStep + #tantale_crate::HasStepId
     });
 
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::Shape<#p>: ::tantale_core::HasFidelity + ::tantale_core::HasStep
+        #tantale_crate::utils::aliases::Shape<#p>: #tantale_crate::HasFidelity + #tantale_crate::HasStep + #tantale_crate::HasStepId
     });
 
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::CompShape<#p>: ::tantale_core::HasFidelity + ::tantale_core::HasStep
+        #tantale_crate::utils::aliases::CompShape<#p>: #tantale_crate::HasFidelity + #tantale_crate::HasStep + #tantale_crate::HasStepId
     });
 
     where_clause.predicates.push(syn::parse_quote! {
-        ::tantale_core::utils::aliases::Out<#p>: ::tantale_core::FidOutcome
+        #tantale_crate::utils::aliases::Out<#p>: #tantale_crate::FidOutcome
     });
 
     // Add the remaining basic bounds here.

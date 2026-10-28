@@ -15,6 +15,37 @@ mod fidelity_bounds;
 #[cfg(feature = "py")]
 mod pyhpo;
 
+use proc_macro_crate::{crate_name, FoundCrate};
+use proc_macro2::TokenStream;
+use quote::quote;
+pub(crate) fn schema_crate_path() -> TokenStream {
+    match crate_name("tantale_core") {
+        Ok(FoundCrate::Itself) => quote!(crate),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = syn::Ident::new(
+                &name,
+                proc_macro2::Span::call_site(),
+            );
+            quote!(::#ident)
+        }
+        Err(_) => match crate_name("tantale") {
+            Ok(FoundCrate::Itself) => quote!(crate::core),
+            Ok(FoundCrate::Name(name)) => {
+                let ident = syn::Ident::new(
+                    &name,
+                    proc_macro2::Span::call_site(),
+                );
+                quote!(::#ident::core)
+            }
+            Err(_) => {
+                panic!(
+                    "The `tantale` or `tantale_core` crate must be available"
+                );
+            }
+        },
+    }
+}
+
 #[cfg(not(feature = "spikes"))]
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
 /// functions. It derives traits that enable logging, serialization,

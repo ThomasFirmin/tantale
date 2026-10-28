@@ -1,7 +1,6 @@
-use tantale::algos::BatchRandomSearch;
+use tantale::algos::{BatchRandomSearch, batchrandomsearch};
 use tantale::core::{
-    CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
-    threaded_with_pool,
+    CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, PoolMode, Runable,
 };
 use tantale::python::init_python;
 
@@ -29,7 +28,7 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Objective, sp_ms_nosamp,
+        OneStep, sp_ms_nosamp,
         "/tests/test_pytantale_objective_batch_parrun/function_batch_parrun.py", "function_batch_parrun", "objective",
         "/tests/test_pytantale_objective_batch_parrun/function_batch_parrun.py", "function_batch_parrun", "MyOutcome",
         objectives: [maximize "obj1"],
@@ -40,49 +39,38 @@ fn test_python_function() {
     let opt = BatchRandomSearch::new(7); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let pb = Pb::new(sp, obj);
+    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    Experiment::new(pb, opt, stop, rec, check)
+        .with_pool(PoolMode::Persistent)
+        .run();
     run_reader("tmp_test_python_batch_parrun_rs", 50);
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj2;
+    let pb = Pb::new(sp, obj2);
 
-    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop = exp.get_mut_stop();
+    let expstop = exp.mut_stop();
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     exp.run();
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj3;
+    let pb = Pb::new(sp, obj3);
 
-    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_python_batch_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_python_batch_parrun_rs", 100);
     let expstop = exp.get_stop();
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

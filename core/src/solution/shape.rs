@@ -32,6 +32,8 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 /// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
 pub trait SolutionShape:
     Debug
+    + Send
+    + Sync
     + Clone
     + HasId
     + HasInfo

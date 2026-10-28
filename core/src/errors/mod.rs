@@ -73,6 +73,8 @@ pub enum CommunicatorError {
     ChannelClosed,
     /// Error when the received message is of an unexpected type.
     InvalidMessage,
+    /// Error when the received message has an invalid tag.
+    InvalidTag(u32),
 }
 impl ErrMsg for CommunicatorError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -94,6 +96,9 @@ impl ErrMsg for CommunicatorError {
             }
             CommunicatorError::InvalidMessage => {
                 write!(f, "Invalid message type")
+            }
+            CommunicatorError::InvalidTag(tag) => {
+                write!(f, "Invalid message tag: {}", tag)
             }
         }
     }
@@ -157,3 +162,12 @@ impl ErrMsg for EvaluationError {
     }
 }
 err_msg!(EvaluationError);
+
+pub struct WorkerError(pub String);
+impl ErrMsg for WorkerError {
+    fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let err_msg = "Worker error";
+        write!(f, "{}, {}.", err_msg, self.0)
+    }
+}
+err_msg!(WorkerError);

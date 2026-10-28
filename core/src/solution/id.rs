@@ -54,6 +54,7 @@ where
         + Eq
         + Clone
         + Copy
+        + Default
         + Debug
         + ToString
         + Schema<(), Parts = ()>
@@ -102,6 +103,13 @@ impl DistSId {
 impl Display for DistSId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}_{}", self.rank, self.id)
+    }
+}
+
+#[cfg(feature = "mpi")]
+impl Default for DistSId {
+    fn default() -> Self {
+        Self::generate()
     }
 }
 
@@ -164,6 +172,12 @@ pub struct ParSId {
 impl Display for ParSId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}_{}", self.pid, self.id)
+    }
+}
+
+impl Default for ParSId {
+    fn default() -> Self {
+        Self::generate()
     }
 }
 
@@ -235,6 +249,12 @@ impl Display for SId {
     }
 }
 
+impl Default for SId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
 impl SolId for SId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {
@@ -294,6 +314,12 @@ pub struct StepSId {
 impl Display for StepSId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}_{}", self.id, self.id_step)
+    }
+}
+
+impl Default for StepSId {
+    fn default() -> Self {
+        Self::generate()
     }
 }
 

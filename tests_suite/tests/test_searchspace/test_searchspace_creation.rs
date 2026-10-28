@@ -65,15 +65,15 @@ macro_rules! get_test {
                 let vec_converted_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_onto_opt(&sp, vec_sample_obj);
                 let csopt: Vec<_> = vec_converted_opt.into_iter().map(|p| p.extract_sopt()).collect();
                 assert!(csopt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
-                assert!(&csopt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
+                assert!(&csopt.iter().all(|p| p.step() == Step::Discard), "All converted opt samples should have Step to Discard.");
 
                 let vec_sample_opt = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_apply_opt(&sp,|mut pair| {pair.discard(); pair},&mut rng,3);
                 assert!(vec_sample_opt.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_opt(&sp, v.ref_x())));
-                assert!(&vec_sample_opt.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
+                assert!(&vec_sample_opt.iter().all(|p| p.step() == Step::Discard), "All opt samples should have Step to Discard.");
                 let vec_converted_obj = <Sp<$name::ObjType,$name::OptType> as Searchspace<multi_step_func::FuncType<$name::ObjType>>>::vec_onto_obj(&sp, vec_sample_opt);
                 let csobj: Vec<_> = vec_converted_obj.into_iter().map(|p| p.extract_sobj()).collect();
                 assert!(csobj.iter().all(|v| <Sp<$name::ObjType,$name::OptType> as Searchspace<one_step_func::FuncType<$name::ObjType>>>::contains_obj(&sp, v.ref_x())));
-                assert!(&csobj.iter().all(|p| p.step() == Step::Discard), "All obj samples should have Step to Discard.");
+                assert!(&csobj.iter().all(|p| p.step() == Step::Discard), "All converted obj samples should have Step to Discard.");
             }
 
             #[test]

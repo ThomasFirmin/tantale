@@ -130,8 +130,8 @@
 //! ```
 
 use crate::{
-    FuncWrapper, Uncomputed, aliases::{GetId, GetRaw, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
-        SolId, SolutionShape, shape::IntoComputedShape,
+    FuncWrapper, Solution, Uncomputed, aliases::{GetRaw, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
+        SolutionShape, shape::IntoComputedShape,
     },
 };
 
@@ -212,15 +212,15 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
 
     /// Create a new solution from a raw solution in the Obj domain.
     fn new_obj<T: Into<GetRaw<F::Sol<Self::Obj>>>>(&self, x: T) -> Self::Shape {
-        let id = GetId::<F::Sol<Self::Obj>>::generate();
-        let sol = F::Sol::<Self::Obj>::new(id, x, F::Info::default().into());
+        let meta = <F::Sol::<Self::Obj> as Solution>::MetaData::default();
+        let sol = F::Sol::<Self::Obj>::new(meta, x);
         self.onto_opt(sol)
     }
 
     /// Create a new solution from a raw solution in the Opt domain.
     fn new_opt<T: Into<GetRaw<F::Sol<Self::Opt>>>>(&self, x: T) -> Self::Shape {
-        let id = GetId::<F::Sol<Self::Opt>>::generate();
-        let sol = F::Sol::<Self::Opt>::new(id, x, F::Info::default().into());
+        let meta = <F::Sol::<Self::Opt> as Solution>::MetaData::default();
+        let sol = F::Sol::<Self::Opt>::new(meta, x);
         self.onto_obj(sol)
     }
 
@@ -341,7 +341,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     fn sample_obj<R: Rng>(&self, rng: &mut R) -> GetSObj<Self::Shape>{
-        Uncomputed::new(GetId::<GetSObj<Self::Shape>>::generate(), self.sample_raw_obj(rng), F::Info::default().into())
+        let meta = <F::Sol::<Self::Obj> as Solution>::MetaData::default();
+        Uncomputed::new(meta, self.sample_raw_obj(rng))
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
     ///
@@ -419,7 +420,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     fn sample_opt<R: Rng>(&self, rng: &mut R) -> GetSOpt<Self::Shape>{
-        Uncomputed::new(GetId::<GetSOpt<Self::Shape>>::generate(), self.sample_raw_opt(rng), F::Info::default().into())
+        let meta = <F::Sol::<Self::Opt> as Solution>::MetaData::default();
+        Uncomputed::new(meta, self.sample_raw_opt(rng))
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
     ///

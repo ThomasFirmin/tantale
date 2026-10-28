@@ -1,12 +1,12 @@
+use crate::cleaner::Cleaner;
+
 use super::init_sp::sp_mixed_to_nodomain::get_searchspace;
 
 use csv::Reader;
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
 use tantale::core::{
-    BaseSol, Codomain, Computed, EmptyInfo, FolderConfig, HasId, HasVariables, HasX, 
-    Mixed, MixedTypeDom, NoDomain, OneStep, Problem, Recordable, Recorder, SId, Schema, Searchspace, SimplePb, Sp, 
-    recorder::RecorderTargets, utils::record::{CompParts, SolParts},
+    BaseSol, Codomain, Computed, EmptyInfo, FolderConfig, HasId, HasVariables, HasX, Mixed, MixedTypeDom, NoDomain, OneStep, Problem, Recordable, Recorder, SId, Schema, Searchspace, SimplePb, Sp, objective::outcome::IdOut, recorder::RecorderTargets, utils::record::{CompParts, SolParts},
 };
 use tantale::core::recorder::CSVRecorder;
 use tantale::macros::{Outcome, Recordable, Schema};
@@ -64,6 +64,7 @@ fn read_csv(path: &Path) -> (Vec<String>, Vec<Vec<String>>) {
 
 #[test]
 fn csv_recorder_writes_schema_and_records() {
+    let _clean = Cleaner::new("tmp_test");
     let searchspace: Sp<Mixed, NoDomain> = get_searchspace();
     let objective: OneStep<BaseSol<SId, Mixed, EmptyInfo>, infos::OutExample> =
         OneStep::new(infos::evaluate);
@@ -89,7 +90,7 @@ fn csv_recorder_writes_schema_and_records() {
     <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder, &RecorderTargets::XObjective,&solution,(&(), &vars),SolParts::X).unwrap();
     <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder,&RecorderTargets::XOptimizer,&solution,(&(), &vars),SolParts::X,).unwrap();
     <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder,&RecorderTargets::Y, &computed, contexts, CompParts::Y).unwrap();
-    <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder,&RecorderTargets::Outcome, &output, (&(), &()), ()).unwrap();
+    <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder,&RecorderTargets::Outcome, &IdOut(computed.ref_id(), &output), (&(), &()), ()).unwrap();
     <CSVRecorder as Recorder<SimplePb<EmptyInfo, Sp<Mixed, NoDomain>, infos::OutExample>, ()>>::record(&recorder,&RecorderTargets::Metadata,&solution,(&(), &vars),SolParts::Info).unwrap();
 
     let recorder_dir = Path::new("tmp_test").join("recorder");
@@ -122,8 +123,8 @@ fn csv_recorder_writes_schema_and_records() {
 
     let out_file = recorder_dir.join("out.csv");
     let (out_header, out_rows) = read_csv(&out_file);
-    assert_eq!(out_header, infos::OutExample::columns(&(), ()));
-    assert_eq!(out_rows, vec![output.record(&(), ())]);
+    assert_eq!(out_header, IdOut::<SId, infos::OutExample>::columns(&(), ()));
+    assert_eq!(out_rows, vec![IdOut(computed.ref_id(), &output).record(&(), ())]);
 
     let info_file = recorder_dir.join("info.csv");
     let (info_header, info_rows) = read_csv(&info_file);

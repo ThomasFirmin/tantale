@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tantale::algos::bayesian::bandwidth::{
     Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw, scott_col,
 };
-use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, SolId, Sp, Uncomputed, Unit, Var, Xy};
+use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, SolId, Solution, Sp, Uncomputed, Unit, Var, Xy};
 use tantale::core::{Int, Nat, Real, distribution::Uniform};
 
 use super::init_func::sp_real;
@@ -33,12 +33,15 @@ fn test_optuna_bw_real() {
 fn test_optuna_object() {
     let mut bw = Optuna::new(false);
 
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
-    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x1, EmptyInfo.into());
+    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![2.0, 2.0, 2.0].into_boxed_slice().into();
-    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x2, EmptyInfo.into());
+    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
-    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x3, EmptyInfo.into());
+    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
 
     let xy1 = Xy::new(sol1.clone_x(), ElemSingleCodomain::new(1.0).into());
     let xy2 = Xy::new(sol2.clone_x(), ElemSingleCodomain::new(2.0).into());
@@ -231,12 +234,15 @@ fn test_magic_clip_large_size_uses_100_cap() {
 fn test_hyperopt_object() {
     let mut bw = Hyperopt::new(true, false);
 
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
-    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x1, EmptyInfo.into());
+    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
-    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x2, EmptyInfo.into());
+    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![6.0, 6.0, 6.0].into_boxed_slice().into();
-    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x3, EmptyInfo.into());
+    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
 
     let xy1 = Xy::new(sol1.clone_x(), ElemSingleCodomain::new(1.0).into());
     let xy2 = Xy::new(sol2.clone_x(), ElemSingleCodomain::new(2.0).into());
@@ -315,16 +321,21 @@ fn test_hyperopt_assign_col_clip_applies() {
 fn test_scott_object() {
     let mut bw = Scott::new(false);
 
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
-    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x1, EmptyInfo.into());
+    let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![2.0, 2.0, 2.0].into_boxed_slice().into();
-    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x2, EmptyInfo.into());
+    let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
-    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x3, EmptyInfo.into());
+    let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x4: Arc<[f64]> = vec![4.0, 4.0, 4.0].into_boxed_slice().into();
-    let sol4: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x4, EmptyInfo.into());
+    let sol4: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x4);
+    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x5: Arc<[f64]> = vec![5.0, 5.0, 5.0].into_boxed_slice().into();
-    let sol5: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(SId::generate(), x5, EmptyInfo.into());
+    let sol5: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x5);
 
     let xy1 = Xy::new(sol1.clone_x(), ElemSingleCodomain::new(1.0).into());
     let xy2 = Xy::new(sol2.clone_x(), ElemSingleCodomain::new(2.0).into());

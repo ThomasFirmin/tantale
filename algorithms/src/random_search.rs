@@ -1,18 +1,15 @@
 use tantale_core::{
-    HasState, Problem, Sampled, Sampler, SolInfo, State, aliases::{Accum, CompShape, Shape}, optimizer::opt::{Batched, Prunable}, searchspace::Searchspace, utils::record::{Recordable, Schema},
+    HasState, Problem, Sampled, Sampler, SolInfo, State, aliases::{Accum, CompShape, Shape}, optimizer::opt::{Batched, Prunable}, searchspace::Searchspace, utils::{ShapeWithInfo, record::{Recordable, Schema}},
 };
 
-use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use tantale_macros::basic_bounds;
-use std::{cell::RefCell, fmt::Debug};
+use std::fmt::Debug;
 
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
+use crate::utils::{refill_apply, with_rng};
 
 /// Metadata for a Random Search optimization step, associated to each [`Batch`].
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct RSInfo(pub usize);
 
 impl Schema<()> for RSInfo {
@@ -80,29 +77,6 @@ macro_rules! batchrandomsearch {
 ///  Return same solution      Return the solution
 ///  (continue evaluation)
 /// ```
-///
-/// # Note
-///
-/// It implements [`SingleOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
-/// allowing it to handle [`Step`]-based optimization scenarios.
-/// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
-/// any state or history of evaluations.
-/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-///
-/// # Note on RNG
-///
-/// The optimizer uses a thread-local [`StdRng`] for random sampling.
-/// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
-/// The [`StdRng`] is defined at the module level as follows:
-/// ```rust,ignore
-/// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-/// }
-/// ```
-/// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
-/// ```rust,ignore
-/// self.with_rng(|rng| scp.sample_opt(rng, EmptyInfo.into()))
-/// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RandomSearch(pub usize);
 
@@ -110,13 +84,6 @@ impl RandomSearch {
     /// Creates a new instance of the Sequential [`RandomSearch`] optimizer with an initial state.
     pub fn new() -> Self {
         RandomSearch(0)
-    }
-
-    fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
     }
 }
 
@@ -151,7 +118,7 @@ impl<P, Opt> Sampler<P, Opt> for RandomSearch
 
     fn sample_info(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<RSInfo>)> {
         self.0 += 1;
-        let shape = self.with_rng(|rng| scp.sample_pair(rng));
+        let shape = with_rng(|rng| scp.sample_pair(rng));
         Some((shape, RSInfo(self.0).into()))
     }
 
@@ -161,12 +128,12 @@ impl<P, Opt> Sampler<P, Opt> for RandomSearch
 impl Prunable for RandomSearch {}
 
 #[derive(Serialize, Deserialize)]
-#[serde(bound = "Shape<P>: Serialize + for<'a> Deserialize<'a>")]
+#[serde(bound = "ShapeWithInfo<Shape<P>, RSInfo>: Serialize + for<'a> Deserialize<'a>")]
 pub struct BatchRandomSearch<P:Problem> 
 {
     pub calls:usize,
     pub batch_size: usize,
-    pub batch_uncomputed: Vec<Shape<P>>,
+    pub batch_uncomputed: Vec<ShapeWithInfo<Shape<P>, RSInfo>>,
     pub batch_computed: Vec<CompShape<P>>,
 }
 
@@ -202,13 +169,6 @@ impl<P:Problem> BatchRandomSearch<P> {
             batch_computed: Vec::with_capacity(batch_size),
         }
     }
-
-    fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
-    }
 }
 
 impl<P:Problem> State for BatchRandomSearch<P> {}
@@ -239,11 +199,11 @@ impl<P, Opt> Batched<P, Opt> for BatchRandomSearch<P> {
         self.batch_size = size;
     }
 
-    fn batch(&self) -> &[Shape<P>] {
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, RSInfo>] {
         &self.batch_uncomputed
     }
 
-    fn mut_batch(&mut self) -> &mut Vec<Shape<P>> {
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, RSInfo>> {
         &mut self.batch_uncomputed
     }
 
@@ -264,11 +224,16 @@ impl<P, Opt> Sampler<P, Opt> for BatchRandomSearch<P>
     fn sample_info(&mut self,scp: &P::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<RSInfo>)> {
         if self.batch_uncomputed.is_empty(){
             self.calls += 1;
-            self.batch_uncomputed = self.with_rng(|rng| scp.vec_sample_pair(rng, self.batch_size));
+            refill_apply::<P,RSInfo,_>(
+                &mut self.batch_uncomputed,
+                scp, 
+                self.batch_size,
+                |s| (s, RSInfo(self.calls))
+            );
             self.batch_computed.clear();
         }
         let shape = self.batch_uncomputed.pop()?;
-        Some((shape, RSInfo(self.calls).into()))
+        Some((shape.0, shape.1))
     }
 
     fn update(&mut self, x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {

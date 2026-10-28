@@ -58,3 +58,6 @@ pub mod spikes;
 
 pub mod nopruner;
 pub use nopruner::NoPruner;
+
+pub mod premade;
+pub use premade::Premade;

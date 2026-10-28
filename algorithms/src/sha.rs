@@ -63,11 +63,9 @@
 
 use std::{fmt::Debug, marker::PhantomData};
 
+use log::warn;
 use tantale_core::{
-    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, 
-    aliases::{Accum, CompShape, Opt, Shape},
-    optimizer::opt::{Batched, Prunable, Pruner},
-    solution::shape::IntoComputedShape,
+    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, aliases::{Accum, CompShape, Opt, Shape}, optimizer::opt::{Batched, Prunable, Pruner}, solution::shape::IntoComputedShape, utils::ShapeWithInfo,
 };
 
 use serde::{
@@ -77,7 +75,7 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::{Hyperband, utils::{PrunerError, build_halving_budgets}};
+use crate::{Hyperband, utils::{PrunerError, build_halving_budgets, refill_apply}};
 
 /// A helper macro to simplify the type signature of [`Sha`].
 #[macro_export]
@@ -163,11 +161,17 @@ macro_rules! sha {
 pub struct Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
+    /// The batch size used for sampling candidates.
+    pub batch_size: usize,
+    /// The current batch of candidates.
+    pub batch: Vec<ShapeWithInfo<Shape<P>, Smpl::Info>>,
+    /// The current batch of computed candidates.
+    pub comp_batch: Vec<CompShape<P>>,
     /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
     /// Current budget level. This value increases by `scaling` at each stage until it reaches `budget_max`.
@@ -178,27 +182,25 @@ where
     pub budget_idx: usize,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
     pub scaling: f64,
-    /// Current iteration count. Increments after each call to [`step()`](Sha::step).
-    pub iteration: usize,
-    _pb: PhantomData<P>,
 }
 
 impl<P, Smpl> Clone for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn clone(&self) -> Self {
         Sha {
             sampler: self.sampler.clone(),
+            batch_size: self.batch_size,
+            batch: self.batch.clone(),
+            comp_batch: self.comp_batch.clone(),    
             budgets: self.budgets.clone(),
             current_budget: self.current_budget,
             current_rung_size: self.current_rung_size,
             budget_idx: self.budget_idx,
             scaling: self.scaling,
-            iteration: self.iteration,
-            _pb: self._pb,
         }
     }
 }
@@ -206,19 +208,21 @@ where
 impl<P, Smpl> Debug for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Sha")
         .field("sampler", &self.sampler)
+        .field("batch_size", &self.batch_size)
+        .field("batch", &self.batch)
+        .field("comp_batch", &self.comp_batch)
         .field("budgets", &self.budgets)
         .field("current_budget", &self.current_budget)
         .field("current_rung_size", &self.current_rung_size)
         .field("budget_idx", &self.budget_idx)
         .field("scaling", &self.scaling)
-        .field("iteration", &self.iteration)
-        .field("_pb", &self._pb).finish()
+        .finish()
     }
 }
 
@@ -226,7 +230,7 @@ where
 impl<Smpl, P> Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     /// Creates a new Successive Halving optimizer with the specified parameters.
@@ -254,47 +258,49 @@ where
         budget_min: f64,
         budget_max: f64,
         scaling: f64,
+        batch_size: usize,
     ) -> Result<Self, PrunerError> {
         let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
-        let current_rung_size = sampler.batch_size();
+        let current_rung_size = batch_size;
         let current_budget = budgets[0];
         Ok(Sha {
                 sampler,
+                batch_size,
+                batch: Vec::new(),
+                comp_batch: Vec::new(),
                 budgets,
                 budget_idx: 0,
                 current_budget,
                 current_rung_size,
                 scaling,
-                iteration: 0,
-                _pb: PhantomData,
             })
     }
 
-    pub fn bracket_complete(&self) -> bool {
+    pub fn  bracket_complete(&self) -> bool {
         self.current_budget == *self.budgets.last().unwrap()
-            && self.sampler.batch().is_empty()
-            && self.sampler.comp_batch().len() >= self.current_rung_size
+            && self.batch.is_empty()
+            && self.comp_batch.len() >= self.current_rung_size
     }
 
-    pub fn into_hyperband(mut self) -> Hyperband<Self, P> {
+    pub fn into_hyperband(mut self) -> Hyperband<Smpl, P> {
         let (budget_min, budget_max) = self.get_budgets();
         let scaling = self.get_scaling();
 
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
 
-        let n = scaling.powi(s_max as i32);
-        self.set_batch_size(n.ceil() as usize);
+        let n = scaling.powi(s_max as i32).ceil() as usize;
+        self.set_batch_size(n);
         let r = budget_max * scaling.powi(-(s_max as i32));
-        self.set_budgets(budget_min, r);
+        self.set_budgets(r, budget_max);
 
-        Hyperband::new(budget_min, budget_max, scaling, s_max, self.sampler.batch_size(), self)
+        Hyperband::new(budget_min, budget_max, scaling, s_max, self)
     }
 }
 
 impl<Smpl, P> State for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 { }
 
@@ -302,7 +308,7 @@ where
 impl<Smpl, P> HasState for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     type State = Self;
@@ -323,40 +329,46 @@ where
 #[fidelity_bounds(P, Opt)]
 impl<Smpl, P, Opt> Batched<P,Opt> for Sha<Smpl, P>
 where
-    Smpl: Sampler<P, Opt> + Batched<P, Opt> + Prunable,
+    Smpl: Sampler<P, Opt> + Prunable,
     CompShape<P>: Orderable,
 {
     fn batch_size(&self) -> usize {
-        self.sampler.batch_size()
-        
+        self.batch_size
     }
 
+    /// Sets the batch size for the optimizer. This affects how many candidates are sampled in each iteration.
+    /// Resetting the batch size will also reset the current budget and rung size to the initial values, 
+    /// and clear any existing candidates in the batch.
     fn set_batch_size(&mut self, size: usize) {
-        self.sampler.set_batch_size(size);
+        self.batch_size = size;
         self.current_rung_size = size;
+        self.current_budget = self.budgets[0];
+        self.budget_idx = 0;
+        self.batch.clear();
+        self.comp_batch.clear();
     }
 
-    fn batch(&self) -> &[Shape<P>] {
-        self.sampler.batch()
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, Smpl::Info>] {
+        &self.batch
     }
 
-    fn mut_batch(&mut self) -> &mut Vec<Shape<P>> {
-        self.sampler.mut_batch()
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, Smpl::Info>> {
+        &mut self.batch
     }
 
     fn comp_batch(&self) -> &[CompShape<P>] {
-        self.sampler.comp_batch()
+        &self.comp_batch
     }
 
     fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>> {
-        self.sampler.mut_comp_batch()
+        &mut self.comp_batch
     }
 }
 
 #[fidelity_bounds(P, Opt)]
 impl<Smpl, P, Opt> Pruner<P, Opt> for Sha<Smpl, P>
 where
-    Smpl: Sampler<P, Opt> + Batched<P, Opt> + Prunable,
+    Smpl: Sampler<P, Opt> + Prunable,
     CompShape<P>: Orderable,
 {
     /// Reinitializes the budget parameters for this optimizer.
@@ -366,7 +378,8 @@ where
         self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
         self.current_budget = self.budgets[0];
         self.budget_idx = 0;
-        self.drain();
+        self.batch.clear();
+        self.comp_batch.clear();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
@@ -381,6 +394,11 @@ where
     fn set_scaling(&mut self, scaling: f64) {
         assert!(scaling > 1.0, "Scaling factor must be > 1.0");
         self.scaling = scaling;
+        self.budgets = build_halving_budgets(self.get_budget_min(), self.get_budget_max(), self.scaling).unwrap();
+        self.current_budget = self.budgets[0];
+        self.budget_idx = 0;
+        self.batch.clear();
+        self.comp_batch.clear();
     }
 
     /// Returns the current scaling factor for this optimizer.
@@ -400,78 +418,109 @@ where
     fn get_current_budget(&self) -> f64 {
         self.current_budget
     }
-
-    fn drain(&mut self) -> Vec<Shape<P>> {
-        self.sampler.mut_comp_batch().clear();
-        self.sampler.mut_batch().drain(..).collect()
-    }
-
-    fn drain_one(&mut self) -> Option<Shape<P>> {
-        if !self.sampler.mut_comp_batch().is_empty(){
-            self.sampler.mut_comp_batch().clear();
-        }
-        self.sampler.mut_batch().pop()
-    }
 }
 
 #[fidelity_bounds(P, Opt)]
 impl<Smpl, P, Opt> Sampler<P, Opt> for Sha<Smpl, P>
 where
-    Smpl: Sampler<P, Opt> + Batched<P, Opt> + Prunable,
+    Smpl: Sampler<P, Opt> + Prunable,
     CompShape<P>: Orderable,
 {
     type Info = Smpl::Info;
 
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        if !self.sampler.batch().is_empty() {
-            let sol = self.sampler.sample_info(scp, acc);
-            sol.map(|(mut sol, info)| {
-                sol.set_fidelity(self.current_budget);
-                (sol, info)
-            })
+        if let Some(sol) = self.batch.pop() {
+            Some((sol.0, sol.1))
         } else {
-            self.sampler.mut_comp_batch().retain(|comp| matches!(comp.step(), Step::Partially(_)));
-            if self.sampler.mut_comp_batch().is_empty() {
-                self.current_budget = self.budgets[0];
+            self.comp_batch.retain(|comp| matches!(comp.step(), Step::Partially(_)));
+            if self.comp_batch().is_empty() {
                 self.budget_idx = 0;
-                let sampled = self.sampler.sample_info(scp, acc);
-                sampled.map(|(mut sol, info)| {
-                    sol.set_fidelity(self.current_budget);
-                    (sol, info)
-                })
+                self.current_budget = self.budgets[0];
+                self.current_rung_size = self.batch_size;
+                while self.batch.len() < self.current_rung_size && let Some(mut sol) = self.sampler.sample_info(scp, acc) {
+                    sol.0.set_fidelity(self.current_budget);
+                    self.batch.push(ShapeWithInfo(sol.0, sol.1));
+                }
+                if self.batch.len() < self.current_rung_size {
+                    warn!(
+                        "
+                            Insufficient candidates sampled: expected {}, got {}. Consider investigating the sampler.
+                            The rung will be filled with randomly sampled candidates, but this may affect the optimization performance.
+                        ",
+                        self.current_rung_size,
+                        self.batch.len()
+                    );
+                    refill_apply::<P,_,_>(&mut self.batch, scp, self.current_rung_size, 
+                        |mut sol| {
+                        sol.set_fidelity(self.current_budget);
+                        (sol, Smpl::Info::default())
+                    });
+                }
+                self.sample_info(scp, acc)
             } else {
                 // Advance to the next fidelity rung.
                 self.budget_idx += 1;
                 self.current_budget = self.budgets[self.budget_idx];
-                self.current_rung_size = ((self.sampler.batch_size() as f64 * self.scaling.powi(-(self.budget_idx as i32))).floor() as usize).max(1);
+                self.current_rung_size = ((self.batch_size() as f64 * self.scaling.powi(-(self.budget_idx as i32))).floor() as usize).max(1);
 
-                // Keep the best floor(n / scaling) candidates, with at least one survivor.
-                let comp_len = self.sampler.mut_comp_batch().len();
-                let survivors = self.current_rung_size;
+                let comp_len = self.mut_comp_batch().len();
+                let survivors = self.current_rung_size.min(comp_len);
+
                 let discard_count = comp_len - survivors;
 
-                // The left partition contains the worst candidates; popping then yields survivors first.
-                self.sampler.mut_comp_batch().select_nth_unstable_by(discard_count, |a, b| Orderable::ord_cmp(a, b).unwrap());
+                // Put the worst candidates first and the best candidates last.
+                self.mut_comp_batch().select_nth_unstable_by(
+                    discard_count,
+                    |a, b| Orderable::ord_cmp(a, b).unwrap(),
+                );
+
                 let mut promoted = 0;
-                while let Some(comp) = self.sampler.mut_comp_batch().pop() {
+
+                while let Some(comp) = self.mut_comp_batch().pop() {
                     let mut pair: Shape<P> = IntoComputedShape::extract(comp).0;
+
                     if promoted < survivors {
                         pair.set_fidelity(self.current_budget);
-                        self.sampler.mut_batch().push(pair);
+                        self.mut_batch().push(ShapeWithInfo(pair, Sampled::Reused));
                         promoted += 1;
                     } else {
-                        // Discard worst performers
                         pair.discard();
-                        self.sampler.mut_batch().push(pair);
+                        self.mut_batch().push(ShapeWithInfo(pair, Sampled::Reused));
                     }
                 }
                 self.sample_info(scp, acc)
             }
         }
     }
+    
     fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
         match x.step() {
-            Step::Partially(_) | Step::Evaluated  => self.sampler.update(x, scp, acc),
+            Step::Partially(s)  => {
+                let fid = x.fidelity().0;
+                if fid >= self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max(), s
+                    );
+                }
+                self.comp_batch.push(x.clone());
+                self.sampler.update(x, scp, acc)
+            },
+            Step::Evaluated  => {
+                let fid = x.fidelity().0;
+                if fid < self.get_budget_max(){
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ", fid, self.get_budget_max()
+                    );
+                }
+                self.comp_batch.push(x.clone());
+                self.sampler.update(x, scp, acc)
+            },
             _ =>(),
         }
     }
@@ -484,16 +533,18 @@ where
 struct ShaVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable;
+    Smpl: Sampler<P, Opt<P>> + Prunable;
 
 enum ShaField {
     Sampler,
+    BatchSize,
+    Batch,
+    CompBatch,
     Budgets,
     CurrentBudget,
     CurrentRungSize,
     BudgetIdx,
     Scaling,
-    Iteration,
 }
 
 struct ShaFieldVisitor;
@@ -501,21 +552,23 @@ struct ShaFieldVisitor;
 impl<Smpl, P> Serialize for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ShaState", 7)?;
+        let mut state = serializer.serialize_struct("ShaState", 9)?;
         state.serialize_field("sampler", &self.sampler.get_state())?;
+        state.serialize_field("batch_size", &self.batch_size)?;
+        state.serialize_field("batch", &self.batch)?;
+        state.serialize_field("comp_batch", &self.comp_batch)?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("current_budget", &self.current_budget)?;
         state.serialize_field("current_rung_size", &self.current_rung_size)?;
         state.serialize_field("budget_idx", &self.budget_idx)?;
         state.serialize_field("scaling", &self.scaling)?;
-        state.serialize_field("iteration", &self.iteration)?;
         state.end()
     }
 }
@@ -523,7 +576,7 @@ where
 impl<Smpl, P> ShaVisitor<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn new() -> Self {
@@ -535,7 +588,9 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
     type Value = ShaField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .write_str("`sampler`, `budgets`, `current_budget`, `current_rung_size`, `budget_idx`, `scaling` or `iteration`")
+            .write_str(
+                "'sampler', 'batch_size', 'batch', 'comp_batch', 'budgets', 'current_budget', 'current_rung_size', 'budget_idx', 'scaling'"
+            )
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -544,22 +599,26 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
     {
         match value {
             "sampler" => Ok(ShaField::Sampler),
+            "batch_size" => Ok(ShaField::BatchSize),
+            "batch" => Ok(ShaField::Batch),
+            "comp_batch" => Ok(ShaField::CompBatch),
             "budgets" => Ok(ShaField::Budgets),
             "current_budget" => Ok(ShaField::CurrentBudget),
             "current_rung_size" => Ok(ShaField::CurrentRungSize),
             "budget_idx" => Ok(ShaField::BudgetIdx),
             "scaling" => Ok(ShaField::Scaling),
-            "iteration" => Ok(ShaField::Iteration),
             _ => Err(de::Error::unknown_field(
                 value,
                 &[
                     "sampler",
+                    "batch_size",
+                    "batch",
+                    "comp_batch",
                     "budgets",
                     "current_budget",
                     "current_rung_size",
                     "budget_idx",
                     "scaling",
-                    "iteration",
                 ],
             )),
         }
@@ -577,7 +636,7 @@ impl<'de> Deserialize<'de> for ShaField {
 impl<'de, Smpl, P> Visitor<'de> for ShaVisitor<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     type Value = Sha<Smpl, P>;
@@ -593,33 +652,41 @@ where
         let sampler = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let batch_size = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let batch = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let comp_batch = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
         let budgets = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
         let current_budget = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
         let current_rung_size = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
         let budget_idx = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+            .ok_or_else(|| de::Error::invalid_length(7, &self))?;
         let scaling = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-        let iteration = seq
-            .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+            .ok_or_else(|| de::Error::invalid_length(8, &self))?;
+
         Ok(Sha {
             sampler: Smpl::from_state(sampler),
+            batch_size,
+            batch,
+            comp_batch,
             budgets,
             current_budget,
             current_rung_size,
             budget_idx,
             scaling,
-            iteration,
-            _pb: PhantomData,
         })
     }
 
@@ -628,12 +695,14 @@ where
         V: de::MapAccess<'de>,
     {
         let mut sampler = None;
+        let mut batch_size = None;
+        let mut batch = None;
+        let mut comp_batch = None;
         let mut budgets = None;
         let mut current_budget = None;
         let mut current_rung_size = None;
         let mut budget_idx = None;
         let mut scaling = None;
-        let mut iteration = None;
 
         while let Some(key) = map.next_key()? {
             match key {
@@ -642,6 +711,24 @@ where
                         return Err(de::Error::duplicate_field("sampler"));
                     }
                     sampler = Some(map.next_value()?);
+                }
+                ShaField::BatchSize => {
+                    if batch_size.is_some() {
+                        return Err(de::Error::duplicate_field("batch_size"));
+                    }
+                    batch_size = Some(map.next_value()?);
+                }
+                ShaField::Batch => {
+                    if batch.is_some() {
+                        return Err(de::Error::duplicate_field("batch"));
+                    }
+                    batch = Some(map.next_value()?);
+                }
+                ShaField::CompBatch => {
+                    if comp_batch.is_some() {
+                        return Err(de::Error::duplicate_field("comp_batch"));
+                    }
+                    comp_batch = Some(map.next_value()?);
                 }
                 ShaField::Budgets => {
                     if budgets.is_some() {
@@ -673,32 +760,29 @@ where
                     }
                     scaling = Some(map.next_value()?);
                 }
-                ShaField::Iteration => {
-                    if iteration.is_some() {
-                        return Err(de::Error::duplicate_field("iteration"));
-                    }
-                    iteration = Some(map.next_value()?);
-                }
             }
         }
 
-        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
-        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
-        let current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
-        let current_rung_size = current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
-        let budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
-        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
-        let iteration = iteration.ok_or_else(|| de::Error::missing_field("iteration"))?;
+        let  sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let  batch_size = batch_size.ok_or_else(|| de::Error::missing_field("batch_size"))?;
+        let  batch = batch.ok_or_else(|| de::Error::missing_field("batch"))?;
+        let  comp_batch = comp_batch.ok_or_else(|| de::Error::missing_field("comp_batch"))?;
+        let  budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let  current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let  current_rung_size = current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
+        let  budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
+        let  scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
 
         Ok(Sha {
             sampler: Smpl::from_state(sampler),
+            batch_size,
+            batch,
+            comp_batch,
             budgets,
             current_budget,
             current_rung_size,
             budget_idx,
             scaling,
-            iteration,
-            _pb: PhantomData,
         })
     }
 }
@@ -706,7 +790,7 @@ where
 impl<'de, Smpl, P> Deserialize<'de> for Sha<Smpl, P>
 where
     P: Problem,
-    Smpl: Sampler<P, Opt<P>> + Batched<P, Opt<P>> + Prunable,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

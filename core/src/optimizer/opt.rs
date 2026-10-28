@@ -1,11 +1,11 @@
 use crate::{
-    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled, aliases::{Accum, CompShape, Opt, Shape}, solution::SolInfo, utils::{has_trait::HasState, record::{Recordable, Schema}},
+    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled, aliases::{Accum, CompShape, Opt, Shape}, solution::SolInfo, utils::{ShapeWithInfo, has_trait::HasState, record::{Recordable, Schema}},
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::Fn};
 
 /// Empty implementation for [`OptInfo`] or [`SolInfo`].
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct EmptyInfo;
 impl Schema<()> for EmptyInfo {
     type Parts = ();
@@ -29,7 +29,7 @@ impl SolInfo for EmptyInfo {}
 pub trait Sampler<P: Problem, Dom: Domain>: HasState + Clone + Debug
 {
     type Info: SolInfo;
-    
+
     /// Generates a new candidate by sampling from the internal state of the [`Sampler`].
     fn sample(&mut self,scp: &P::Scp,acc: &Accum<P>) -> Option<Shape<P>>
     where
@@ -85,10 +85,10 @@ pub trait Batched<P: Problem, Dom: Domain>: Sampler<P, Dom>
     fn set_batch_size(&mut self, size: usize);
     
     /// Returns the current batch of candidates.
-    fn batch(&self) -> &[Shape<P>];
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, Self::Info>];
     
     /// Returns a mutable reference to the current batch of candidates.
-    fn mut_batch(&mut self) -> &mut Vec<Shape<P>>;
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, Self::Info>>;
     
     /// Returns the current batch of computed candidates.
     fn comp_batch(&self) -> &[CompShape<P>];
@@ -97,12 +97,12 @@ pub trait Batched<P: Problem, Dom: Domain>: Sampler<P, Dom>
     fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>>;
 
     /// Adds a candidate to the current batch.
-    fn add_to_batch(&mut self, candidate: Shape<P>) {
+    fn add_to_batch(&mut self, candidate: ShapeWithInfo<Shape<P>, Self::Info>) {
         self.mut_batch().push(candidate);
     }
 
     /// Pops a candidate from the current batch.
-    fn pop_from_batch(&mut self) -> Option<Shape<P>> {
+    fn pop_from_batch(&mut self) -> Option<ShapeWithInfo<Shape<P>, Self::Info>> {
         self.mut_batch().pop()
     }
 
@@ -160,14 +160,6 @@ where
 
     /// Returns the current scaling factor for budget levels in the optimizer.
     fn get_scaling(&self) -> f64;
-
-    /// Drains all pending candidates from the optimizer, typically for cleanup.
-    /// For example, in Hyperband, this can be used to clear all pending candidates
-    /// when a new bracket is started, as they may not be relevant to the new budget configuration.
-    fn drain(&mut self) -> Vec<Shape<P>>;
-
-    /// Drains a single pending candidate from the optimizer, if available.
-    fn drain_one(&mut self) -> Option<Shape<P>>;
 }
 
 /// Marker trait for sampler that can be used in a pruner context, indicating that it supports pruning operations.

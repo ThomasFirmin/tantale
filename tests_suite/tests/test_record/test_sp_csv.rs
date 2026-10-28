@@ -69,5 +69,5 @@ get_test!(
     sp_only_real_log;["a","b","c","d"],
     sp_only_int_log;["a","b","c","d"],
     sp_only_nat_log;["a","b","c","d"],
-    sp_repeats;["a0","a1","a2","b","c","d"]
+    sp_repeats;["a_0","a_1","a_2","b","c","d"]
 );

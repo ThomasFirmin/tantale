@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
+
+use crate::{FuncWrapper, Problem, aliases::Accum, errors::WorkerError, utils::Communicator};
 
 #[cfg(feature = "mpi")]
 pub mod mpi;
@@ -54,4 +58,21 @@ impl<T> PriorityList<T> {
             self.count += other.count;
         }
     }
+}
+
+/// Trait for a master-worker pattern.
+pub trait MasterWorker: Communicator {
+    fn is_master(&self) -> bool;
+
+    fn master<P, F>(self, f: F) -> Accum<P>
+    where
+        P: Problem,
+        F: FnOnce(Self) -> Accum<P>;
+
+    fn worker<State, Init, R, F>(&mut self, func: F, init: Init, routine: R) -> Result<(), WorkerError>
+    where
+        State: Send + 'static,
+        Init: Fn(Self::Channel) -> (Self::Channel, State) + Send + Sync + 'static,
+        R: Fn(Arc<F>, Self::Channel, State) -> Result<(), WorkerError> + Send + Sync + 'static,
+        F: FuncWrapper + 'static;
 }

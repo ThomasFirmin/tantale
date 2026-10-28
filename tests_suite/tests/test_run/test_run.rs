@@ -46,7 +46,7 @@ fn test_batch_run() {
     expstop.add(50);
 
     let expoptimizer = exp.mut_sampler();
-    assert_eq!(expoptimizer.calls, 9, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.calls, 8, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     exp.run();
 
@@ -63,7 +63,7 @@ fn test_batch_run() {
     let expstop: &Calls = exp.get_stop();
     let expoptimizer = exp.sampler();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
-    assert_eq!(expoptimizer.calls, 17, "Number of iteration is wrong");
+    assert_eq!(expoptimizer.calls, 15, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
 
     run_reader("tmp_test_batchrun", 100);

@@ -1,67 +1,42 @@
 
+use std::sync::Arc;
+
 use crate::{
-    errors::CommunicatorError, utils::{Communicator, communicator::{Channel, IdlePeers, Msg}},
+    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::MasterWorker, utils::{
+        Communicator, communicator::{Channel, Envelope, IdlePeers}
+    },
 };
 use crossbeam::channel::{Receiver, Sender, unbounded};
-use std::any::Any;
-
-pub struct Envelope {
-    pub tag: u32,
-    pub content:  Box<dyn Any + Send + 'static>,
-}
-
-impl Envelope {
-    pub fn new<C: Send + 'static>(tag: u32, content: C) -> Self {
-        Envelope { tag, content: Box::new(content) }
-    }
-}
 
 pub struct ThreadChannel {
     pub id: usize,
-    pub sender: Vec<Sender<(usize,Envelope)>>,
-    pub receiver: Receiver<(usize,Envelope)>,
-}
-
-impl ThreadChannel {
-    fn decode<M: Msg>(envelope: Envelope) -> Result<M, CommunicatorError> {
-        envelope
-            .content
-            .downcast::<M>()
-            .map(|message| *message)
-            .map_err(|_| CommunicatorError::InvalidMessage)
-    }
+    pub sender: Vec<Sender<Envelope>>,
+    pub receiver: Receiver<Envelope>,
 }
 
 impl Channel for ThreadChannel {
-    type Peer = usize;
-
-    fn send<M: Msg>(
-        &self,
-        peer: &Self::Peer,
-        message: M,
-    ) -> Result<(), CommunicatorError> {
-        let tag = message.get_tag();
-        let msg = Envelope::new(tag, message);
-        let sender = &self.sender[*peer];
-        sender.send((*peer, msg)).map_err(|_|CommunicatorError::ChannelClosed)?;
+    fn send(&self, msg: Envelope) -> Result<(), CommunicatorError> {
+        let sender = &self.sender[msg.to];
+        sender.send(msg).map_err(|_|CommunicatorError::ChannelClosed)?;
         Ok(())
     }
 
-    fn receive<M: Msg>(
-        &self,
-    ) -> Result<(Self::Peer, M), CommunicatorError> {
-        let (peer, content) = self.receiver.recv().map_err(|_| CommunicatorError::ChannelClosed)?;
-        let msg = Self::decode(content)?;
-        Ok((peer, msg))
+    fn receive(&self) -> Result<Envelope, CommunicatorError> {
+        let content = self.receiver.recv().map_err(|_| CommunicatorError::ChannelClosed)?;
+        Ok(content)
     }
 
-    fn flush(&self) -> Result<Self::Peer, CommunicatorError> {
-        let (peer, _) = self
+    fn flush(&self) -> Result<usize, CommunicatorError> {
+        let content = self
             .receiver
             .recv()
             .map_err(|_| CommunicatorError::ChannelClosed)?;
 
-        Ok(peer)
+        Ok(content.from)
+    }
+    
+    fn me(&self) -> usize {
+        self.id
     }
 }
 
@@ -85,7 +60,7 @@ impl ThreadCommunicator {
         let mut receivers = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let (tx, rx) = unbounded::<(usize, Envelope)>();
+            let (tx, rx) = unbounded::<Envelope>();
             senders.push(tx);
             receivers.push(rx);
         }
@@ -117,8 +92,8 @@ impl Default for ThreadCommunicator {
 impl Communicator for ThreadCommunicator {
     type Channel = ThreadChannel;
     
-    fn channel(&self, me: usize) -> &ThreadChannel {
-        &self.channels[me]
+    fn channel(&self, peer: usize) -> &ThreadChannel {
+        &self.channels[peer]
     }
 
     fn peers(&self) -> impl Iterator<Item = usize> {
@@ -139,5 +114,50 @@ impl Communicator for ThreadCommunicator {
 
     fn is_busy(&self, peer: usize) -> bool {
         !self.idle.0[peer]
+    }
+}
+
+impl MasterWorker for ThreadCommunicator {
+    fn master<P, F>(self, f: F) -> Accum<P>
+    where
+        P: Problem,
+        F: FnOnce(Self) -> Accum<P>
+    {
+        f(self)
+    }
+
+    fn worker<State, Init, R, F>(&mut self, func: F, init: Init, routine: R) -> Result<(), WorkerError>
+    where
+        State: Send + 'static,
+        Init: Fn(Self::Channel) -> (Self::Channel, State) + Send + Sync + 'static,
+        R: Fn(Arc<F>, Self::Channel, State) -> Result<(), WorkerError> + Send + Sync + 'static,
+        F: FuncWrapper + 'static
+    {
+        let init = std::sync::Arc::new(init);
+
+        let mut handles = Vec::new();
+        let f = Arc::new(func);
+        let r = Arc::new(routine);
+
+        for _ in 1..self.size {
+            let init = init.clone();
+            let channel = self.channels.pop().unwrap();
+            let thr_routine = r.clone();
+            let thr_f = f.clone();
+            handles.push(std::thread::spawn(move || {
+                let (channel, state) = init(channel);
+                thr_routine(thr_f, channel, state)
+            }));
+        }
+
+        for handle in handles {
+            handle.join().unwrap()?;
+        }
+
+        Ok(())
+    }
+    
+    fn is_master(&self) -> bool {
+        true
     }
 }

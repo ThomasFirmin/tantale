@@ -96,7 +96,7 @@ use std::{any::Any, fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Debug + Default + Serialize + Send + Sync + 'static + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()> {
+pub trait SolInfo: Clone + Debug + Default + Serialize + Send + Sync + 'static + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()> {
     /// Returns the first sub-info of type `T` found in this info tree, sharing the underlying [`Arc`].
     fn find_info<T: SolInfo>(self: Arc<Self>) -> Option<Arc<T>> {
         (self as Arc<dyn Any + Send + Sync>).downcast::<T>().ok()
@@ -104,14 +104,33 @@ pub trait SolInfo: Debug + Default + Serialize + Send + Sync + 'static + for<'a>
 }
 
 /// Info returned by a sampler alongside a solution.
-pub enum Sampled<I> {
+#[derive(Serialize, Deserialize)]
+pub enum Sampled<I: Debug> {
     /// New info, converted into `P::Info` by the top-level `sample`.
     Fresh(Arc<I>),
     /// The shape already carries its final info; only valid for a shape that was sampled before.
     Reused,
 }
 
-impl<I> From<I> for Sampled<I> {
+impl<I:Debug> Debug for Sampled<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Sampled::Fresh(info) => write!(f, "Sampled::Fresh({:?})", info),
+            Sampled::Reused => write!(f, "Sampled::Reused"),
+        }
+    }
+}
+
+impl<I:Debug> Clone for Sampled<I> {
+    fn clone(&self) -> Self {
+        match self {
+            Sampled::Fresh(info) => Sampled::Fresh(info.clone()),
+            Sampled::Reused => Sampled::Reused,
+        }
+    }
+}
+
+impl<I:Debug> From<I> for Sampled<I> {
     fn from(info: I) -> Self {
         Sampled::Fresh(Arc::new(info))
     }
@@ -158,6 +177,10 @@ pub trait Solution: Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Seria
 {
     /// The [domain](Domain) defining the variable types and constraints for this solution.
     type Dom: Domain;
+    /// The metadata type associated with this solution, typically a tuple of [`SolId`] and [`SolInfo`].
+    type MetaData: Clone + Default + Debug + Send + Sync + Serialize + for<'de> Deserialize<'de>;
+
+    fn meta(&self) -> Self::MetaData;
 }
 
 /// Trait for solutions that have not yet been evaluated.
@@ -200,7 +223,7 @@ pub trait Uncomputed: Solution
     /// # Returns
     ///
     /// A new uncomputed solution.
-    fn new<T>(id: Self::Id, x: T, info: Arc<Self::Info>) -> Self
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>;
 

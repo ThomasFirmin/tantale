@@ -31,22 +31,22 @@
 //! - Watanabe, [*Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance*](https://arxiv.org/pdf/2304.11127).
 //! - Ozaki et al., [*Multiobjective Tree-Structured Parzen Estimator*](https://www.jair.org/index.php/jair/article/view/13188/26784)
 //!
-use crate::bayesian::{bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter, weighter::Weighter};
+use crate::{
+    bayesian::{
+        bandwidth::Bandwidth, error::SplitError, 
+        kernel::Kernel, splitter::Splitter, weighter::Weighter
+    }, utils::with_rng
+};
 use tantale_core::{
     HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Prunable, SId, Sampled, Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, StepSId, Xy, aliases::{Accum, CodElem, CompShape, Opt, SOpt, Shape, XOpt}, utils::record::{Recordable, Schema},
 };
 
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tantale_macros::{basic_bounds, fidelity_bounds};
 use core::panic;
-use std::{cell::RefCell, fmt::Debug, vec};
+use std::{fmt::Debug, vec};
 use log::warn;
-
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
 
 /// A helper macro to shortcut the type signature of [`Tpe`] when loading.
 #[macro_export]
@@ -68,7 +68,7 @@ pub fn acquisition(good_pdf: f64, bad_pdf: f64) -> f64 {
     good_pdf / bad_pdf
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct TpeSInfo {
     pub acquisition: f64,
     pub good_bdf: f64,
@@ -328,13 +328,6 @@ where
             current_fidelity: -f64::INFINITY,
         }
     }
-
-    fn with_rng<F, A>(&self, f: F) -> A
-    where
-        F: FnOnce(&mut StdRng) -> A,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
-    }
 }
 
 #[basic_bounds(P)]
@@ -390,7 +383,7 @@ where
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let n_init = self.n_init;
         if self.point_archive.is_empty() || self.point_archive[0].1.size() < n_init {
-            Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
+            Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.splitter.split(&self.point_archive[0].1);
@@ -400,7 +393,7 @@ where
                     match err {
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            return Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
+                            return Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -417,7 +410,7 @@ where
             let (s, acq, gpdf, bpdf) = (0..self.n_sample)
                 .into_par_iter()
                 .map(|_| {
-                    let s = self.with_rng(|rng| {
+                    let s = with_rng(|rng| {
                         self
                             .kernel
                             .sample(rng, &good, &good_ctx, scp)
@@ -461,7 +454,7 @@ where
 
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if self.point_archive.is_empty() || self.point_archive[self.current_archive].1.size() < self.n_init {
-            Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
+            Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.splitter.split(&self.point_archive[self.current_archive].1);
@@ -471,7 +464,7 @@ where
                     match err {
                         SplitError::NotEnoughPoints(msg) => {
                             warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            return Some((self.with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
+                            return Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
                         },
                         _ => panic!("Unexpected error: {err:?}"),
                     }
@@ -488,7 +481,7 @@ where
             let (s, acq, gpdf, bpdf) = (0..self.n_sample)
                 .into_par_iter()
                 .map(|_| {
-                    let s = self.with_rng(|rng| {
+                    let s = with_rng(|rng| {
                         self
                             .kernel
                             .sample(rng, &good, &good_ctx, scp)

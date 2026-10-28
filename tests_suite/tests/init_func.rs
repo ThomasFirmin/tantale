@@ -1160,7 +1160,7 @@ pub struct MoFidOutEvaluator {
     pub obj1: f64,
     #[maximize]
     pub obj2: f64,
-    info: f64,
+    pub info: f64,
     #[step]
     pub fid: Step,
 }
@@ -1215,6 +1215,56 @@ pub mod sp_evaluator_sh {
 
             state.state += 1;
             let evalstate = if (fid == 5.) && (state.state == 4) {Step::Evaluated} else{Step::Partially(state.state)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
+}
+
+pub mod sp_evaluator_hb {
+    use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Real,
+        objective::Step,
+        distribution::{Bernoulli, Uniform},
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (FidOutEvaluator, FnState) {
+
+            let fid = [! FIDELITY !];
+
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+
+            state.state += 1;
+            let evalstate = if (fid == 8.) {Step::Evaluated} else{Step::Partially(state.state)};
             (
                 FidOutEvaluator{
                     obj: [! j | Real(1000.0,2000.0, Uniform) | !],

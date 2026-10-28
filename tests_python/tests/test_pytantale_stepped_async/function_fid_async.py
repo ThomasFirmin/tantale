@@ -48,7 +48,7 @@ def objective(x: list, fid: float, state : State | None) -> tuple[MyOutcome, Sta
     obj2 = c + d
     info = 42
     state.counter += 1
-    step = tnt.PyStep.evaluated() if fid == 5 else tnt.PyStep.partially(state.counter)
+    step = tnt.PyStep.evaluated() if fid == 3 else tnt.PyStep.partially(state.counter)
     
     return (MyOutcome(obj1, obj2, info, step), state)
 

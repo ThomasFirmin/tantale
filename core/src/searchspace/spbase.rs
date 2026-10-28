@@ -68,8 +68,7 @@
 //! ```
 
 use crate::{
-    FuncWrapper, HasId, HasInfo, HasVariables, HasX, aliases::{GetFuncSol, GetRaw, GetSObj, GetSOpt},
-    domain::{
+    FuncWrapper, HasVariables, HasX, Solution, aliases::{GetFuncSol, GetRaw, GetSObj, GetSOpt, MetaData}, domain::{
         Domain, NoDomain, PreDomain, onto::{Linked, OntoDom},
     }, searchspace::{Searchspace, SpPar}, solution::{
         Lone, Pair, Uncomputed,
@@ -170,7 +169,7 @@ impl<Obj: Domain> HasVariables for Sp<Obj, NoDomain> {
 impl<F, Obj, Opt> Searchspace<F> for Sp<Obj, Opt>
 where
     F: FuncWrapper<Dom = Obj>,
-    GetFuncSol<F, Obj>: Uncomputed<X = Arc<[Obj::Element]>>,
+    GetFuncSol<F, Obj>: Uncomputed<X = Arc<[Obj::Element]>, MetaData = MetaData<GetFuncSol<F, Opt>>>,
     GetFuncSol<F, Opt>: Uncomputed<X = Arc<[Opt::Element]>>,
     Obj: OntoDom<Opt>,
     Opt: OntoDom<Obj>,
@@ -186,7 +185,8 @@ where
             .zip(inp.ref_x().iter())
             .map(|(v, xi)| v.onto_obj(xi).unwrap())
             .collect();
-        let solobj = GetSObj::<Self::Shape>::new(inp.id(), outx, inp.sinfo());
+        let meta = inp.meta().clone();
+        let solobj = GetSObj::<Self::Shape>::new(meta, outx);
         Pair::new(solobj, inp)
     }
 
@@ -199,7 +199,8 @@ where
             .zip(inp.ref_x().iter())
             .map(|(v, xi)| v.onto_opt(xi).unwrap())
             .collect();
-        let solopt = GetSOpt::<Self::Shape>::new(inp.id(), outx, inp.sinfo());
+        let meta = inp.meta().clone();
+        let solopt = GetSOpt::<Self::Shape>::new(meta, outx);
         Pair::new(inp, solopt)
     }
 

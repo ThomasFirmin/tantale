@@ -655,12 +655,19 @@ pub trait ToName {
 
 impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {
     fn to_name(&self) -> String {
-        format!("{}_{}", self.name.0, self.name.1.map_or("".to_string(), |i| i.to_string()))
+        match self.name.1 {
+            Some(i) => format!("{}_{}", self.name.0, i),
+            None => self.name.0.to_string(),
+        }
+        
     }
 }
 
 impl<Obj: Domain, Opt: PreDomain> ToName for &Var<Obj, Opt> {
     fn to_name(&self) -> String {
-        format!("{}_{}", self.name.0, self.name.1.map_or("".to_string(), |i| i.to_string()))
+        match self.name.1 {
+            Some(i) => format!("{}_{}", self.name.0, i),
+            None => self.name.0.to_string(),
+        }
     }
 }
