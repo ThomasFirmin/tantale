@@ -30,6 +30,7 @@ pub enum CheckpointerError {
     FolderCreationError(String),
     FileCreationError(String),
     FileNotFound(String),
+    AppendError(String),
     Other(String),
 }
 
@@ -54,6 +55,9 @@ impl ErrMsg for CheckpointerError {
             CheckpointerError::Other(msg) => {
                 write!(f, "Checkpointer error: {}", msg)
             }
+            CheckpointerError::AppendError(err) => {
+                write!(f, "Checkpointer append error: {}", err)
+            },
         }
     }
 }

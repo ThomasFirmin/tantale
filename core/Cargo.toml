@@ -14,6 +14,7 @@ keywords.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
+tantale_macros = { workspace = true }
 num = { workspace = true}
 rand = { workspace = true}
 rayon = {workspace = true}

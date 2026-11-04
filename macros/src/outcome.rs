@@ -148,6 +148,8 @@ impl Attributes {
 /// 2. `FidOutcome` - Multi-fidelity tracking (if Step field exists)
 ///
 pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    use crate::schema_crate_path;
+
     let tantale_crate = schema_crate_path();
     
     let mut attr = Attributes::new();

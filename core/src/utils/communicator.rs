@@ -1,7 +1,7 @@
 use std::{any::Any, fmt::Debug};
 
 use bincode::{config, serde::Compat};
-use bitvec::{bitvec, slice::{IterOnes, IterZeros}, vec::BitVec};
+use bitvec::{bitbox, boxed::BitBox};
 use serde::{Deserialize, Serialize};
 
 use crate::{Fidelity, Problem, SolId, aliases::{Out, XObj}, errors::CommunicatorError};
@@ -12,13 +12,18 @@ pub trait Msg : Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static
     const TAG: u32;
 }
 
+/// A trait to erase the type of a message, allowing for dynamic message passing in a communication system.
 pub trait ErasedMsg: Any + Send {
+    /// Returns the tag associated with the message type.
     fn tag(&self) -> u32;
 
+    /// Serializes the message into a vector of bytes.
     fn encode(&self) -> Result<Vec<u8>, CommunicatorError>;
 
+    /// Returns a reference to the message as a trait object of type `Any`.
     fn as_any(&self) -> &dyn Any;
 
+    /// Consumes the message and returns it as a boxed trait object of type `Any`.
     fn into_any(self: Box<Self>) -> Box<dyn Any + Send>;
 }
 
@@ -104,6 +109,14 @@ impl Msg for ByteMsg
     const TAG: u32 = 6;
 }
 
+/// A message that can be sent via a [`Communicator`] to signal that the worker has initialized.
+#[derive(Serialize, Deserialize)]
+pub struct InitMsg(pub isize);
+
+impl Msg for InitMsg {
+    const TAG: u32 = 7;
+}
+
 /// A message envelope that can hold any type of message, 
 /// allowing for dynamic message passing in a communication system.
 pub struct Envelope {
@@ -134,29 +147,44 @@ pub trait Channel {
     /// Receive a message from any peer.
     fn receive(&self) -> Result<Envelope, CommunicatorError>;
 
+    /// Try to receive a message from any peer. Returns `None` if no message is available.
+    fn try_receive(&self) -> Result<Option<Envelope>, CommunicatorError>;
+
     /// Flush the channel. Receives any pending messages and returns the peer that sent the message.
     fn flush(&self) -> Result<usize, CommunicatorError>;
 }
-
 
 pub trait Communicator: Sized {
 
     type Channel: Channel;
 
-    /// Returns a reference to the underlying channel.
+    /// This methods returns `me` a usize representing the current process identifier.
+    fn me(&self) -> usize;
     /// Takes a peer identifier and returns the corresponding channel for communication with that peer.
     fn channel(&self, peer:usize) -> &Self::Channel;
-    /// Returns an iterator over all peers managed by the communicator.
+    /// Returns an iterator over all peers managed by the communicator, except
+    /// the peer calling this method (i.e. the [`me`](Self::me) peer).
     fn peers(&self) -> impl Iterator<Item = usize>;
+    /// Returns the number of peers managed by the communicator.
+    fn size(&self) -> usize {
+        self.peers().count()
+    }
     /// Sets the state of a peer to idle.
     fn set_idle(&mut self, peer: usize);
     /// Sets the state of a peer to busy.
     fn set_busy(&mut self, peer: usize);
+    /// Sets the state of a peer to dead.
+    fn set_dead(&mut self, peer: usize);
+    /// Sets the state of a peer to alive.
+    fn set_alive(&mut self, peer: usize);
     /// Checks if a peer is idle.
     fn is_idle(&self, peer: usize) -> bool;
     /// Checks if a peer is busy.
     fn is_busy(&self, peer: usize) -> bool;
-
+    /// Checks if a peer is dead.
+    fn is_dead(&self, peer: usize) -> bool;
+    /// Checks if a peer is alive.
+    fn is_alive(&self, peer: usize) -> bool;
     /// Returns an iterator over all idle peers.
     fn idle(&self) -> impl Iterator<Item = usize> {
         self.peers().filter(|peer| self.is_idle(*peer))
@@ -173,6 +201,22 @@ pub trait Communicator: Sized {
     fn all_busy(&self) -> bool{
         self.peers().all(|peer| self.is_busy(peer))
     }
+    /// Returns true if all peers are dead.
+    fn all_dead(&self) -> bool{
+        self.peers().all(|peer| self.is_dead(peer))
+    }
+    /// Returns true if any peer is idle.
+    fn any_idle(&self) -> bool {
+        self.peers().any(|peer| self.is_idle(peer))
+    }
+    /// Returns true if any peer is busy.
+    fn any_busy(&self) -> bool {
+        self.peers().any(|peer| self.is_busy(peer))
+    }
+    /// Returns true if any peer is dead.
+    fn any_dead(&self) -> bool {
+        self.peers().any(|peer| self.is_dead(peer))
+    }
     /// Returns an idle peer if one exists, otherwise returns None.
     fn get_idle(&self) -> Option<usize>{
         self.peers().find(|peer| self.is_idle(*peer))
@@ -180,6 +224,10 @@ pub trait Communicator: Sized {
     /// Returns a busy peer if one exists, otherwise returns None.
     fn get_busy(&self) -> Option<usize>{
         self.peers().find(|peer| self.is_busy(*peer))
+    }
+    /// Returns a dead peer if one exists, otherwise returns None.
+    fn get_dead(&self) -> Option<usize>{
+        self.peers().find(|peer| self.is_dead(*peer))
     }
 }
 
@@ -192,6 +240,10 @@ impl Channel for NoChannel {
     }
 
     fn receive(&self) -> Result<Envelope, CommunicatorError> {
+        unreachable!("NoChannel is not meant to be used for actual communication")
+    }
+
+    fn try_receive(&self) -> Result<Option<Envelope>, CommunicatorError> {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
 
@@ -209,6 +261,10 @@ pub struct NoCommunicator;
 impl Communicator for NoCommunicator {
     type Channel = NoChannel;
 
+    fn me(&self) -> usize {
+        unreachable!("NoCommunicator is not meant to be used for actual communication")
+    }
+
     fn channel(&self, _peer: usize) -> &Self::Channel {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
@@ -225,6 +281,14 @@ impl Communicator for NoCommunicator {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
 
+    fn set_dead(&mut self, _peer: usize) {
+        unreachable!("NoCommunicator is not meant to be used for actual communication")
+    }
+
+    fn set_alive(&mut self, _peer: usize) {
+        unreachable!("NoCommunicator is not meant to be used for actual communication")
+    }
+
     fn is_idle(&self, _peer: usize) -> bool {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
@@ -232,27 +296,45 @@ impl Communicator for NoCommunicator {
     fn is_busy(&self, _peer: usize) -> bool {
         unreachable!("NoCommunicator is not meant to be used for actual communication")
     }
+
+    fn is_dead(&self, _peer: usize) -> bool {
+        unreachable!("NoCommunicator is not meant to be used for actual communication")
+    }
+
+    fn is_alive(&self, _peer: usize) -> bool {
+        unreachable!("NoCommunicator is not meant to be used for actual communication")
+    }
 }
 
 /// A structure allowing to know which worker is idle, and if there is at least one idle worker.
-/// It uses a [`BitVec`] to store the idle status of each worker.
+/// It uses a [`BitBox`] to store the idle status of each worker.
+/// Another [`BitBox`] is used to store if a worker is dead or alive.
 #[derive(Debug, Clone)]
-pub struct IdlePeers(pub BitVec);
+pub struct Peers(pub BitBox, pub BitBox);
 
-impl IdlePeers {
+impl Peers {
     /// Create a new [`IdlePeers`]. All worker are set to idle (`true`).
     pub fn new(size: usize) -> Self {
-        let mut r = IdlePeers(bitvec![1; size]);
-        r.set_busy(0);
+        let mut r = Peers(bitbox![1; size], bitbox![0; size]);
+        r.set_busy(0); // The master is always busy
         r
     }
-    /// Return `true` if at least one worker is idle
+
+    /// Return `true` if at least one non-dead worker is idle.
     pub fn has_idle(&self) -> bool {
-        self.0.any()
+        self.0
+            .iter()
+            .by_vals() // Itère efficacement par valeur (bool)
+            .zip(self.1.iter().by_vals())
+            .any(|(is_available, is_dead)| is_available && !is_dead)
     }
-    /// Return `true` if all workers are idle
+    /// Return `true` if all non-dead workers are idle
     pub fn all_idle(&self) -> bool {
-        self.0[1..].all()
+        self.0
+            .iter()
+            .by_vals() // Itère efficacement par valeur (bool)
+            .zip(self.1.iter().by_vals())
+            .all(|(is_available, is_dead)| is_available || is_dead)
     }
     /// Set a worker to idle.
     pub fn set_idle(&mut self, peer: usize) {
@@ -262,88 +344,34 @@ impl IdlePeers {
     pub fn set_busy(&mut self, peer: usize) {
         self.0.set(peer, false)
     }
+
+    /// Set a worker to dead.
+    pub fn set_dead(&mut self, peer: usize) {
+        self.1.set(peer, true)
+    }
+    
+    pub fn set_alive(&mut self, peer: usize) {
+        self.1.set(peer, false)
+    }
+
     /// Returns the first (index ; Rank) idle worker.
     pub fn first_idle(&self) -> Option<usize> {
-        self.0.first_one()
+        self.0
+            .iter()
+            .by_vals() // Itère efficacement par valeur (bool)
+            .zip(self.1.iter().by_vals())
+            .position(|(is_available, is_dead)| is_available && !is_dead)
     }
     /// Iterate over idle workers (index ; Rank).
-    pub fn iter_idle(&self) -> IterOnes<'_, usize, bitvec::prelude::Lsb0> {
-        self.0.iter_ones()
+    pub fn iter_idle(&self) -> impl Iterator<Item = usize> + '_ {
+        self.0.iter_ones().filter(move |&idx| !self.1[idx])
     }
     /// Iterate over busy workers (index ; Rank).
-    pub fn iter_busy(&self) -> IterZeros<'_, usize, bitvec::prelude::Lsb0> {
-        self.0.iter_zeros()
+    pub fn iter_busy(&self) -> impl Iterator<Item = usize> + '_ {
+        (0..self.0.len()).filter(move |&idx| !self.0[idx] || self.1[idx])
     }
     /// Count the number of idle workers.
     pub fn count_idle(&self) -> usize {
-        self.0.count_ones()
+        self.iter_idle().count()
     }
 }
-
-// /// Send an Obj [`Raw`](Solution::Raw) to a worker
-//     pub fn send_to_worker(&mut self, pair: Shape) -> Option<Rank> {
-//         if let Some(rank) = self.idle.first_idle() {
-//             let r = rank as Rank;
-//             self.send_to_rank(r, pair);
-//             Some(r)
-//         } else {
-//             None
-//         }
-//     }
-
-//     /// Send an Obj [`Raw`](Solution::Raw) to a worker given a certain [`Rank`].
-//     pub fn send_to_rank(&mut self, rank: Rank, pair: Shape) {
-//         let sid = pair.id();
-//         let msg = Msg::new(pair.get_sobj());
-//         send_msg(self.proc, msg, rank, 0, self.config);
-//         self.idle.set_busy(rank);
-//         self.waiting.insert(sid, pair);
-//     }
-
-//     /// Receive an  [`Outcome`] from a [`Worker`](crate::Worker).
-//     /// Returns the [`Rank`], the associated [`SolutionShape`], and the received [`Outcome`].
-//     pub fn rec_computed(&mut self) -> (Rank, Shape, Out) {
-//         // Recv / sendv loop
-//         let (bytes, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
-//         let msg = OMessage::from_bytes(bytes, self.config);
-//         // Unwrap all elements
-//         let id = msg.0;
-//         let out = msg.1;
-//         let pair = self.waiting.remove(&id).unwrap();
-//         let rank = status.source_rank();
-//         self.idle.set_idle(rank);
-//         (rank, pair, out)
-//     }
-
-//     /// Flush overlowing [`Outcome`]s when [`Stop`](crate::Stop) is triggered.
-//     pub fn flush(&mut self) {
-//         // Recv / sendv loop
-//         while !self.idle.all_idle() {
-//             let (_, status): (Vec<u8>, _) = self.proc.world.any_process().receive_vec();
-//             let rank = status.source_rank();
-//             self.idle.set_idle(rank);
-//         }
-//     }
-
-//     /// Send a discard order to a given worker [`Rank`] for a solution identified by its [`Id`].
-//     pub fn discard_order(&mut self, rank: Rank, id: SolId) {
-//         send_msg(self.proc, DiscardFXMessage(id), rank, 104, self.config);
-//     }
-
-//     /// Send a checkpoint order to all idle [`Worker`](crate::Worker)s.
-//     pub fn checkpoint_order(&mut self) {
-//         let world = &self.proc.world;
-//         self.idle.iter_idle().for_each(|idx| {
-//             world
-//                 .process_at_rank(idx as i32)
-//                 .send_with_tag(&Vec::<u8>::new(), 7)
-//         });
-//     }
-
-//     /// Send a checkpoint order to a given worker [`Rank`].
-//     pub fn rank_checkpoint_order(&mut self, rank: i32) {
-//         self.proc
-//             .world
-//             .process_at_rank(rank)
-//             .send_with_tag(&Vec::<u8>::new(), 7);
-//     }

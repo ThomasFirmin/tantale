@@ -83,11 +83,11 @@ fn add_bounds_to_item(
         Item::Struct(item) => &mut item.generics,
         Item::Enum(item) => &mut item.generics,
         Item::Trait(item) => &mut item.generics,
-
+        Item::Fn(item) => &mut item.sig.generics,
         _ => {
             return Err(syn::Error::new_spanned(
                 item,
-                "expected an impl, struct, enum, or trait",
+                "expected an impl, struct, enum, function or trait",
             ));
         }
     };

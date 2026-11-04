@@ -261,4 +261,7 @@ pub trait Checkpointer<P: Problem, Context> {
         target: &CheckpointerTargets,
         ctx: &Context,
     ) -> Result<PathBuf, CheckpointerError>;
+
+    /// Add a suffix to a [`CheckpointerTargets`] to create a new target for saving state.
+    fn append_to_target(&self, target: &CheckpointerTargets, suffix: &str) -> Result<PathBuf, CheckpointerError>;
 }

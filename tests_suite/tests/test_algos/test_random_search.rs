@@ -1,6 +1,8 @@
 use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
 use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::core::Experiment;
+use tantale::core::experiment::basics::ParExperiment;
+use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::problem::Pb;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
@@ -217,6 +219,122 @@ fn test_fid_seq_run() {
     run_reader("tmp_test_fidseqrun", 500);
     let expstop: &Evaluated = exp.get_stop();
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
+}
+
+#[test]
+fn test_batch_parrun() {
+    let _clean = Cleaner::new("tmp_test_batch_parrun");
+
+    let sp = sp_evaluator::get_searchspace();
+    let obj = sp_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
+
+    let opt = BatchRandomSearch::new(7);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
+
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
+
+    run_reader("tmp_test_batch_parrun", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::get_function();
+    let pb = Pb::new(sp, func);
+
+    let config = FolderConfig::new("tmp_test_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
+
+    if let Some(m) = exp.master_mut() {
+        let expstop: &mut Evaluated = m.mut_stop();
+        assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+        expstop.add(50);
+        let expoptimizer = m.sampler();
+        assert!(expoptimizer.calls >=8, "Number of iteration is wrong. Should be at least 8, but got {}", expoptimizer.calls);
+        assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
+    }
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::get_function();
+    let pb = Pb::new(sp, func);
+
+    let config = FolderConfig::new("tmp_test_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
+    if let Some(m) = exp.master_mut() {
+        let expstop: &Evaluated = m.get_stop();
+        let expoptimizer = m.sampler();
+        assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
+        assert!(expoptimizer.calls >=15, "Number of iteration is wrong. Should be at least 15, but got {}", expoptimizer.calls);
+        assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
+    }
+
+    run_reader("tmp_test_batch_parrun", 100);
+}
+
+#[test]
+fn test_parrun() {
+    let _clean = Cleaner::new("tmp_test_parrun");
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::get_function();
+    let pb = Pb::new(sp, func);
+
+    let opt = RandomSearch::new();
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
+
+
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
+
+    run_reader("tmp_test_parrun", 50);
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::get_function();
+    let pb = Pb::new(sp, func);
+
+
+    let config = FolderConfig::new("tmp_test_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, RandomSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
+    if let Some(m) = exp.master_mut() {
+        let expstop: &mut Evaluated = m.mut_stop();
+        assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+        expstop.add(50);
+    }
+    exp.run();
+
+    let sp = sp_evaluator::get_searchspace();
+    let func = sp_evaluator::get_function();
+    let pb = Pb::new(sp, func);
+
+
+    let config = FolderConfig::new("tmp_test_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let _exp = ParExperiment::<_, RandomSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
+
+    run_reader("tmp_test_parrun", 100);
 }
 
 // #[test]

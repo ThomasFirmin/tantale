@@ -60,19 +60,64 @@ impl<T> PriorityList<T> {
     }
 }
 
-/// Trait for a master-worker pattern.
-pub trait MasterWorker: Communicator {
+/// Trait for a master-worker communication pattern.
+pub trait MasterWorkerCom: Communicator {
+    /// Return `true` if the current process is the master.
     fn is_master(&self) -> bool;
 
+    /// Return `true` if the current process is a worker.
+    fn is_worker(&self) -> bool {
+        !self.is_master()
+    }
+
+    /// Run the master routine.
+    /// The master routine is a function that takes a [`MasterWorkerCom`] and returns an [`Accum`].
     fn master<P, F>(self, f: F) -> Accum<P>
     where
         P: Problem,
         F: FnOnce(Self) -> Accum<P>;
 
-    fn worker<State, Init, R, F>(&mut self, func: F, init: Init, routine: R) -> Result<(), WorkerError>
+    /// Handle on the running workers, used to wait for their termination.
+    type Handle: WorkerHandle;
+
+    /// Start the worker side from the current process.
+    /// The worker routine is a function that takes a [`FuncWrapper`], a [`Channel`](Communicator::Channel), and returns a [`Result`].
+    ///
+    /// This method must not block when the workers live in the same process as the master
+    /// (e.g. threads), so that the master routine can run afterwards.
+    /// When the current process is the master of a multi-process communicator (e.g. MPI), it does nothing.
+    fn worker<R, F>(&mut self, func: F, routine: R) -> Result<Self::Handle, WorkerError>
     where
-        State: Send + 'static,
-        Init: Fn(Self::Channel) -> (Self::Channel, State) + Send + Sync + 'static,
-        R: Fn(Arc<F>, Self::Channel, State) -> Result<(), WorkerError> + Send + Sync + 'static,
-        F: FuncWrapper + 'static;
+        F: FuncWrapper + 'static,
+        R: Fn(Arc<F>, &mut Self::Channel) -> Result<(), WorkerError> + Send + Sync + 'static;
+}
+
+/// Handle on workers started by [`MasterWorkerCom::worker`].
+pub trait WorkerHandle {
+    /// Wait for all workers to terminate.
+    fn join(self) -> Result<(), WorkerError>;
+}
+
+impl WorkerHandle for () {
+    fn join(self) -> Result<(), WorkerError> {
+        Ok(())
+    }
+}
+
+impl WorkerHandle for Vec<std::thread::JoinHandle<Result<(), WorkerError>>> {
+    fn join(self) -> Result<(), WorkerError> {
+        for handle in self {
+            handle.join().expect("A worker thread panicked.")?;
+        }
+        Ok(())
+    }
+}
+
+/// Trait for a worker.
+/// The worker is a process that runs a routine and communicates with the master.
+pub trait WorkerTrait<P: Problem> {
+    /// Handle on the launched workers.
+    type Handle: WorkerHandle;
+    /// Launch the worker routine. Does not block for in-process workers (threads).
+    fn launch(&mut self) -> Result<Self::Handle, WorkerError>;
 }

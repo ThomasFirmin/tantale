@@ -1,6 +1,8 @@
 use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::Experiment;
+use tantale::core::experiment::basics::ParExperiment;
+use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::Runable,
@@ -9,7 +11,7 @@ use tantale::core::{
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{sp_evaluator, sp_evaluator_real};
-use crate::run_checker::{run_reader, run_reader_eps};
+use crate::run_checker::run_reader;
 
 #[test]
 fn test_tpe_seq_run() {
@@ -303,6 +305,58 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let _exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun_hyperopt_endpoint", 100);
+}
+
+#[test]
+fn test_tpe_seq_parrun() {
+    let _clean = Cleaner::new("tmp_test_tpe_seq_parrun");
+
+    let pb = sp_evaluator::get_problem();
+
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Optuna::new(false)),
+        UniformWeighter::default(),
+        LinearSplit::new(0.25).unwrap(),
+    );
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
+
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
+
+    run_reader("tmp_test_tpe_seq_parrun", 50);
+
+    let pb = sp_evaluator::get_problem();
+
+
+    let config = FolderConfig::new("tmp_test_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _,_>::load(pb, rec, check, com);
+    if let Some(m) = exp.master_mut() {
+        let expstop: &mut Evaluated = m.mut_stop();
+        assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+        expstop.add(50);
+    }
+    exp.run();
+
+    let pb = sp_evaluator::get_problem();
+
+
+    let config = FolderConfig::new("tmp_test_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut _exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _,_>::load(pb, rec, check, com);
+    run_reader("tmp_test_tpe_seq_parrun", 100);
 }
 
 // #[test]
