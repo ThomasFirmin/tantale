@@ -4,7 +4,7 @@ use bincode::{config, serde::Compat};
 use bitvec::{bitbox, boxed::BitBox};
 use serde::{Deserialize, Serialize};
 
-use crate::{Fidelity, Problem, SolId, aliases::{Out, XObj}, errors::CommunicatorError};
+use crate::{Fidelity, Problem, SolId, Step, aliases::{Out, XObj}, errors::CommunicatorError};
 
 /// A simple message for a [`Communicator`].
 pub trait Msg : Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static
@@ -74,7 +74,7 @@ impl<P: Problem + 'static> Msg for XMsg<P>
 /// A message that can be sent via a [`Communicator`] containing an [`X`](crate::HasX::X) and a [`Fidelity`] to be evaluated by a worker.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "P::Id: SolId, XObj<P>: Serialize + for<'a> Deserialize<'a>")]
-pub struct FidMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>, pub Fidelity);
+pub struct FidMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>, pub Fidelity, pub Step);
 
 impl<P: Problem + 'static> Msg for FidMsg<P>
 {
@@ -115,6 +115,15 @@ pub struct InitMsg(pub isize);
 
 impl Msg for InitMsg {
     const TAG: u32 = 7;
+}
+
+/// A message that can be sent via a [`Communicator`] to signal that the worker has initialized.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "Id: SolId")]
+pub struct HasIds<Id:SolId>(pub Vec<Id>);
+
+impl<Id: SolId + 'static> Msg for HasIds<Id> {
+    const TAG: u32 = 8;
 }
 
 /// A message envelope that can hold any type of message, 

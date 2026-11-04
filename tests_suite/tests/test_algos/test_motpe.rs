@@ -2,6 +2,8 @@ use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::bayesian::splitter::MOSplit;
 use tantale::algos::{Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::Experiment;
+use tantale::core::ParExperiment;
+use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::problem::Pb;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
@@ -11,7 +13,7 @@ use tantale::core::{
 
 use crate::cleaner::Cleaner;
 use crate::init_func::sp_evaluator_mo;
-use crate::run_checker::{run_reader, run_reader_eps};
+use crate::run_checker::run_reader;
 
 #[test]
 fn test_mo_tpe_seq_run() {
@@ -69,71 +71,65 @@ fn test_mo_tpe_seq_run() {
     run_reader("tmp_test_mo_tpe_seqrun", 100);
 }
 
-// #[test]
-// fn test_mo_tpe_seqthr_run() {
-//     let _clean = Cleaner::new("tmp_test_mo_tpe_seqthrrun");
+#[test]
+fn test_mo_tpe_seq_parrun() {
+    let _clean = Cleaner::new("tmp_test_mo_tpe_seq_parrun");
 
-//     let sp = sp_evaluator_mo::get_searchspace();
-//     let func = sp_evaluator_mo::example;
-//     let opt = Tpe::new(
-//         5,
-//         10,
-//         (Univariate, Optuna::new(false)),
-//         UniformWeighter::default(),
-//         MOSplit::new(0.25).unwrap(),
-//     );
-//     let obj = OneStep::new(func);
-//     let stop = Evaluated::new(50);
-//     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config);
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let pb = Pb::new(sp, obj);
 
-//     let exp = threaded(sp, obj, opt, stop, (rec, check));
-//     exp.run();
+    let opt = Tpe::new(
+        5,
+        10,
+        (Univariate, Optuna::new(false)),
+        UniformWeighter::default(),
+        MOSplit::new(0.25).unwrap(),
+    );
 
-//     run_reader_eps("tmp_test_mo_tpe_seqthrrun", 50, num_cpus::get() * 4);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_mo_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
 
-//     let sp = sp_evaluator_mo::get_searchspace();
-//     let func = sp_evaluator_mo::example;
-//     let obj = OneStep::new(func);
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
 
-//     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
+    run_reader("tmp_test_mo_tpe_seq_parrun", 50);
 
-//     let mut exp = load!(
-//         threaded,
-//         tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
+    let sp = sp_evaluator_mo::get_searchspace();
+    let obj = sp_evaluator_mo::get_function();
+    let pb = Pb::new(sp, obj);
 
-//     let expstop: &mut Evaluated = exp.get_mut_stop();
-//     assert!(
-//         expstop.calls() >= 50 && expstop.calls() <= 50 + num_cpus::get(),
-//         "Number of calls is wrong"
-//     );
-//     expstop.add(50);
 
-//     exp.run();
+    let config = FolderConfig::new("tmp_test_mo_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
 
-//     let sp = sp_evaluator_mo::get_searchspace();
-//     let func = sp_evaluator_mo::example;
-//     let obj = OneStep::new(func);
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _, _>::load(pb, rec, check, com);
+    match exp.master_mut() {
+        Some(m) => {
+            let expstop: &mut Evaluated = m.mut_stop();
+            assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+            expstop.add(50);
+        },
+        None => panic!("Master process not found"),
+    }
 
-//     let config = FolderConfig::new("tmp_test_mo_tpe_seqthrrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
+    exp.run();
 
-//     let _exp = load!(
-//         threaded,
-//         tpe!(Univariate, Optuna, UniformWeighter, MOSplit),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
-//     run_reader_eps("tmp_test_mo_tpe_seqthrrun", 100, num_cpus::get() * 4);
-// }
+    let sp = sp_evaluator_mo::get_searchspace();
+    let func = sp_evaluator_mo::get_function();
+    let pb = Pb::new(sp, func);
+
+
+    let config = FolderConfig::new("tmp_test_mo_tpe_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _, _>::load(pb, rec, check, com);
+    run_reader("tmp_test_mo_tpe_seq_parrun", 100);
+}

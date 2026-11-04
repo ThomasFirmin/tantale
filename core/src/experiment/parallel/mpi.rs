@@ -1,8 +1,8 @@
 use std::process::exit;
 
 use crate::{
-    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::MasterWorkerCom, utils::communicator::{
-        AskMsg, ByteMsg, Channel, CheckpointMsg, Envelope, ErasedMsg, FidMsg, Peers, OutMsg, StopMsg, XMsg
+    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::communicator::{
+        AskMsg, ByteMsg, Channel, CheckpointMsg, Envelope, ErasedMsg, FidMsg, OutMsg, Peers, StopMsg, XMsg
     }
 };
 

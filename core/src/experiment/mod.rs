@@ -255,26 +255,24 @@
 //! - [`Searchspace`] - Domain definition for optimization variables
 //! - [`Stop`] - Stopping criterion interface
 
+
 use crate::{
-    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Opt, Scp}, checkpointer::Checkpointer, optimizer::Sampler, recorder::Recorder, solution::SolId, stop::Stop,
+    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Opt, Scp}, 
+    checkpointer::Checkpointer, optimizer::Sampler, recorder::Recorder, solution::SolId, stop::Stop,
 };
 
 // BASICS
-pub mod basics;
-pub use basics::{Experiment};
+pub mod basic;
+pub use basic::Experiment;
+
+pub mod exputils;
+pub use exputils::PoolMode;
 
 pub mod parallel;
+pub use parallel::{ParExperiment, ThreadChannel, ThreadCommunicator};
 
-/// Pool modes for the [`FuncStatePool`](crate::experiment::basics::FuncStatePool) when retrieving [`FuncState`](crate::FuncState).
-/// This prevent overflowing RAM whith large [`FuncState`](crate::FuncState) by allowing to retrieve the state from memory if it is still there,
-/// or to load it from disk if it has been evicted.
-/// It is only used for multi-fidelity optimization where the state of the objective function has to be tracked.
-pub enum PoolMode {
-    /// Retrieve the state saved in memory (if any) without loading from disk.
-    InMemory,
-    /// Load the state from disk using the checkpointer.
-    Persistent,
-}
+#[cfg(feature = "mpi")]
+pub use parallel::{MPICommunicator, MPIChannel};
 
 /// The core trait defining the optimization loop interface.
 ///

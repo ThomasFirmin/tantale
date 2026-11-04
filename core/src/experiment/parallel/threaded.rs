@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use crate::{
-    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::MasterWorkerCom, utils::{
+    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::{
         Communicator, communicator::{Channel, Envelope, Peers}
     },
 };

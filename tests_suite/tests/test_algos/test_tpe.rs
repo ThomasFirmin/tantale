@@ -1,7 +1,7 @@
 use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe};
 use tantale::core::Experiment;
-use tantale::core::experiment::basics::ParExperiment;
+use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,

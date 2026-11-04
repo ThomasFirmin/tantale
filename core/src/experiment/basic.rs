@@ -1,0 +1,593 @@
+use std::sync::atomic::Ordering;
+
+use crate::{
+    Accumulator, BaseSol, Codomain, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, 
+    HasState, HasStep, HasStepId, HasVariables, HasX, MultiStep, OneStep, Outcome, Problem, RUN_ID, Runable, SId, SOL_ID, Searchspace, 
+    SimplePb, SolInfo, SolutionShape, State, Step, StepSId, aliases::{Accum, Cod, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, 
+    checkpointer::{Checkpointer, CheckpointerTargets}, experiment::exputils::{FuncStatePool, InMemoryPool, LoadPool, Pool, PoolMode, record}, 
+    optimizer::Sampler, recorder::Recorder, solution::shape::IntoComputedShape, stop::{ExpStep, Stop},
+};
+
+use log::warn;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(bound = "Shape<P>: SolutionShape, Out<P>: Outcome")]
+pub struct ExpState<P:Problem> {
+    /// The current solution being evaluated.
+    pub currently: Shape<P>,
+    /// The current output of the optimization process, if any.
+    pub output: Option<Out<P>>,
+}
+
+impl<P:Problem> State for ExpState<P> { }
+
+impl<P:Problem> ExpState<P> {
+    pub fn new(currently: Shape<P>) -> Self {
+        Self { currently, output: None }
+    }
+
+    pub fn set_output(&mut self, output: Out<P>) {
+        self.output = Some(output);
+    }
+
+    pub fn has_output(&self) -> bool {
+        self.output.is_some()
+    }
+
+    pub fn to_computed(self, codomain: &Cod<P>) -> (CompShape<P>, Out<P>) {
+        let output = self.output.expect("No output available to convert to computed shape.");
+        (self.currently.into_computed(codomain.get_elem(&output).into()), output)
+    }
+}
+
+impl<P:Problem> HasState for ExpState<P> {
+    type State = Self;
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+    
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+    
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+pub struct Experiment<P, O, S, R, C>
+where
+    P: Problem,
+    P::Scp: Searchspace<P::Func> + HasVariables,
+    O: Sampler<P, Opt<P>, Info = <P as Problem>::Info>,
+    S: Stop,
+    R: Recorder<P, ()>,
+    C: Checkpointer<P, ()>,
+{
+    /// The [`Problem`] being solved in the experiment.
+    pub problem: P,
+    /// The [`Sampler`] used to generate new candidate solutions.sed to generate new candidate solutions.
+    pub sampler: O,
+    /// The [stopping](Stop) criterion for the experiment.
+    pub stop: S,
+    /// The [`Recorder`] used to log experiment data.
+    pub recorder: Option<R>,
+    /// The [`Checkpointer`] used to save and load experiment state.
+    pub checkpointer: Option<C>,
+    /// The [`Accumulator`] that collects best evaluated solutions and their outcomes.
+    pub accumulator: Accum<P>,
+    /// The [`PoolMode`] used for managing function states during the experiment.
+    pub pool_mode: PoolMode,
+    /// Describes if the experiment is loaded from a previous state or started fresh.
+    is_loaded: bool,
+}
+
+impl<P, O, S, R, C> Experiment<P, O, S, R, C>
+where
+    P:Problem,
+    P::Scp: Searchspace<P::Func> + HasVariables,
+    O: Sampler<P, Opt<P>, Info = <P as Problem>::Info>,
+    S:Stop,
+    R:Recorder<P, ()>,
+    C:Checkpointer<P, ()>,
+{
+
+    pub fn new(
+        problem: P,
+        sampler: O,
+        stop: S,
+        recorder: Option<R>,
+        checkpointer: Option<C>,
+    ) -> Self 
+    {
+        let accumulator = Accum::<P>::default();
+
+        Self {
+            problem,
+            sampler,
+            stop,
+            recorder,
+            checkpointer,
+            accumulator,
+            pool_mode: PoolMode::InMemory,
+            is_loaded: false,
+        }
+    }
+
+    pub fn with_pool(self, pool: PoolMode) -> Self {
+        Self {
+            pool_mode: pool,
+            ..self
+        }
+    }
+
+    pub fn load(problem: P, mut recorder: Option<R>, mut checkpointer: C) -> Self
+    {
+        if let Some(rec) = recorder.as_mut() {
+            rec.before_load(&problem, &()).expect(
+                " 
+                    Recorder failed to prepare for loading the experiment state. 
+                    Please ensure that the recorder is properly configured and that the necessary files are accessible.
+                "
+            );
+        }
+        checkpointer.before_load(&problem, &()).unwrap();
+
+        let sampler: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
+        let stop = checkpointer.load(&CheckpointerTargets::Stop, &()).unwrap();
+        let accumulator = checkpointer.load(&CheckpointerTargets::Accumulator, &()).unwrap();
+        let parameters: GlobalParameters = checkpointer.load(&CheckpointerTargets::Config, &()).unwrap();
+        // if the parameters.id is greater than the current SOL_ID, 
+        // we replace SOl_ID by the parameters.id 
+        if parameters.sold_id > SOL_ID.load(Ordering::SeqCst) {
+            SOL_ID.store(parameters.sold_id, Ordering::SeqCst);
+        }
+        RUN_ID.store(parameters.run_id + 1, Ordering::SeqCst);
+
+        Self {
+            problem,
+            sampler,
+            stop,
+            recorder,
+            checkpointer: Some(checkpointer),
+            accumulator,
+            pool_mode: PoolMode::InMemory,
+            is_loaded: true,
+        }
+    }
+}
+
+impl<O, S, R, C, Scp, Out, Info> Runable for Experiment<SimplePb<Info, Scp, Out>, O, S, R, C>
+where
+    O:Sampler<SimplePb<Info, Scp, Out>, Scp::Opt, Info = Info>,
+    S:Stop,
+    R:Recorder<SimplePb<Info, Scp, Out>, ()>,
+    C:Checkpointer<SimplePb<Info, Scp, Out>, ()>,
+    Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>> + HasVariables,
+    Scp::Shape: SolutionShape<
+        Id = SId,
+        Info = Info,
+        ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
+        OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
+        Obj = LinkObj<Scp>,
+        Opt = LinkOpt<Scp>,
+    >,
+    Out: Outcome,
+    Info: SolInfo,
+{
+    type Id  = SId;
+    type Context = ();
+
+    type Problem = SimplePb<Info, Scp, Out>;
+    type Sampler = O;
+    type Stop = S;
+    type Recorder = R;
+    type Checkpointer = C;
+    
+    fn run(mut self) -> Accum<Self::Problem> 
+    {
+        let mut state: ExpState<SimplePb<Info, Scp, Out>> = if self.is_loaded {
+            if let Some(rec) = self.recorder.as_mut() {
+                rec.after_load(&self.problem, &()).unwrap();
+            }
+            if let Some(check) = self.checkpointer.as_mut() {
+                check.after_load(&self.problem, &()).unwrap();
+                let exp = check.load(&CheckpointerTargets::Experiment, &());
+                match exp {
+                    Ok(e) => e,
+                    Err(e) => {
+                        log::warn!("
+                            Failed to load experiment state: {}. Because of an error, or because
+                            the experiment unintentionally stopped after an evaluation and before sampling a new solution.
+                            The experiment will now attempt to recover by sampling a new solution
+                            "
+                            , e
+                        );
+                        let sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
+                        if sol.is_none() {
+                            log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                            return self.accumulator;
+                        }
+                        ExpState::new(sol.unwrap())
+                    },
+                }
+            } else {
+                panic!("The expriment was loaded from a previous state, but no checkpointer was provided.");
+            }
+        } else {
+            if let Some(rec) = self.recorder.as_mut(){
+                rec.init(&self.problem, &()).unwrap();
+            }
+            if let Some(check) = self.checkpointer.as_mut() {
+                check.init(&self.problem, &()).unwrap();
+            }
+            let sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
+            if sol.is_none() {
+                log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                return self.accumulator;
+            }
+            ExpState::new(sol.unwrap())
+        };
+        
+        if state.has_output() 
+        {
+            // If the experiment state has an output, it means that the last evlauation was recorded
+            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
+            let (computed, output) = state.to_computed(self.problem.get_codomain());
+            record(&self.recorder, &self.problem, &computed, &output);
+
+            self.accumulator.accumulate(&computed);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+        }
+        
+        loop {
+            // Check if stop
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+                let parameters = GlobalParameters::new();
+                check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            if self.stop.stop() { break; };
+
+            // Compute the output of the current solution
+            let output = self.problem.get_objective().compute(state.currently.get_sobj().clone_x(), ());
+            
+            state.set_output(output);
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            
+            let (computed, output) = state.to_computed(self.problem.get_codomain());
+
+            record(&self.recorder, &self.problem, &computed, &output);
+            self.accumulator.accumulate(&computed);
+
+            if let Some(ref check) = self.checkpointer {
+                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            self.stop.update(ExpStep::Evaluation(Step::Evaluated));
+
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+
+            state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+            self.stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        self.accumulator
+    }
+    
+    fn get_stop(&self) -> &Self::Stop {
+        &self.stop
+    }
+    
+    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
+        self.problem.get_searchspace()
+    }
+    
+    fn codomain(&self) -> &Cod<Self::Problem> {
+        self.problem.get_codomain()
+    }
+    
+    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
+        self.problem.get_objective()
+    }
+    
+    fn sampler(&self) -> &Self::Sampler {
+        &self.sampler
+    }
+    
+    fn recorder(&self) -> Option<&Self::Recorder> {
+        self.recorder.as_ref()
+    }
+    
+    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
+        self.checkpointer.as_ref()
+    }
+
+    fn accumulator(&self) -> &Accum<Self::Problem> {
+        &self.accumulator
+    }
+    
+    fn mut_stop(&mut self) -> &mut Self::Stop {
+        &mut self.stop
+    }
+    
+    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
+        self.problem.get_mut_searchspace()
+    }
+    
+    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
+        self.problem.get_mut_codomain()
+    }
+    
+    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
+        self.problem.get_mut_objective()
+    }
+    
+    fn mut_sampler(&mut self) -> &mut Self::Sampler {
+        &mut self.sampler
+    }
+    
+    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
+        self.recorder.as_mut()
+    }
+    
+    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
+        self.checkpointer.as_mut()
+    }
+    
+    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
+        &mut self.accumulator
+    }
+}
+
+impl<O, S, R, C, Scp, Out, Info, FnState> Runable for Experiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C>
+where
+    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S:Stop,
+    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()>,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    Scp::Shape: SolutionShape<
+        Id = StepSId,
+        Info = Info,
+        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+        Obj = LinkObj<Scp>,
+        Opt = LinkOpt<Scp>,
+    > + HasFidelity + HasStep,
+    CompShape<FidPb<Info, Scp, Out, FnState>>: HasStep + HasStepId,
+    Out: FidOutcome,
+    Info: SolInfo,
+    FnState: FuncState,
+{
+    type Id  = StepSId;
+    type Context = ();
+
+    type Problem = FidPb<Info, Scp, Out, FnState>;
+    type Sampler = O;
+    type Stop = S;
+    type Recorder = R;
+    type Checkpointer = C;
+    
+    fn run(mut self) -> Accum<Self::Problem> 
+    {
+        let mut state: ExpState<FidPb<Info, Scp, Out, FnState>> = if self.is_loaded {
+            if let Some(rec) = self.recorder.as_mut() {
+                rec.after_load(&self.problem, &()).unwrap();
+            }
+            if let Some(check) = self.checkpointer.as_mut() {
+                check.after_load(&self.problem, &()).unwrap();
+                let exp = check.load(&CheckpointerTargets::Experiment, &());
+                match exp {
+                    Ok(e) => e,
+                    Err(e) => {
+                        log::warn!("
+                            Failed to load experiment state: {}. Because of an error, or because
+                            the experiment unintentionally stopped after an evaluation and before sampling a new solution.
+                            The experiment will now attempt to recover by sampling a new solution
+                            "
+                            , e
+                        );
+                        let sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
+                        if sol.is_none() {
+                            log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                            return self.accumulator;
+                        }
+                        ExpState::new(sol.unwrap())
+                    },
+                }
+            } else {
+                panic!("The expriment was loaded from a previous state, but no checkpointer was provided.");
+            }
+        } else {
+            if let Some(rec) = self.recorder.as_mut(){
+                rec.init(&self.problem, &()).unwrap();
+            }
+            if let Some(check) = self.checkpointer.as_mut() {
+                check.init(&self.problem, &()).unwrap();
+            }
+            let sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
+            if sol.is_none() {
+                log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                return self.accumulator;
+            }
+            ExpState::new(sol.unwrap())
+        };
+
+        if state.has_output() 
+        {
+            // If the experiment state has an output, it means that the last evlauation was recorded
+            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
+            let (computed, output) = state.to_computed(self.problem.get_codomain());
+            record(&self.recorder, &self.problem, &computed, &output);
+
+            self.accumulator.accumulate(&computed);
+            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+        }
+
+        let mut pool = match self.pool_mode {
+            PoolMode::InMemory => Pool::InMemory(InMemoryPool::default()),
+            PoolMode::Persistent => Pool::Persistent(LoadPool::default()),
+        };
+        
+        loop {
+            if let Some(ref check) = self.checkpointer {
+                check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+                check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+                let parameters = GlobalParameters::new();
+                check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+            // Check if stop
+            if self.stop.stop() { break; };
+            
+            let result = match state.currently.step() {
+                Step::Pending => {
+                    let fidelity = state.currently.fidelity();
+                    Some(
+                        self.problem.get_objective().compute(state.currently.get_sobj().clone_x(), (fidelity, None))
+                    )
+                },
+                Step::Partially(_) => {
+                    // Compute the output of the current solution
+                    let fn_state = pool.retrieve(state.currently.ref_id(), &self.checkpointer, &());
+                    let fidelity = state.currently.fidelity();
+                    Some(
+                        self.problem.get_objective().compute(state.currently.get_sobj().clone_x(), (fidelity, fn_state))
+                    )
+                },
+                Step::Discard => {
+                    pool.remove(state.currently.ref_id(), &self.checkpointer, &());
+                    None
+                },
+                Step::Evaluated => {
+                    warn!("Solution with ID: {:?} has already been evaluated. Skipping evaluation.", state.currently.ref_id());
+                    pool.remove(state.currently.ref_id(), &self.checkpointer, &());
+                    None
+                },
+                Step::Error => {
+                    warn!("Solution with ID: {:?} encountered an error during evaluation. Skipping evaluation.",
+                    state.currently.ref_id());
+                    pool.remove(state.currently.ref_id(), &self.checkpointer, &());
+                    None
+                },
+            };
+            
+            let computed = if let Some((output, fnstate)) = result{
+                state.set_output(output);        
+                if let Some(ref check) = self.checkpointer {
+                    check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                }
+                pool.remove(state.currently.ref_id(), &self.checkpointer, &());
+
+                let (mut computed, output) = state.to_computed(self.problem.get_codomain());
+                computed.increment();
+                computed.set_raw_step(output.get_step());
+    
+                if matches!(computed.step(), Step::Partially(_)) {
+                    pool.insert(computed.id(), fnstate, &self.checkpointer, &());
+                }
+                record(&self.recorder, &self.problem, &computed, &output);
+                self.accumulator.accumulate(&computed);
+                self.stop.update(ExpStep::Evaluation(computed.step()));
+                Some(computed)
+            } else {
+                None
+            };
+
+            if let Some(ref check) = self.checkpointer {
+                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            }
+
+            if let Some(comp) = &computed {
+                self.sampler.update(comp, self.problem.get_searchspace(), &self.accumulator);
+            }
+            let new_sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
+            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+
+            state = ExpState::new(sol);
+            self.stop.update(ExpStep::Sampling);
+            self.stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        self.accumulator
+    }
+    
+    fn get_stop(&self) -> &Self::Stop {
+        &self.stop
+    }
+    
+    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
+        self.problem.get_searchspace()
+    }
+    
+    fn codomain(&self) -> &Cod<Self::Problem> {
+        self.problem.get_codomain()
+    }
+    
+    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
+        self.problem.get_objective()
+    }
+    
+    fn sampler(&self) -> &Self::Sampler {
+        &self.sampler
+    }
+    
+    fn recorder(&self) -> Option<&Self::Recorder> {
+        self.recorder.as_ref()
+    }
+    
+    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
+        self.checkpointer.as_ref()
+    }
+
+    fn accumulator(&self) -> &Accum<Self::Problem> {
+        &self.accumulator
+    }
+    
+    fn mut_stop(&mut self) -> &mut Self::Stop {
+        &mut self.stop
+    }
+    
+    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
+        self.problem.get_mut_searchspace()
+    }
+    
+    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
+        self.problem.get_mut_codomain()
+    }
+    
+    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
+        self.problem.get_mut_objective()
+    }
+    
+    fn mut_sampler(&mut self) -> &mut Self::Sampler {
+        &mut self.sampler
+    }
+    
+    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
+        self.recorder.as_mut()
+    }
+    
+    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
+        self.checkpointer.as_mut()
+    }
+    
+    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
+        &mut self.accumulator
+    }
+}

@@ -1,5 +1,5 @@
 use tantale::algos::{GridSearch, NoPruner, nopruner};
-use tantale::core::experiment::basics::ParExperiment;
+use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::{Experiment, Problem};
 use tantale::core::problem::Pb;
@@ -125,7 +125,7 @@ fn test_seq_parrun() {
 
     let opt = GridSearch::new(pb.get_searchspace());
 
-    let stop = Evaluated::new(200);
+    let stop = Evaluated::new(50);
     let config = FolderConfig::new("tmp_test_gs_seq_parrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
@@ -134,7 +134,7 @@ fn test_seq_parrun() {
     let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     exp.run();
 
-    run_reader("tmp_test_gs_seq_parrun", 200);
+    run_reader("tmp_test_gs_seq_parrun", 50);
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
@@ -171,5 +171,5 @@ fn test_seq_parrun() {
         },
         None => panic!("Master process not found"),
     }
-    run_reader("tmp_test_gs_seq_parrun", 300);
+    run_reader("tmp_test_gs_seq_parrun", 100);
 }

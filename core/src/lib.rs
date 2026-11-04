@@ -353,8 +353,12 @@ pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
 pub use experiment::{
-    Experiment, PoolMode, Runable,
+    Experiment, ParExperiment, PoolMode, Runable,
+    ThreadChannel, ThreadCommunicator
+    
 };
+#[cfg(feature = "mpi")]
+pub use experiment::{MPICommunicator, MPIChannel};
 
 pub mod recorder;
 pub use recorder::{CSVRecorder, Recorder};
