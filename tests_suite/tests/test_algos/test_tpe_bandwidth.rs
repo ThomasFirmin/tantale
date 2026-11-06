@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tantale::algos::bayesian::bandwidth::{
     Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw, scott_col,
 };
-use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, SolId, Solution, Sp, Uncomputed, Unit, Var, Xy};
+use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, Solution, Sp, Uncomputed, Unit, Var, Xy};
 use tantale::core::{Int, Nat, Real, distribution::Uniform};
 
 use super::init_func::sp_real;

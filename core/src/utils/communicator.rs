@@ -91,39 +91,31 @@ impl<P: Problem + 'static> Msg for OutMsg<P>
     const TAG: u32 = 4;
 }
 
-/// A message that can be sent via a [`Communicator`] asking for checkpointing.
-#[derive(Serialize, Deserialize)]
-pub struct CheckpointMsg(pub isize);
-
-impl Msg for CheckpointMsg
-{
-    const TAG: u32 = 5;
-}
-
-/// A message that can be sent via a [`Communicator`] containing bytes to be deserialized.
-#[derive(Serialize, Deserialize)]
-pub struct ByteMsg(pub u32, pub Vec<u8>);
-
-impl Msg for ByteMsg
-{
-    const TAG: u32 = 6;
-}
-
 /// A message that can be sent via a [`Communicator`] to signal that the worker has initialized.
 #[derive(Serialize, Deserialize)]
 pub struct InitMsg(pub isize);
 
 impl Msg for InitMsg {
-    const TAG: u32 = 7;
+    const TAG: u32 = 5;
 }
 
-/// A message that can be sent via a [`Communicator`] to signal that the worker has initialized.
+/// A message that can be sent via a [`Communicator`] to signal that the worker
+/// has the following solutions states in its memory.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "Id: SolId")]
-pub struct HasIds<Id:SolId>(pub Vec<Id>);
+pub struct ContainsIds<Id:SolId>(pub Vec<Id>);
 
-impl<Id: SolId + 'static> Msg for HasIds<Id> {
-    const TAG: u32 = 8;
+impl<Id: SolId + 'static> Msg for ContainsIds<Id> {
+    const TAG: u32 = 6;
+}
+
+/// A message that can be sent via a [`Communicator`] to signal that the worker should discard a solution.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "Id: SolId")]
+pub struct DiscardMsg<Id:SolId>(pub Id);
+
+impl<Id: SolId + 'static> Msg for DiscardMsg<Id> {
+    const TAG: u32 = 7;
 }
 
 /// A message envelope that can hold any type of message, 
@@ -147,6 +139,8 @@ impl Envelope {
 }
 
 pub trait Channel {
+    const SHARED_MEM: bool;
+
     /// Returns the identifier of the current channel.
     fn me(&self) -> usize;
 
@@ -166,7 +160,10 @@ pub trait Channel {
 pub trait Communicator: Sized {
 
     type Channel: Channel;
-
+    /// A constant indicating whether the communicator uses shared memory.
+    /// If `true`, all processes can access the same file system.
+    const SHARED_MEM : bool = <Self::Channel as Channel>::SHARED_MEM;
+    
     /// This methods returns `me` a usize representing the current process identifier.
     fn me(&self) -> usize;
     /// Takes a peer identifier and returns the corresponding channel for communication with that peer.
@@ -176,7 +173,7 @@ pub trait Communicator: Sized {
     fn peers(&self) -> impl Iterator<Item = usize>;
     /// Returns the number of peers managed by the communicator.
     fn size(&self) -> usize {
-        self.peers().count()
+        self.peers().count() + 1 // +1 for the 'me' peer
     }
     /// Sets the state of a peer to idle.
     fn set_idle(&mut self, peer: usize);
@@ -244,6 +241,7 @@ pub trait Communicator: Sized {
 pub struct NoChannel;
 
 impl Channel for NoChannel {
+    const SHARED_MEM: bool = true;
     fn send(&self, _message: Envelope) -> Result<(), CommunicatorError> {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
@@ -268,6 +266,7 @@ impl Channel for NoChannel {
 pub struct NoCommunicator;
 
 impl Communicator for NoCommunicator {
+    
     type Channel = NoChannel;
 
     fn me(&self) -> usize {

@@ -1,6 +1,5 @@
-use serial_test::serial;
-use tantale::algos::{BatchRandomSearch, RandomSearch, Sha, batchrandomsearch, sha};
-use tantale::core::{Experiment, HasId};
+use tantale::algos::{RandomSearch, Sha, sha};
+use tantale::core::{Experiment, ParExperiment, ThreadCommunicator};
 use tantale::core::optimizer::opt::Batched;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
@@ -33,6 +32,8 @@ pub mod searchspace {
                 None => FnState { state: 0 },
             };
             state.state += 1;
+            let fid = [! FIDELITY !];
+            println!("Fidelity: {}, State {}", fid, state.state);
             let evalstate = if state.state == 4 {Step::Evaluated} else{Step::Partially(state.state)};
 
             let obj = if state.state == 1 { b } else if state.state == 2 { c } else if state.state == 3 { d } else if state.state == 4 { e } else {panic!("Invalid state")};
@@ -80,10 +81,10 @@ fn test_fid_batch_run() {
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
 
     exp.run();
@@ -97,80 +98,76 @@ fn test_fid_batch_run() {
     let exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
     run_reader("tmp_test_sha_batchrun", 1800);
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
 }
 
-// #[test]
-// fn test_fid_batch_parrun() {
-//     let _clean = Cleaner::new("tmp_test_sh_parrun");
+#[test]
+fn test_fid_batch_parrun() {
+    let _clean = Cleaner::new("tmp_test_sha_batch_parrun");
 
-//     let pb = searchspace::get_problem();
-//     let sampler = BatchRandomSearch::new(10);
-//     let opt = Sha::new(sampler, 1., 5., 1.61).unwrap();
+    let pb = searchspace::get_problem();
+    let sampler = RandomSearch::new();
+    let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
-//     let stop = Evaluated::new(50);
-//     let config = FolderConfig::new("tmp_test_sh_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
 
-//     let exp = threaded(sp, obj, opt, stop, (rec, check));
-//     exp.run();
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
 
-//     run_reader("tmp_test_sh_parrun", 1000);
+    // To get 2 fully evaluated solutions we need:
+    // 10 Evaluations at fidelity 1
+    // 6 Evaluations at fidelity 1.61 (n*1.61^-1)
+    // 3 Evaluations at fidelity 2.59 (n*1.61^-2)
+    // 2 Evaluations at fidelity 4.17 (5.) (n*1.61^-3)
+    // To get 50 fully evaluated solutions we need 25 times the above, so 525 evaluations in total
+    run_reader("tmp_test_sha_batch_parrun", 900);
 
-//     let sp = searchspace::get_searchspace();
-//     let obj = searchspace::get_function();
+    let pb = searchspace::get_problem();
 
-//     let config = FolderConfig::new("tmp_test_sh_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
+    let config = FolderConfig::new("tmp_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
 
-//     let mut exp = load!(
-//         threaded,
-//         sha!(BatchRandomSearch),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-//     let expstop = exp.mut_stop();
-//     assert_eq!(expstop.0, 50, "Number of calls is wrong");
-//     expstop.1 = 100;
-//     let expoptimizer = exp.get_mut_optimizer();
-//     assert_eq!(
-//         expoptimizer.calls, 200,
-//         "Number of iteration is wrong"
-//     );
-//     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+    match exp.master_mut(){
+        Some(m) => {
+            let expstop = &mut m.stop;
+            assert_eq!(expstop.0, 50, "Number of calls is wrong");
+            expstop.1 = 100;
+            let expoptimizer = &m.sampler;
+            assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+        }
+        None => panic!("No master found"),
+    }
 
-//     exp.run();
+    exp.run();
 
-//     let sp = searchspace::get_searchspace();
-//     let obj = searchspace::get_function();
+    let pb = searchspace::get_problem();
 
-//     let config = FolderConfig::new("tmp_test_sh_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
+    let config = FolderConfig::new("tmp_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
 
-//     let exp = load!(
-//         threaded,
-//         sha!(BatchRandomSearch),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
-//     run_reader("tmp_test_sh_parrun", 2000);
-//     let expstop = exp.get_stop();
-//     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-//     let expoptimizer = exp.sampler();
-//     assert_eq!(
-//         expoptimizer.calls, 400,
-//         "Number of iteration is wrong"
-//     );
-//     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
-// }
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+
+    run_reader("tmp_test_sha_batch_parrun", 1800);
+    match exp.master(){
+        Some(m) => {
+            let expstop = &m.stop;
+            assert_eq!(expstop.0, 100, "Number of calls is wrong");
+            let expoptimizer = &m.sampler;
+            assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+        }
+        None => panic!("No master found"),
+    }
+}

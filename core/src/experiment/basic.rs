@@ -284,70 +284,6 @@ where
 
         self.accumulator
     }
-    
-    fn get_stop(&self) -> &Self::Stop {
-        &self.stop
-    }
-    
-    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
-        self.problem.get_searchspace()
-    }
-    
-    fn codomain(&self) -> &Cod<Self::Problem> {
-        self.problem.get_codomain()
-    }
-    
-    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
-        self.problem.get_objective()
-    }
-    
-    fn sampler(&self) -> &Self::Sampler {
-        &self.sampler
-    }
-    
-    fn recorder(&self) -> Option<&Self::Recorder> {
-        self.recorder.as_ref()
-    }
-    
-    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
-        self.checkpointer.as_ref()
-    }
-
-    fn accumulator(&self) -> &Accum<Self::Problem> {
-        &self.accumulator
-    }
-    
-    fn mut_stop(&mut self) -> &mut Self::Stop {
-        &mut self.stop
-    }
-    
-    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
-        self.problem.get_mut_searchspace()
-    }
-    
-    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
-        self.problem.get_mut_codomain()
-    }
-    
-    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
-        self.problem.get_mut_objective()
-    }
-    
-    fn mut_sampler(&mut self) -> &mut Self::Sampler {
-        &mut self.sampler
-    }
-    
-    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
-        self.recorder.as_mut()
-    }
-    
-    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
-        self.checkpointer.as_mut()
-    }
-    
-    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
-        &mut self.accumulator
-    }
 }
 
 impl<O, S, R, C, Scp, Out, Info, FnState> Runable for Experiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C>
@@ -479,12 +415,6 @@ where
                     pool.remove(state.currently.ref_id(), &self.checkpointer, &());
                     None
                 },
-                Step::Error => {
-                    warn!("Solution with ID: {:?} encountered an error during evaluation. Skipping evaluation.",
-                    state.currently.ref_id());
-                    pool.remove(state.currently.ref_id(), &self.checkpointer, &());
-                    None
-                },
             };
             
             let computed = if let Some((output, fnstate)) = result{
@@ -525,69 +455,5 @@ where
         }
 
         self.accumulator
-    }
-    
-    fn get_stop(&self) -> &Self::Stop {
-        &self.stop
-    }
-    
-    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
-        self.problem.get_searchspace()
-    }
-    
-    fn codomain(&self) -> &Cod<Self::Problem> {
-        self.problem.get_codomain()
-    }
-    
-    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
-        self.problem.get_objective()
-    }
-    
-    fn sampler(&self) -> &Self::Sampler {
-        &self.sampler
-    }
-    
-    fn recorder(&self) -> Option<&Self::Recorder> {
-        self.recorder.as_ref()
-    }
-    
-    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
-        self.checkpointer.as_ref()
-    }
-
-    fn accumulator(&self) -> &Accum<Self::Problem> {
-        &self.accumulator
-    }
-    
-    fn mut_stop(&mut self) -> &mut Self::Stop {
-        &mut self.stop
-    }
-    
-    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
-        self.problem.get_mut_searchspace()
-    }
-    
-    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
-        self.problem.get_mut_codomain()
-    }
-    
-    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
-        self.problem.get_mut_objective()
-    }
-    
-    fn mut_sampler(&mut self) -> &mut Self::Sampler {
-        &mut self.sampler
-    }
-    
-    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
-        self.recorder.as_mut()
-    }
-    
-    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
-        self.checkpointer.as_mut()
-    }
-    
-    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
-        &mut self.accumulator
     }
 }

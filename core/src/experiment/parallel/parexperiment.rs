@@ -1,10 +1,16 @@
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::{Arc, Mutex, atomic::Ordering};
 
-use log::warn;
 use serde::{Deserialize, Serialize};
-use tantale_macros::{basic_bounds, fidelity_bounds};
 
-use crate::{Accumulator, BaseSol, Checkpointer, Codomain, Computed, FidOutcome, FidPb, Fidelity, FidelitySol, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasState, HasStep, HasStepId, HasVariables, HasX, MultiStep, OneStep, Outcome, Problem, RUN_ID, Recordable, Recorder, Runable, SId, SOL_ID, Sampler, Schema, Searchspace, SimplePb, SolInfo, SolutionShape, State, Step, StepId, StepSId, Stop, Var, aliases::{Accum, Cod, CompShape, LinkObj, LinkOpt, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CommunicatorError, WorkerError}, experiment::exputils::{FuncStatePool, InMemoryPool, LoadPool, Pool, PoolMode, record}, solution::shape::IntoComputedShape, stop::ExpStep, utils::{Communicator, communicator::{AskMsg, Channel, Envelope, FidMsg, InitMsg, Msg, OutMsg, StopMsg, XMsg}, record::{CompParts, SolParts}}};
+use crate::{
+    BaseSol, Checkpointer, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, 
+    HasFidelity, HasState, HasStep, HasStepId, HasVariables, MultiStep, OneStep, Outcome, Problem, RUN_ID, 
+    Recorder, Runable, SId, SOL_ID, Sampler, Searchspace, SimplePb, SolInfo, SolutionShape, State, StepSId, 
+    Stop, aliases::{Accum, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, 
+    checkpointer::CheckpointerTargets, errors::WorkerError, experiment::{exputils::{Pool, PoolMode}, 
+    parallel::parutils::{FnStateMapper, fidelity_master, simple_master, start_fidelity_workers, start_simple_workers}}, 
+    utils::Communicator
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 /// [`PriorityList`] defines a [`Vec`] of [`Vec`].
@@ -158,799 +164,6 @@ impl<P:Problem> HasState for ParState<P> {
     }
 }
 
-fn receive_with_tolerance<Chan>(chan: &Chan, tolerance: usize) -> Result<Envelope, String>
-where
-    Chan: Channel,
-{
-    let mut receive_error_count = 0;
-    loop {
-        let msg = chan.receive();
-        match msg {
-            Err(e) => {
-                receive_error_count += 1;
-                if receive_error_count > tolerance {
-                    return Err(format!("Failed to receive a message after {} blocking attempts: {:?}", receive_error_count, e));
-                }
-            },
-            Ok(envelope) => {
-                return Ok(envelope);
-            }
-        }
-    }
-}
-
-fn try_receive_with_tolerance<Chan>(chan: &Chan, tolerance: usize) -> Result<Option<Envelope>, String>
-where
-    Chan: Channel,
-{
-    let mut receive_error_count = 0;
-    loop {
-        let msg = chan.try_receive();
-        match msg {
-            Err(e) => {
-                receive_error_count += 1;
-                if receive_error_count > tolerance {
-                    return Err(format!("Failed to receive a message after {} blocking attempts: {:?}", receive_error_count, e));
-                }
-            },
-            Ok(envelope) => {
-                return Ok(envelope);
-            }
-        }
-    }
-}
-
-#[basic_bounds(P)]
-#[allow(clippy::too_many_arguments)]
-fn receive_and_update<O, S, R, P, Com>(
-    com: &mut Com,
-    problem: &P,
-    accumulator: &mut Accum<P>,
-    sampler: &mut O,
-    stop: &mut S,
-    recorder: &mut Option<R>,
-    state: &mut ParState<P>,
-    tolerance: usize,
-) -> Result<(), String>
-where
-    P: 'static,
-    O:Sampler<P, Opt<P>, Info = P::Info>,
-    S:Stop,
-    R:Recorder<P, ()>,
-    Com: MasterWorkerCom,
-    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
-    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-{
-    // receive all available messages from workers, with a tolerance for blocking attempts
-    loop {
-        if stop.stop() {
-            break;
-        }
-        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(ref mut envelope) => {
-                match envelope.take() {
-                    None => break, // No more messages to process
-                    Some(envelope) => {
-                        let tag = envelope.tag;
-                        let from = envelope.from;
-                        com.set_idle(from);
-                        if com.is_dead(from){
-                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
-                            com.set_alive(from);
-                        }
-                        match tag {
-                            InitMsg::TAG | AskMsg::TAG => { // Initialize with a potential loaded solution
-                                log::info!("Worker {} initialized and ready to receive tasks.", from);
-                                com.set_alive(from);
-                                let res = fill_idle_with_state(com, state, from);
-                                if let Err(e) = res {
-                                    log::warn!(
-                                        "
-                                            Failed to send a solution to worker {}.
-                                            The worker will be considered as dead.
-                                            Error: {:?}
-                                        ", from, &e
-                                    );
-                                    com.set_dead(from);
-                                }
-                            },
-                            OutMsg::<P>::TAG => { // Usual f(x) = y management
-                                let msg = envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
-                                let out = &msg.as_ref().1;
-                                let sol = state.currently[from].take();
-                                match sol {
-                                    Some(s) => {
-                                        let y = problem.get_codomain().get_elem(out).into();
-                                        let computed = s.into_computed(y);
-                                        record(recorder, problem, &computed, out);
-                                        stop.update(ExpStep::Evaluation(Step::Evaluated));
-                                        accumulator.accumulate(&computed);
-                                        sampler.update(&computed, problem.get_searchspace(), accumulator);
-                                    },
-                                    None => {
-                                        log::warn!("
-                                            Received output for solution ID {:?} from worker {}, 
-                                            but no corresponding solution was found in the current state. 
-                                            This may indicate a mismatch between sent and received solutions.
-                                            Or failure when loading a previous state from a checkpoint.
-                                            ",
-                                            msg.as_ref().0,
-                                            from
-                                        );
-                                    }
-                                }
-                            },
-                            _ => {
-                                log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
-                                // Do nothing, just mark the worker as idle
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-
-
-
-
-#[basic_bounds(P)]
-fn fill_idle_with_state<P, Com>(
-    com: &mut Com,
-    state: &mut ParState<P>,
-    peer:usize,
-) -> Result<(), CommunicatorError>
-where
-    P: 'static,
-    Com: MasterWorkerCom,
-{
-    if com.is_busy(peer) || com.is_dead(peer) {
-        return Err(CommunicatorError::SendError("The peer the master process tries to communicate with, is busy or idle.".to_string()));
-    }
-    if let Some(sol) = &state.currently[peer]{
-        let x = sol.get_sobj().clone_x();
-        let id = sol.id();
-        let msg = XMsg::<P>(id, x);
-        let envelope = Envelope::new(0, peer, msg);
-        let res = com.channel(0).send(envelope);
-        com.set_busy(peer);
-        res
-    } else {
-        Ok(())
-    }
-}
-
-#[basic_bounds(P)]
-fn fill_all_idles<O, S, P, Com>(
-    com: &mut Com,
-    sampler: &mut O,
-    scp: &P::Scp,
-    accumulator: &mut Accum<P>,
-    stop: &mut S,
-    state: &mut ParState<P>,
-) -> Result<(), String>
-where
-    P: 'static,
-    O:Sampler<P, Opt<P>, Info = P::Info>,
-    S:Stop,
-    Com: MasterWorkerCom,
-{
-    while let Some(peer) = com.get_idle() 
-        && let Some(sol) = sampler.sample(scp, accumulator) 
-        && !stop.stop()
-    {
-        stop.update(ExpStep::Sampling);
-        let x = sol.get_sobj().clone_x();
-        let id = sol.id();
-        state.set_currently(peer, sol);
-        let msg = XMsg::<P>(id, x);
-        let envelope = Envelope::new(0, peer, msg);
-        let res = com.channel(0).send(envelope);
-        com.set_busy(peer);
-        if let Err(e) = res {
-            log::warn!(
-                "
-                    Failed to send solution ID {:?} to worker {}.
-                    The worker will be considered as dead.
-                    Error: {:?}
-                ",id, peer, &e
-            );
-           com.set_dead(peer);
-           com.set_idle(peer);
-           if com.all_dead() {
-            return Err(format!("All peers are dead. The last error was {:?}", &e));
-           }
-        }
-    }
-    Ok(())
-}
-
-fn purge_workers<Com: Communicator>(com: &mut Com) {
-    let tolerance = com.size() * 2;
-    let mut err_count = 0;
-    // while workers are busy, try to flush their channels and mark them as idle
-    while com.any_busy() && err_count < tolerance {
-        let res = com.channel(0).flush();
-        match res {
-            Ok(peer) => com.set_idle(peer),
-            Err(e) => {
-                log::warn!("Error while flushing workers: {}. Continuing...", e);
-                err_count += 1;
-            },
-        }
-    }
-    if err_count >= tolerance {
-        log::warn!("Reached maximum error tolerance while flushing workers. Some workers may still be busy or dead.");
-    }
-    // Send stop messages to all idle workers
-    for peer in com.idle() {
-        let msg = Envelope::new(0, peer, StopMsg(0));
-        let res = com.channel(0).send(msg);
-        if let Err(e) = res {
-            log::warn!("Error while sending stop message to worker {}: {}.", peer, e);
-        }
-    }
-    if com.any_busy() {
-        log::warn!("
-            Unexpected behavior: Some workers are still busy after purging.
-            The master will end the experiment, but some workers may not have received the stop message.
-            "
-        );
-    }
-}
-
-#[basic_bounds(P)]
-fn simple_worker<P, Chan>(
-    obj: Arc<P::Func>, 
-    chan: &mut Chan, 
-) -> Result<(), WorkerError>
-where
-    P: 'static,
-    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>,
-    Chan: Channel,
-{
-    let me = chan.me();
-    let msg = Envelope::new(me, 0, InitMsg(0));
-    let res = chan.send(msg);
-    if let Err(e) = res {
-        return Err(WorkerError(format!("Failed to send initialization message from worker {}: {:?}.", me, e)));
-    }
-
-    loop {
-        let task = receive_with_tolerance(chan, 10);
-        if let Ok(msg) = task {
-            match msg.tag {
-                StopMsg::TAG => break,
-                XMsg::<P>::TAG => {
-                    let msg = msg.content.into_any().downcast::<XMsg::<P>>().unwrap();
-                    let x = msg.as_ref().1.clone();
-                    let id = msg.as_ref().0;
-                    let outcome = obj.compute(x, ());
-                    let outmsg = OutMsg::<P>(id, outcome);
-                    let envelope = Envelope::new(me, 0, outmsg);
-                    let res = chan.send(envelope);
-                    if let Err(e) = res {
-                        warn!("Failed to send output message from worker {}: {:?}. Trying to reinitialize the worker.", me, e);
-                        let init_msg = Envelope::new(me, 0, InitMsg(0));
-                        let res = chan.send(init_msg);
-                        if let Err(e) = res {
-                            return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
-                        }
-                    }
-                },
-                _ => {
-                    warn!("Received unexpected message: {:?}. Asking for work...", msg.tag);
-                    let envelope = Envelope::new(me, 0, AskMsg(0));
-                    let res = chan.send(envelope);
-                    if let Err(e) = res {
-                        return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
-                    }
-                },
-            }
-        } else {
-            warn!("Failed to receive a message: {:?}", task.err());
-            let envelope = Envelope::new(me, 0, AskMsg(0));
-            let res = chan.send(envelope);
-            if let Err(e) = res {
-                return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
-            }
-        }
-    }
-    Ok(())
-}
-
-#[basic_bounds(P)]
-#[allow(clippy::too_many_arguments)]
-fn simple_master<O, S, R, C, P, Com>(
-    mut com: Com,
-    problem: P,
-    mut accumulator: Accum<P>,
-    mut sampler: O,
-    mut stop: S,
-    mut recorder: Option<R>,
-    checkpointer: Option<C>,
-    mut state: ParState<P>,
-) -> Accum<P>
-where
-    P: 'static,
-    O: Sampler<P, Opt<P>, Info = P::Info>,
-    S: Stop,
-    R: Recorder<P, ()>,
-    C: Checkpointer<P, ()> + Send + Sync,
-    Com: MasterWorkerCom,
-    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
-    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-{
-    let tolerance = com.size() * 2;
-    loop {
-        let res = receive_and_update(
-            &mut com,
-            &problem,
-            &mut accumulator,
-            &mut sampler,
-            &mut stop,
-            &mut recorder,
-            &mut state,
-            tolerance
-        );
-        if let Err(e) = res {
-            log::warn!("Error while receiving messages from workers: {}. Continuing with the experiment.", e);
-        } else {
-            stop.update(ExpStep::Iteration); // New iteration
-        }
-
-        // Check if stop
-        if let Some(check) = &checkpointer {
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
-            let parameters = GlobalParameters::new();
-            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-        }
-        if stop.stop() { break; };
-
-        let res = fill_all_idles(
-            &mut com,
-            &mut sampler,
-            problem.get_searchspace(),
-            &mut accumulator,
-            &mut stop,
-            &mut state
-        );
-        if let Err(e) = res {
-            log::warn!("Error while filling idle workers: {}. Continuing with the experiment.", e);
-        }
-        
-        if let Some(ref check) = checkpointer {
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-        }
-    }
-    purge_workers(&mut com);
-    accumulator
-}
-
-/// Start the worker side of a [`SimplePb`] from the current process.
-/// See [`MasterWorkerCom::worker`] for the blocking behavior.
-#[basic_bounds(P)]
-fn start_simple_workers<P, Com>(
-    problem: &P,
-    com: &mut Com,
-) -> Result<Com::Handle, WorkerError>
-where
-    P: 'static,
-    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>,
-    Com: MasterWorkerCom,
-{
-    let func = problem.clone_objective();
-    com.worker(func, move |obj, chan| {
-        simple_worker::<P, _>(obj, chan)
-    })
-}
-
-#[fidelity_bounds(P)]
-#[allow(clippy::too_many_arguments)]
-fn fid_receive_and_update<O, S, R, P, Com>(
-    com: &mut Com,
-    problem: &P,
-    accumulator: &mut Accum<P>,
-    sampler: &mut O,
-    stop: &mut S,
-    recorder: &mut Option<R>,
-    state: &mut ParState<P>,
-    tolerance: usize,
-) -> Result<(), String>
-where
-    P: 'static,
-    O:Sampler<P, Opt<P>, Info = P::Info>,
-    S:Stop,
-    R:Recorder<P, ()>,
-    Com: MasterWorkerCom,
-    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
-    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-{
-    // receive all available messages from workers, with a tolerance for blocking attempts
-    loop {
-        if stop.stop() {
-            break;
-        }
-        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(ref mut envelope) => {
-                match envelope.take() {
-                    None => break, // No more messages to process
-                    Some(envelope) => {
-                        let tag = envelope.tag;
-                        let from = envelope.from;
-                        com.set_idle(from);
-                        if com.is_dead(from){
-                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
-                            com.set_alive(from);
-                        }
-                        match tag {
-                            InitMsg::TAG | AskMsg::TAG => { // Initialize with a potential loaded solution
-                                log::info!("Worker {} initialized and ready to receive tasks.", from);
-                                com.set_alive(from);
-                                let res = fid_fill_idle_with_state(com, state, from);
-                                if let Err(e) = res {
-                                    log::warn!(
-                                        "
-                                            Failed to send a solution to worker {}.
-                                            The worker will be considered as dead.
-                                            Error: {:?}
-                                        ", from, &e
-                                    );
-                                    com.set_dead(from);
-                                }
-                            },
-                            OutMsg::<P>::TAG => { // Usual f(x) = y management
-                                let msg = envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
-                                let out = &msg.as_ref().1;
-                                let sol = state.currently[from].take();
-                                match sol {
-                                    Some(s) => {
-                                        let y = problem.get_codomain().get_elem(out).into();
-                                        let mut computed = s.into_computed(y);
-                                        computed.increment();
-                                        computed.set_raw_step(out.get_step());
-                                        record(recorder, problem, &computed, out);
-                                        stop.update(ExpStep::Evaluation(Step::Evaluated));
-                                        accumulator.accumulate(&computed);
-                                        sampler.update(&computed, problem.get_searchspace(), accumulator);
-                                    },
-                                    None => {
-                                        log::warn!("
-                                            Received output for solution ID {:?} from worker {}, 
-                                            but no corresponding solution was found in the current state. 
-                                            This may indicate a mismatch between sent and received solutions.
-                                            Or failure when loading a previous state from a checkpoint.
-                                            ",
-                                            msg.as_ref().0,
-                                            from
-                                        );
-                                    }
-                                }
-                            },
-                            _ => {
-                                log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
-                                // Do nothing, just mark the worker as idle
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-#[fidelity_bounds(P)]
-fn fid_fill_idle_with_state<P, Com>(
-    com: &mut Com,
-    state: &mut ParState<P>,
-    peer:usize,
-) -> Result<(), CommunicatorError>
-where
-    P: 'static,
-    Com: MasterWorkerCom,
-{
-    if com.is_busy(peer) || com.is_dead(peer) {
-        return Err(CommunicatorError::SendError("The peer the master process tries to communicate with, is busy or idle.".to_string()));
-    }
-    if let Some(sol) = &state.currently[peer]{
-        let x = sol.get_sobj().clone_x();
-        let id = sol.id();
-        let fid = sol.fidelity();
-        let step = sol.step();
-        let msg = FidMsg::<P>(id, x, fid, step);
-        let envelope = Envelope::new(0, peer, msg);
-        let res = com.channel(0).send(envelope);
-        com.set_busy(peer);
-        res
-    } else {
-        Ok(())
-    }
-}
-
-#[fidelity_bounds(P)]
-fn fid_fill_all_idles<O, S, P, Com>(
-    com: &mut Com,
-    sampler: &mut O,
-    scp: &P::Scp,
-    accumulator: &mut Accum<P>,
-    stop: &mut S,
-    state: &mut ParState<P>,
-) -> Result<(), String>
-where
-    P: 'static,
-    O:Sampler<P, Opt<P>, Info = P::Info>,
-    S:Stop,
-    Com: MasterWorkerCom,
-{
-    while let Some(peer) = com.get_idle() 
-        && let Some(sol) = sampler.sample(scp, accumulator) 
-        && !stop.stop()
-    {
-        stop.update(ExpStep::Sampling);
-        let x = sol.get_sobj().clone_x();
-        let id = sol.id();
-        let fid = sol.fidelity();
-        let step = sol.step();
-        state.set_currently(peer, sol);
-        let msg = FidMsg::<P>(id, x, fid, step);
-        let envelope = Envelope::new(0, peer, msg);
-        let res = com.channel(0).send(envelope);
-        com.set_busy(peer);
-        if let Err(e) = res {
-            log::warn!(
-                "
-                    Failed to send solution ID {:?} to worker {}.
-                    The worker will be considered as dead.
-                    Error: {:?}
-                ",id, peer, &e
-            );
-           com.set_dead(peer);
-           com.set_idle(peer);
-           if com.all_dead() {
-            return Err(format!("All peers are dead. The last error was {:?}", &e));
-           }
-        }
-    }
-    Ok(())
-}
-
-#[fidelity_bounds(P)]
-fn fidelity_worker<P, FnState, Chan, C>(
-    obj: Arc<P::Func>, 
-    chan: &mut Chan,
-    check: Arc<Option<C>>,
-    pool_mode: Arc<PoolMode>,
-) -> Result<(), WorkerError>
-where
-    P: 'static,
-    P::Func: FuncWrapper<Context = (Fidelity, Option<FnState>), OutShape = (Out<P>, FnState)>,
-    FnState: FuncState,
-    C: Checkpointer<P, ()>,
-    Chan: Channel,
-{
-    let me = chan.me();
-    let msg = Envelope::new(me, 0, InitMsg(0));
-    let res = chan.send(msg);
-    if let Err(e) = res {
-        return Err(WorkerError(format!("Failed to send initialization message from worker {}: {:?}.", me, e)));
-    }
-
-    let mut pool = match pool_mode.as_ref() {
-        PoolMode::InMemory => Pool::InMemory(InMemoryPool::default()),
-        PoolMode::Persistent => Pool::Persistent(LoadPool::default()),
-    };
-
-    loop {
-        let task = receive_with_tolerance(chan, 10);
-        if let Ok(msg) = task {
-            match msg.tag {
-                StopMsg::TAG => break,
-                FidMsg::<P>::TAG => {
-                    let msg = msg.content.into_any().downcast::<FidMsg::<P>>().unwrap();
-                    let x = msg.as_ref().1.clone();
-                    let id = msg.as_ref().0;
-                    let fid = msg.as_ref().2;
-                    let step = msg.as_ref().3;
-                    
-                    let result = match step {
-                        Step::Pending => {
-                            Some(
-                                obj.compute(x, (fid, None))
-                            )
-                        },
-                        Step::Partially(_) => {
-                            // Compute the output of the current solution
-                            let fn_state = pool.retrieve(&id, &check, &());
-                            Some(
-                                obj.compute(x, (fid, fn_state))
-                            )
-                        },
-                        Step::Discard => {
-                            pool.remove(&id, &check, &());
-                            None
-                        },
-                        Step::Evaluated => {
-                            warn!("Solution with ID: {:?} has already been evaluated. Skipping evaluation.", id);
-                            pool.remove(&id, &check, &());
-                            None
-                        },
-                        Step::Error => {
-                            warn!("Solution with ID: {:?} encountered an error during evaluation. Skipping evaluation.", id);
-                            pool.remove(&id, &check, &());
-                            None
-                        },
-                    };
-
-                    if let Some((outcome, fnstate)) = result{
-                        pool.remove(&id, &check, &());
-                        let mut new_id = id;
-                        new_id.increment();
-                        let new_step = outcome.get_step().into();
-                        if matches!(new_step, Step::Partially(_)) {
-                            pool.insert(new_id, fnstate, &check, &());
-                        }
-                        let outmsg = OutMsg::<P>(id, outcome);
-                        let envelope = Envelope::new(me, 0, outmsg);
-                        let res = chan.send(envelope);
-                        if let Err(e) = res {
-                            warn!("Failed to send output message from worker {}: {:?}. Trying to reinitialize the worker.", me, e);
-                            let init_msg = Envelope::new(me, 0, InitMsg(0));
-                            let res = chan.send(init_msg);
-                            if let Err(e) = res {
-                                return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
-                            }
-                        }
-                    } else {
-                        let ask_msg = Envelope::new(me, 0, AskMsg(0));
-                        let res = chan.send(ask_msg);
-                        if let Err(e) = res {
-                            return Err(WorkerError(format!("Worker {} Failed to send ask message: {:?}. Trying initialization message.", me, e)));
-                        }
-                        let init_msg = Envelope::new(me, 0, InitMsg(0));
-                        let res = chan.send(init_msg);
-                        if let Err(e) = res {
-                            return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
-                        }
-                    };
-                },
-                _ => {
-                    warn!("Received unexpected message: {:?}. Asking for work...", msg.tag);
-                    let envelope = Envelope::new(me, 0, AskMsg(0));
-                    let res = chan.send(envelope);
-                    if let Err(e) = res {
-                        return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
-                    }
-                    let init_msg = Envelope::new(me, 0, InitMsg(0));
-                    let res = chan.send(init_msg);
-                    if let Err(e) = res {
-                        return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
-                    }
-                },
-            }
-        } else {
-            warn!("Failed to receive a message: {:?}", task.err());
-            let envelope = Envelope::new(me, 0, AskMsg(0));
-            let res = chan.send(envelope);
-            if let Err(e) = res {
-                return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
-            }
-        }
-    }
-    Ok(())
-}
-
-
-
-#[fidelity_bounds(P)]
-#[allow(clippy::too_many_arguments)]
-fn fidelity_master<O, S, R, C, P, Com>(
-    mut com: Com,
-    problem: P,
-    mut accumulator: Accum<P>,
-    mut sampler: O,
-    mut stop: S,
-    mut recorder: Option<R>,
-    checkpointer: Option<C>,
-    mut state: ParState<P>,
-) -> Accum<P>
-where
-    P: 'static,
-    O: Sampler<P, Opt<P>, Info = P::Info>,
-    S: Stop,
-    R: Recorder<P, ()>,
-    C: Checkpointer<P, ()> + Send + Sync,
-    Com: MasterWorkerCom,
-    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
-    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
-{
-    let tolerance = com.size() * 2;
-    loop {
-        let res = fid_receive_and_update(
-            &mut com,
-            &problem,
-            &mut accumulator,
-            &mut sampler,
-            &mut stop,
-            &mut recorder,
-            &mut state,
-            tolerance
-        );
-        if let Err(e) = res {
-            log::warn!("Error while receiving messages from workers: {}. Continuing with the experiment.", e);
-        } else {
-            stop.update(ExpStep::Iteration); // New iteration
-        }
-
-        // Check if stop
-        if let Some(check) = &checkpointer {
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
-            let parameters = GlobalParameters::new();
-            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-        }
-        if stop.stop() { break; };
-
-        let res = fid_fill_all_idles(
-            &mut com,
-            &mut sampler,
-            problem.get_searchspace(),
-            &mut accumulator,
-            &mut stop,
-            &mut state
-        );
-        if let Err(e) = res {
-            log::warn!("Error while filling idle workers: {}. Continuing with the experiment.", e);
-        }
-        
-        if let Some(ref check) = checkpointer {
-            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-        }
-    }
-    purge_workers(&mut com);
-    accumulator
-}
-
-#[fidelity_bounds(P)]
-fn start_fidelity_workers<P, FnState, C, Com>(
-    problem: &P,
-    com: &mut Com,
-    check: Option<C>,
-    pool_mode: PoolMode,
-) -> Result<Com::Handle, WorkerError>
-where
-    P: 'static,
-    P::Func: FuncWrapper<Context = (Fidelity, Option<FnState>), OutShape = (Out<P>, FnState)>,
-    C:Checkpointer<P, ()> + Send + Sync + 'static,
-    FnState: FuncState + Send + Sync,
-    Com: MasterWorkerCom,
-{
-    let func = problem.clone_objective();
-    let check = Arc::new(check);
-    let pool_mode = Arc::new(pool_mode);
-    com.worker(func, move |obj, chan| {
-        fidelity_worker::<P, FnState, _, C>(obj, chan, check.clone(), pool_mode.clone())
-    })
-}
-
 pub struct Worker<P, C, Com>
 where
     P: Problem,
@@ -961,7 +174,7 @@ where
     /// The [`Problem`] being solved in the experiment.
     pub problem: P,
     /// The [`Checkpointer`] used to save and load experiment state.
-    pub checkpointer: Option<C>,
+    pub checkpointer: Arc<Mutex<Option<C>>>,
     /// The [`PoolMode`] used for managing function states during the experiment.
     pub pool_mode: PoolMode,
     /// The [`Communicator`] used for send and receiving tasks.
@@ -969,8 +182,6 @@ where
     /// Flag indicating whether to consider Parallel File System (PFS).
     /// Meaning that all processes can access the same file system.
     pub pfs: bool,
-    /// Flag indicating whether the experiment state has been loaded from a checkpoint.
-    is_loaded: bool,
 }
 
 impl<P,C,Com> Worker<P, C, Com>
@@ -987,13 +198,13 @@ where
         if com.is_master() {
             None
         } else {
+            let checkpointer = Arc::new(Mutex::new(checkpointer));
             Some(Self {
                 problem,
                 checkpointer,
                 pool_mode,
                 com,
                 pfs: true,
-                is_loaded: false,
             })
         }
     }
@@ -1003,13 +214,13 @@ where
         if com.is_master(){
             None
         } else {
+            let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
             Some(Self {
                 problem,
-                checkpointer: Some(checkpointer),
+                checkpointer,
                 pool_mode,
                 com,
                 pfs: true,
-                is_loaded: true,
             })
         }
     }
@@ -1078,7 +289,8 @@ where
     type Handle = Com::Handle;
 
     fn launch(mut self) -> Result<Self::Handle, WorkerError> {
-        start_fidelity_workers(&self.problem, &mut self.com, self.checkpointer, self.pool_mode)
+        let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(self.pool_mode)));
+        start_fidelity_workers(&self.problem, &mut self.com, self.checkpointer, pool)
     }
 }
 
@@ -1101,7 +313,7 @@ where
     /// The [`Recorder`] used to log experiment data.
     pub recorder: Option<R>,
     /// The [`Checkpointer`] used to save and load experiment state.
-    pub checkpointer: Option<C>,
+    pub checkpointer: Arc<Mutex<Option<C>>>,
     /// The [`Accumulator`] that collects best evaluated solutions and their outcomes.
     pub accumulator: Accum<P>,
     /// The [`Communicator`] used for send and receiving tasks.
@@ -1109,6 +321,10 @@ where
     /// Flag indicating whether to consider Parallel File System (PFS).
     /// Meaning that all processes can access the same file system.
     pub pfs: bool,
+    /// The [`PoolMode`] used for managing function states during the experiment.
+    pub pool_mode: PoolMode,
+    /// The [`FnStateMapper`] used to map function states to solution IDs.
+    map: FnStateMapper<P>,
     /// Flag indicating whether the experiment state has been loaded from a checkpoint.
     is_loaded: bool,
 }
@@ -1135,6 +351,8 @@ where
             None
         } else {
             let accumulator = Accum::<P>::default();
+            let checkpointer = Arc::new(Mutex::new(checkpointer));
+            let peers = com.size();
             Some(Self {
                 problem,
                 sampler,
@@ -1145,6 +363,8 @@ where
                 com,
                 pfs: true,
                 is_loaded: false,
+                pool_mode: PoolMode::InMemory, // Default pool mode, can be changed later
+                map: FnStateMapper::new(peers),
             })
         }
     }
@@ -1179,16 +399,20 @@ where
             }
             RUN_ID.store(parameters.run_id + 1, Ordering::SeqCst);
 
+            let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
+            let peers = com.size();
             Ok(Master {
                 problem,
                 sampler,
                 stop,
                 recorder,
-                checkpointer: Some(checkpointer),
+                checkpointer,
                 accumulator,
                 com,
                 pfs: true,
                 is_loaded: true,
+                pool_mode: PoolMode::InMemory, // Default pool mode when loading, can be changed later
+                map: FnStateMapper::new(peers),
             })
         }
     }
@@ -1197,6 +421,13 @@ where
     pub fn with_pfs(self, pfs: bool) -> Self {
         Self {
             pfs,
+            ..self
+        }
+    }
+
+    pub fn with_pool_mode(self, pool_mode: PoolMode) -> Self {
+        Self {
+            pool_mode,
             ..self
         }
     }
@@ -1238,27 +469,27 @@ where
                 rec.after_load(&self.problem, &()).unwrap();
             }
 
-            if let Some(check) = &mut self.checkpointer{
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
                 check.after_load(&self.problem, &()).unwrap();
                 let state = check.load(&CheckpointerTargets::Experiment, &());    
                 match state {
                     Ok(e) => e,
                     Err(e) => {
                         log::warn!("Failed to load experiment state: {}.", e);
-                        ParState::new(self.com.size() + 1)
+                        ParState::new(self.com.size())
                     },
                 }
             } else {
-                ParState::new(self.com.size() + 1)
+                ParState::new(self.com.size())
             }
         } else {
             if let Some(rec) = &mut self.recorder{
                 rec.init(&self.problem, &()).unwrap();
             }
-            if let Some(check) = &mut self.checkpointer{
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
                 check.init(&self.problem, &()).unwrap();
             }
-            ParState::new(self.com.size() + 1)
+            ParState::new(self.com.size())
         };
 
 
@@ -1283,69 +514,95 @@ where
             )
         )
     }
-    
-    fn get_stop(&self) -> &Self::Stop {
-        &self.stop
-    }
-    
-    fn searchspace(&self) -> &crate::aliases::Scp<Self::Problem> {
-        self.problem.get_searchspace()
-    }
-    
-    fn codomain(&self) -> &Cod<Self::Problem> {
-        self.problem.get_codomain()
-    }
-    
-    fn objective(&self) -> &crate::aliases::Func<Self::Problem> {
-        self.problem.get_objective()
-    }
-    
-    fn sampler(&self) -> &Self::Sampler {
-        &self.sampler
-    }
-    
-    fn recorder(&self) -> Option<&Self::Recorder> {
-        self.recorder.as_ref()
-    }
-    
-    fn checkpointer(&self) -> Option<&Self::Checkpointer> {
-        self.checkpointer.as_ref()
-    }
+}
 
-    fn accumulator(&self) -> &Accum<Self::Problem> {
-        &self.accumulator
-    }
+
+
+impl<O, S, R, C, Scp, Out, Info, Com, FnState> Runable for Master<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
+where
+    FidPb<Info, Scp, Out, FnState>: 'static,
+    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S:Stop,
+    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    Scp::Shape: SolutionShape<
+        Id = StepSId,
+        Info = Info,
+        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+        Obj = LinkObj<Scp>,
+        Opt = LinkOpt<Scp>,
+    > + HasFidelity + HasStep + HasStepId,
+    CompShape<FidPb<Info, Scp, Out, FnState>>: HasFidelity + HasStep + HasStepId,
+    Out: FidOutcome,
+    Info: SolInfo,
+    FnState: FuncState + Send + Sync,
+    Com: MasterWorkerCom,
+{
+    type Id  = StepSId;
+    type Context = ();
+
+    type Problem = FidPb<Info, Scp, Out, FnState>;
+    type Sampler = O;
+    type Stop = S;
+    type Recorder = R;
+    type Checkpointer = C;
     
-    fn mut_stop(&mut self) -> &mut Self::Stop {
-        &mut self.stop
-    }
-    
-    fn mut_searchspace(&mut self) -> &mut crate::aliases::Scp<Self::Problem> {
-        self.problem.get_mut_searchspace()
-    }
-    
-    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem> {
-        self.problem.get_mut_codomain()
-    }
-    
-    fn mut_objective(&mut self) -> &mut crate::aliases::Func<Self::Problem> {
-        self.problem.get_mut_objective()
-    }
-    
-    fn mut_sampler(&mut self) -> &mut Self::Sampler {
-        &mut self.sampler
-    }
-    
-    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder> {
-        self.recorder.as_mut()
-    }
-    
-    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer> {
-        self.checkpointer.as_mut()
-    }
-    
-    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem> {
-        &mut self.accumulator
+    fn run(mut self) -> Accum<Self::Problem> 
+    {   
+        let state = if self.is_loaded {
+            if let Some(rec) = &mut self.recorder{
+                rec.after_load(&self.problem, &()).unwrap();
+            }
+
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
+                check.after_load(&self.problem, &()).unwrap();
+                let state = check.load(&CheckpointerTargets::Experiment, &());    
+                match state {
+                    Ok(e) => e,
+                    Err(e) => {
+                        log::warn!("Failed to load experiment state: {}.", e);
+                        ParState::new(self.com.size())
+                    },
+                }
+            } else {
+                ParState::new(self.com.size())
+            }
+        } else {
+            if let Some(rec) = &mut self.recorder{
+                rec.init(&self.problem, &()).unwrap();
+            }
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
+                check.init(&self.problem, &()).unwrap();
+            }
+            ParState::new(self.com.size())
+        };
+
+
+        let problem = self.problem;
+        let accumulator = self.accumulator;
+        let sampler = self.sampler;
+        let stop = self.stop;
+        let recorder = self.recorder;
+        let checkpointer = self.checkpointer;
+        let map = self.map;
+
+        self.com.master::<FidPb<Info, Scp, Out, FnState>,_>(
+            move |com|
+            fidelity_master(
+                com, 
+                problem, 
+                accumulator, 
+                sampler, 
+                stop, 
+                recorder, 
+                checkpointer, 
+                state,
+                map,
+            )
+        )
+        
     }
 }
 
@@ -1447,9 +704,17 @@ where
         self
     }
 
-    /// Return the [`Master`] if the current process is the master, to inspect or modify the experiment before running.
+    /// Return the [`Master`] if the current process is the master, to inspect or modify the experiment.
     pub fn master_mut(&mut self) -> Option<&mut Master<P, O, S, R, C, Com>> {
         match &mut self.role {
+            Role::Master(m) => Some(m),
+            Role::Worker(_) => None,
+        }
+    }
+
+    /// Return the [`Master`] if the current process is the master, to inspect the experiment.
+    pub fn master(&self) -> Option<&Master<P, O, S, R, C, Com>> {
+        match &self.role {
             Role::Master(m) => Some(m),
             Role::Worker(_) => None,
         }
@@ -1485,6 +750,58 @@ where
                 let handle = start_simple_workers(&master.problem, &mut master.com)
                     .map_err(|e| log::error!("Failed to start workers: {}", e))
                     .ok()?;
+                let accumulator = master.run();
+                if let Err(e) = handle.join() {
+                    log::error!("A worker failed: {}", e);
+                }
+                Some(accumulator)
+            }
+            Role::Worker(worker) => {
+                if let Err(e) = worker.launch().and_then(|h| h.join()) {
+                    log::error!("A worker failed: {}", e);
+                }
+                None
+            }
+        }
+    }
+}
+
+
+impl<O, S, R, C, Scp, Out, Info, Com, FnState> ParExperiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
+where
+    FidPb<Info, Scp, Out, FnState>: 'static,
+    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S:Stop,
+    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync + 'static,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    Scp::Shape: SolutionShape<
+        Id = StepSId,
+        Info = Info,
+        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+        Obj = LinkObj<Scp>,
+        Opt = LinkOpt<Scp>,
+    > + HasFidelity + HasStep + HasStepId,
+    CompShape<FidPb<Info, Scp, Out, FnState>>: HasFidelity + HasStep + HasStepId,
+    Out: FidOutcome,
+    Info: SolInfo,
+    FnState: FuncState + Send + Sync,
+    Com: MasterWorkerCom,
+{
+    /// Run the experiment. Workers are always started before the master routine.
+    ///
+    /// Returns the [`Accumulator`] on the master, and `None` on worker processes.
+    pub fn run(self) -> Option<Accum<FidPb<Info, Scp, Out, FnState>>> {
+        match self.role {
+            Role::Master(mut master) => {
+                let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(master.pool_mode)));
+                let handle = start_fidelity_workers(
+                    &master.problem, 
+                    &mut master.com, 
+                    master.checkpointer.clone(),
+                    pool,
+                ).map_err(|e| log::error!("Failed to start workers: {}", e)).ok()?;
                 let accumulator = master.run();
                 if let Err(e) = handle.join() {
                     log::error!("A worker failed: {}", e);

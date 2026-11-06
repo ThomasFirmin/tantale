@@ -182,6 +182,9 @@ where
     pub budget_idx: usize,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
     pub scaling: f64,
+    /// Count of pending candidates that have been sampled but not yet evaluated.
+    ///  This is used to track the number of candidates in the current batch that are awaiting evaluation.
+    pending: usize,
 }
 
 impl<P, Smpl> Clone for Sha<Smpl, P>
@@ -201,6 +204,7 @@ where
             current_rung_size: self.current_rung_size,
             budget_idx: self.budget_idx,
             scaling: self.scaling,
+            pending: 0,
         }
     }
 }
@@ -222,6 +226,7 @@ where
         .field("current_rung_size", &self.current_rung_size)
         .field("budget_idx", &self.budget_idx)
         .field("scaling", &self.scaling)
+        .field("pending", &self.pending)
         .finish()
     }
 }
@@ -273,6 +278,7 @@ where
                 current_budget,
                 current_rung_size,
                 scaling,
+                pending: 0,
             })
     }
 
@@ -280,6 +286,7 @@ where
         self.current_budget == *self.budgets.last().unwrap()
             && self.batch.is_empty()
             && self.comp_batch.len() >= self.current_rung_size
+            && self.pending == 0
     }
 
     pub fn into_hyperband(mut self) -> Hyperband<Smpl, P> {
@@ -430,7 +437,13 @@ where
 
     fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if let Some(sol) = self.batch.pop() {
+            match sol.0.step() {
+                Step::Discard | Step::Evaluated => (),
+                _ => self.pending += 1,
+            }
             Some((sol.0, sol.1))
+        } else if self.pending > 0 {
+            None // Wait for more computed solutions to be available before promoting to the next rung
         } else {
             self.comp_batch.retain(|comp| matches!(comp.step(), Step::Partially(_)));
             if self.comp_batch().is_empty() {
@@ -494,6 +507,7 @@ where
     }
     
     fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+        self.pending -= 1;
         match x.step() {
             Step::Partially(s)  => {
                 let fid = x.fidelity().0;
@@ -521,7 +535,14 @@ where
                 self.comp_batch.push(x.clone());
                 self.sampler.update(x, scp, acc)
             },
-            _ =>(),
+            _ => {
+                warn!(
+                    "
+                        Received a Step::{:?} for a candidate in Successive Halving.
+                        This is unexpected, as only Partially or Evaluated steps should be updated.
+                    ", x.step()
+                );
+            },
         }
     }
 }
@@ -545,6 +566,7 @@ enum ShaField {
     CurrentRungSize,
     BudgetIdx,
     Scaling,
+    Refilled,
 }
 
 struct ShaFieldVisitor;
@@ -559,7 +581,7 @@ where
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ShaState", 9)?;
+        let mut state = serializer.serialize_struct("ShaState", 10)?;
         state.serialize_field("sampler", &self.sampler.get_state())?;
         state.serialize_field("batch_size", &self.batch_size)?;
         state.serialize_field("batch", &self.batch)?;
@@ -569,6 +591,7 @@ where
         state.serialize_field("current_rung_size", &self.current_rung_size)?;
         state.serialize_field("budget_idx", &self.budget_idx)?;
         state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("pending", &self.pending)?;
         state.end()
     }
 }
@@ -589,7 +612,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
             .write_str(
-                "'sampler', 'batch_size', 'batch', 'comp_batch', 'budgets', 'current_budget', 'current_rung_size', 'budget_idx', 'scaling'"
+                "'sampler', 'batch_size', 'batch', 'comp_batch', 'budgets', 'current_budget', 'current_rung_size', 'budget_idx', 'scaling', 'pending'"
             )
     }
 
@@ -607,6 +630,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
             "current_rung_size" => Ok(ShaField::CurrentRungSize),
             "budget_idx" => Ok(ShaField::BudgetIdx),
             "scaling" => Ok(ShaField::Scaling),
+            "pending" => Ok(ShaField::Refilled),
             _ => Err(de::Error::unknown_field(
                 value,
                 &[
@@ -619,6 +643,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
                     "current_rung_size",
                     "budget_idx",
                     "scaling",
+                    "pending"
                 ],
             )),
         }
@@ -676,6 +701,9 @@ where
         let scaling = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(8, &self))?;
+        let pending = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(9, &self))?;
 
         Ok(Sha {
             sampler: Smpl::from_state(sampler),
@@ -687,6 +715,7 @@ where
             current_rung_size,
             budget_idx,
             scaling,
+            pending,
         })
     }
 
@@ -703,6 +732,7 @@ where
         let mut current_rung_size = None;
         let mut budget_idx = None;
         let mut scaling = None;
+        let mut pending = None;
 
         while let Some(key) = map.next_key()? {
             match key {
@@ -760,6 +790,12 @@ where
                     }
                     scaling = Some(map.next_value()?);
                 }
+                ShaField::Refilled => {
+                    if pending.is_some() {
+                        return Err(de::Error::duplicate_field("pending"));
+                    }
+                    pending = Some(map.next_value()?);
+                }
             }
         }
 
@@ -772,6 +808,7 @@ where
         let  current_rung_size = current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
         let  budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
         let  scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let pending = pending.ok_or_else(|| de::Error::missing_field("pending"))?;
 
         Ok(Sha {
             sampler: Smpl::from_state(sampler),
@@ -783,6 +820,7 @@ where
             current_rung_size,
             budget_idx,
             scaling,
+            pending,
         })
     }
 }

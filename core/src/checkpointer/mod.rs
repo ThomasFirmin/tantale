@@ -210,6 +210,7 @@ pub trait Checkpointer<P: Problem, Context> {
     ) -> Result<Vec<T>, CheckpointerError>;
 
 
+    /// Saves a specific [`FuncState`] associated with a given [`SolId`] to the checkpoint folder.
     fn save_fn_state<Id: SolId, FnState: FuncState>(
         &self,
         id: &Id,
@@ -217,12 +218,14 @@ pub trait Checkpointer<P: Problem, Context> {
         ctx: &Context,
     ) -> Result<(), CheckpointerError>;
 
+    /// Removes a specific [`FuncState`] associated with a given [`SolId`] from the checkpoint folder.
     fn remove_fn_state<Id: SolId, FnState: FuncState>(
         &self,
         id: &Id,
         ctx: &Context,
     ) -> Result<(), CheckpointerError>;
 
+    /// Recursively removes all previous function states associated with a given [`SolId`].
     fn remove_all_previous_fn_states<Id: StepId, FnState: FuncState>(
         &self,
         id: &Id,
@@ -236,17 +239,21 @@ pub trait Checkpointer<P: Problem, Context> {
         }
     }
 
+    /// Loads a [`FuncState`] associated with a specific [`SolId`] from a checkpoint folder.
     fn load_fn_state<Id: SolId, FnState: FuncState>(
         &self,
         id: Id,
         ctx: &Context,
     ) -> Result<(Id, FnState), CheckpointerError>;
 
+    /// Loads all the states of type [`FuncState`] from a checkpoint folder.
     fn load_fn_state_folder<Id: SolId, FnState: FuncState>(
         &self,
         ctx: &Context,
     ) -> Result<Vec<(Id, FnState)>, CheckpointerError>;
 
+    /// Lists all the [`SolId`]s that have associated [`FuncState`]s stored in the checkpoint folder.
+    fn list_ids<Id: SolId>(&self, ctx: &Context) -> Result<Vec<Id>, CheckpointerError>;
 
     /// Removes the checkpointed state at a specific target.
     fn remove(

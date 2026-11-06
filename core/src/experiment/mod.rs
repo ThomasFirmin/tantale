@@ -257,7 +257,7 @@
 
 
 use crate::{
-    Accumulator, Problem, aliases::{Accum, Cod, CompShape, Func, Opt, Scp}, 
+    Problem, aliases::{Accum, Opt}, 
     checkpointer::Checkpointer, optimizer::Sampler, recorder::Recorder, solution::SolId, stop::Stop,
 };
 
@@ -405,57 +405,4 @@ pub trait Runable: Sized {
     ///
     /// It return an [`Accumulator`] containing the best solutions found during the run.
     fn run(self) -> Accum<Self::Problem>;
-
-    /// Returns a reference to the [`Stop`] criterion.
-    fn get_stop(&self) -> &Self::Stop;
-
-    /// Returns a reference to the [`Searchspace`].
-    fn searchspace(&self) -> &Scp<Self::Problem>;
-
-    /// Returns a reference to the [`Codomain`](crate::Codomain).
-    fn codomain(&self) -> &Cod<Self::Problem>;
-
-    /// Returns a reference to the objective function wrapper.
-    fn objective(&self) -> &Func<Self::Problem>;
-
-    /// Returns a reference to the [`Optimizer`].
-    fn sampler(&self) -> &Self::Sampler;
-
-    /// Returns a reference to the [`Recorder`], if any.
-    fn recorder(&self) -> Option<&Self::Recorder>;
-
-    /// Returns a reference to the [`Checkpointer`], if any.
-    fn checkpointer(&self) -> Option<&Self::Checkpointer>;
-
-    /// Returns a mutable reference to the [`Stop`] criterion.
-    fn mut_stop(&mut self) -> &mut Self::Stop;
-
-    /// Returns a mutable reference to the [`Searchspace`](crate::Searchspace).
-    fn mut_searchspace(&mut self) -> &mut Scp<Self::Problem>;
-
-    /// Returns a mutable reference to the [`Codomain`](crate::Codomain).
-    fn mut_codomain(&mut self) -> &mut Cod<Self::Problem>;
-
-    /// Returns a mutable reference to the objective function wrapper.
-    fn mut_objective(&mut self) -> &mut Func<Self::Problem>;
-
-    /// Returns a mutable reference to the [`Optimizer`].
-    fn mut_sampler(&mut self) -> &mut Self::Sampler;
-
-    /// Returns a mutable reference to the [`Recorder`], if any.
-    fn mut_recorder(&mut self) -> Option<&mut Self::Recorder>;
-
-    /// Returns a mutable reference to the [`Checkpointer`], if any.
-    fn mut_checkpointer(&mut self) -> Option<&mut Self::Checkpointer>;
-
-    /// Returns a read-only reference to the [`Accumulator`].
-    fn accumulator(&self) -> &Accum<Self::Problem>;
-
-    /// Returns a mutable reference to the [`Accumulator`].
-    fn mut_accumulator(&mut self) -> &mut Accum<Self::Problem>;
-
-    /// Integrates a newly evaluated solution into the [`Accumulator`].
-    fn update_accumulator(&mut self, comp: &CompShape<Self::Problem>) {
-        self.mut_accumulator().accumulate(comp);
-    }
 }

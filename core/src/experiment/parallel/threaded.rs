@@ -15,6 +15,9 @@ pub struct ThreadChannel {
 }
 
 impl Channel for ThreadChannel {
+
+    const SHARED_MEM: bool = true;
+
     fn send(&self, msg: Envelope) -> Result<(), CommunicatorError> {
         let sender = &self.sender[msg.to];
         sender.send(msg).map_err(|_|CommunicatorError::ChannelClosed)?;
@@ -103,7 +106,7 @@ impl Default for ThreadCommunicator {
 
 impl Communicator for ThreadCommunicator {
     type Channel = ThreadChannel;
-    
+
     /// Me is always 0 for the master thread.
     fn me(&self) -> usize {
         self.me

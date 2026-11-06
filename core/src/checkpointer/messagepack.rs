@@ -313,6 +313,28 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
         }
     }
 
+    fn list_ids<Id: SolId>(&self, _ctx: &()) -> Result<Vec<Id>, CheckpointerError> {
+        let folder = self.retrieve(&CheckpointerTargets::FuncFolder);
+        if folder.exists() && folder.is_dir() {
+            let mut ids = Vec::new();
+            for entry in fs::read_dir(folder).map_err(|e| CheckpointerError::Other(format!("Failed to read function state folder {}: {}", folder.display(), e)))? {
+                let entry = entry.map_err(|e| CheckpointerError::Other(format!("Failed to read entry in function state folder {}: {}", folder.display(), e)))?;
+                let path = entry.path();
+                if path.is_dir() {
+                    let id_path = path.join("id.mp");
+                    if id_path.exists() && id_path.is_file() {
+                        let rdr = File::open(&id_path).map_err(|e| CheckpointerError::FileNotFound(format!("Failed to open function state file {}: {}", id_path.display(), e)))?;
+                        let loaded_id: Id = rmp_serde::decode::from_read(rdr).map_err(|e| CheckpointerError::ReadError(e.to_string()))?;
+                        ids.push(loaded_id);
+                    }
+                }
+            }
+            Ok(ids)
+        } else {
+            Err(CheckpointerError::FileNotFound(format!("Function state folder {} does not exist.", folder.display())))
+        }
+    }
+
     fn append_to_target(&self, target: &CheckpointerTargets, suffix: &str) -> Result<PathBuf, CheckpointerError> {
         let target_path = self.retrieve(target);
         if target_path.try_exists().map_err(|e| CheckpointerError::Other(format!("Failed to check existence of checkpoint target {}: {}", target_path.display(), e)))? {

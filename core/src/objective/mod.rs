@@ -117,8 +117,6 @@ pub enum Step {
     Evaluated,
     /// Evaluation was discarded by the optimizer.
     Discard,
-    /// Evaluation encountered an error.
-    Error,
 }
 
 impl std::fmt::Display for Step {
@@ -128,7 +126,6 @@ impl std::fmt::Display for Step {
             Step::Partially(v) => write!(f, "{}", v),
             Step::Evaluated => write!(f, "Evaluated"),
             Step::Discard => write!(f, "Discarded"),
-            Step::Error => write!(f, "Error"),
         }
     }
 }
@@ -212,7 +209,6 @@ impl From<Step> for EvalStep {
             Step::Partially(v) => Self(v),
             Step::Evaluated => Self(-1),
             Step::Discard => Self(-9),
-            Step::Error => Self(-10),
         }
     }
 }
@@ -223,7 +219,6 @@ impl From<EvalStep> for Step {
             EvalStep(0) => Step::Pending,
             EvalStep(-1) => Step::Evaluated,
             EvalStep(-9) => Step::Discard,
-            EvalStep(-10) => Step::Error,
             EvalStep(v) => Step::Partially(v),
         }
     }

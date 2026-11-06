@@ -45,7 +45,7 @@ fn test_tpe_seq_run() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -94,7 +94,7 @@ fn test_tpe_seq_run_real() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -143,7 +143,7 @@ fn test_tpe_seq_run_sqrt_splitter() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, SqrtSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -192,7 +192,7 @@ fn test_tpe_seq_run_scott() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Scott, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -241,7 +241,7 @@ fn test_tpe_seq_run_hyperopt() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -290,7 +290,7 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -341,7 +341,7 @@ fn test_tpe_seq_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _,_>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Evaluated = m.mut_stop();
+        let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
     }
@@ -398,7 +398,7 @@ fn test_tpe_seq_parrun() {
 //         (rec, check)
 //     );
 
-//     let expstop: &mut Evaluated = exp.mut_stop();
+//     let expstop: &mut Evaluated = &mut exp.stop;
 //     assert!(
 //         expstop.calls() >= 50 && expstop.calls() <= 50 + num_cpus::get(),
 //         "Number of calls is wrong"
@@ -465,7 +465,7 @@ fn test_tpe_seq_parrun() {
 //         (rec, check)
 //     );
 
-//     let expstop: &mut Evaluated = exp.mut_stop();
+//     let expstop: &mut Evaluated = &mut exp.stop;
 //     assert!(
 //         expstop.calls() >= 50 && expstop.calls() <= 50 + num_cpus::get(),
 //         "Number of calls is wrong"

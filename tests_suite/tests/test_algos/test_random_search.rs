@@ -43,11 +43,11 @@ fn test_batch_run() {
 
     let mut exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.calls, 8, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     exp.run();
@@ -61,8 +61,8 @@ fn test_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
-    let expstop: &Evaluated = exp.get_stop();
-    let expoptimizer = exp.sampler();
+    let expstop: &Evaluated = &exp.stop;
+    let expoptimizer = exp.sampler;
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     assert_eq!(expoptimizer.calls, 15, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
@@ -102,7 +102,7 @@ fn test_seqrun() {
 
     let mut exp = Experiment::<_, RandomSearch, Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -152,10 +152,10 @@ fn test_fid_batch_run() {
 
     let mut exp = Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.sampler.calls, 8,"Number of iteration is wrong");
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 
@@ -171,9 +171,9 @@ fn test_fid_batch_run() {
 
     let exp = Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
     run_reader_eps("tmp_test_fidbatchrun", 500, num_cpus::get() * 4);
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.sampler();
+    let expoptimizer = exp.sampler;
     assert_eq!(expoptimizer.sampler.calls, 15, "Number of iteration is wrong");
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 }
@@ -203,7 +203,7 @@ fn test_fid_seq_run() {
 
     let mut exp = Experiment::<_, nopruner!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -217,7 +217,7 @@ fn test_fid_seq_run() {
 
     let exp = Experiment::<_, nopruner!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_fidseqrun", 500);
-    let expstop: &Evaluated = exp.get_stop();
+    let expstop: &Evaluated = &exp.stop;
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 }
 
@@ -253,10 +253,10 @@ fn test_batch_parrun() {
     let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Evaluated = m.mut_stop();
+        let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
-        let expoptimizer = m.sampler();
+        let expoptimizer = &m.sampler;
         assert!(expoptimizer.calls >=8, "Number of iteration is wrong. Should be at least 8, but got {}", expoptimizer.calls);
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     }
@@ -273,8 +273,8 @@ fn test_batch_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &Evaluated = m.get_stop();
-        let expoptimizer = m.sampler();
+        let expstop: &Evaluated = &m.stop;
+        let expoptimizer = &m.sampler;
         assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
         assert!(expoptimizer.calls >=15, "Number of iteration is wrong. Should be at least 15, but got {}", expoptimizer.calls);
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
@@ -316,7 +316,7 @@ fn test_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, RandomSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Evaluated = m.mut_stop();
+        let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
     }

@@ -8,3 +8,5 @@ pub use threaded::{ThreadCommunicator, ThreadChannel};
 
 pub mod parexperiment;
 pub use parexperiment::{ParExperiment, Master, Worker};
+
+pub mod parutils;

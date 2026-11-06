@@ -2,10 +2,9 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use csv::Reader;
-use serial_test::serial;
 use tantale::algos::premade::PremadeInfo;
 use tantale::algos::{Asha, Premade, RandomSearch, bracketted_asha};
-use tantale::core::{Problem, Runable, SingleCodomain};
+use tantale::core::{ParExperiment, Problem, Runable, SingleCodomain, ThreadCommunicator};
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::Experiment,
@@ -15,7 +14,6 @@ use tantale::core::{Codomain, HasFidelity, Sampler, aliases::Accum};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{self, FidOutEvaluator};
-use crate::run_checker::run_reader;
 
 fn assert_hyperband_schedule(path: &str) {
     let info_path = Path::new(path).join("recorder/info.csv");
@@ -199,10 +197,10 @@ fn test_fid_seq_run() {
 
     let mut exp = Experiment::<_, bracketted_asha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
     
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
 
     assert!(expoptimizer.budgets.iter().all(|b| *b.last().unwrap() == max_budget), "All brackets should have the same max budget.");
     assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
@@ -215,158 +213,72 @@ fn test_fid_seq_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, bracketted_asha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
-    let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.sampler();
+        let expstop = &exp.stop;
+        assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    let expoptimizer = &exp.sampler;
     assert!(expoptimizer.budgets.iter().all(|b| *b.last().unwrap() == max_budget), "All brackets should have the same max budget.");
     assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
 }
 
-// #[test]
-// fn test_fid_seq_parrun() {
-//     let _clean = Cleaner::new("tmp_test_hyperband_asha_parrun");
+#[test]
+fn test_fid_seq_parrun() {
+    let _clean = Cleaner::new("tmp_test_hyperband_asha_parrun");
 
-//     let mut budgets: Vec<f64> = (0..)
-//         .map(|i| 1.61_f64.powi(i))
-//         .take_while(|&b| b <= 5.)
-//         .collect();
-//     //If final budget is not budget_max, modify final budget to be budget_max
-//     if *budgets.last().unwrap() != 5. {
-//         let last = budgets.last_mut().unwrap();
-//         *last = 5.;
-//     }
+    let max_budget = 8.;
 
-//     let pb = searchspace::get_problem();
-//     let sampler = RandomSearch::new();
-//     let asha = Asha::new(sampler, 1., 5., 1.61).unwrap();
-//     let opt = Hyperband::new(asha);
+    let pb = searchspace::get_problem();
+    let sampler = RandomSearch::new();
+    let opt = Asha::new(sampler, 1., 8., 2.).unwrap().into_hyperband();
 
-//     let stop = Evaluated::new(50);
-//     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config);
 
-//     let exp = threaded(sp, obj, opt, stop, (rec, check));
-//     exp.run();
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
 
-//     run_reader_eps(
-//         "tmp_test_hyperband_asha_parrun",
-//         1100,
-//         num_cpus::get() * 8 * 50,
-//     );
+    let pb = searchspace::get_problem();
 
-//     let pb = searchspace::get_problem();
+    let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
 
-//     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, bracketted_asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    
+    match exp.master_mut() {
+        Some(master) => {
+            let expstop = &mut master.stop;
+            assert_eq!(expstop.0, 50, "Number of calls is wrong");
+            expstop.1 = 100;
+            let expoptimizer = &master.sampler;
 
-//     let mut exp = load!(
-//         threaded,
-//         hyperband!(asha!(RandomSearch)),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
+            assert!(expoptimizer.budgets.iter().all(|b| *b.last().unwrap() == max_budget), "All brackets should have the same max budget.");
+            assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
+        },
+        None => panic!("Expected a master in the parallel experiment"),
+    }
+    exp.run();
 
-//     let expstop: &mut Evaluated = exp.mut_stop();
-//     let max_call = expstop.calls() + num_cpus::get();
-//     assert!(
-//         expstop.calls() >= 50 && expstop.sampler() <= max_call,
-//         "Number of calls is wrong, it should be between 50 and {}",
-//         max_call
-//     );
-//     expstop.1 = 100;
-//     let expoptimizer = exp.get_mut_optimizer();
-//     assert_eq!(
-//         expoptimizer.budget_min,
-//         *budgets.first().unwrap(),
-//         "Budgets are wrong, {:?} != {:?}",
-//         expoptimizer.budget_min,
-//         budgets.first().unwrap()
-//     );
-//     assert_eq!(
-//         expoptimizer.budget_max,
-//         *budgets.last().unwrap(),
-//         "Budgets are wrong, {:?} != {:?}",
-//         expoptimizer.budget_max,
-//         budgets.last().unwrap()
-//     );
-//     assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
-//     assert_eq!(
-//         expoptimizer.scaling, expoptimizer.inner.scaling,
-//         "Scaling factor is not equal to inner scaling factor"
-//     );
-//     assert_eq!(
-//         expoptimizer.budget_min,
-//         *expoptimizer.inner.budgets.first().unwrap(),
-//         "Budget min is not equal to inner budget min"
-//     );
-//     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.current_s as i32));
-//     assert_eq!(
-//         current_max,
-//         *expoptimizer.inner.budgets.last().unwrap(),
-//         "Current max budget is not equal to inner budget max"
-//     );
+    let pb = searchspace::get_problem();
 
-//     exp.run();
+    let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
 
-//     let pb = searchspace::get_problem();
-
-//     let config = FolderConfig::new("tmp_test_hyperband_asha_parrun");
-//     let rec = CSVRecorder::new(config.clone());
-//     let check = MessagePack::new(config).unwrap();
-
-//     let exp = load!(
-//         threaded,
-//         hyperband!(asha!(RandomSearch)),
-//         Evaluated,
-//         sp,
-//         obj,
-//         (rec, check)
-//     );
-//     run_reader_eps(
-//         "tmp_test_hyperband_asha_parrun",
-//         2200,
-//         num_cpus::get() * 8 * 50,
-//     );
-//     let expstop: &Evaluated = exp.get_stop();
-//     let max_call = expstop.calls() + num_cpus::get();
-//     assert!(
-//         expstop.calls() >= 100 && expstop.calls() <= max_call,
-//         "Number of calls is wrong, it should be between 100 and {}",
-//         max_call
-//     );
-//     let expoptimizer = exp.sampler();
-//     assert_eq!(
-//         expoptimizer.budget_min,
-//         *budgets.first().unwrap(),
-//         "Budgets are wrong, {:?} != {:?}",
-//         expoptimizer.budget_min,
-//         budgets.first().unwrap()
-//     );
-//     assert_eq!(
-//         expoptimizer.budget_max,
-//         *budgets.last().unwrap(),
-//         "Budgets are wrong, {:?} != {:?}",
-//         expoptimizer.budget_max,
-//         budgets.last().unwrap()
-//     );
-//     assert_eq!(expoptimizer.scaling, 1.61, "Scaling factor is wrong");
-//     assert_eq!(
-//         expoptimizer.scaling, expoptimizer.inner.scaling,
-//         "Scaling factor is not equal to inner scaling factor"
-//     );
-//     assert_eq!(
-//         expoptimizer.budget_min,
-//         *expoptimizer.inner.budgets.first().unwrap(),
-//         "Budget min is not equal to inner budget min"
-//     );
-//     let current_max = 5. * 1.61_f64.powi(-(expoptimizer.current_s as i32));
-//     assert_eq!(
-//         current_max,
-//         *expoptimizer.inner.budgets.last().unwrap(),
-//         "Current max budget is not equal to inner budget max"
-//     );
-// }
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::<_, bracketted_asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    
+    match exp.master() {
+        Some(master) => {
+            let expstop = &master.stop;
+            assert_eq!(expstop.0, 100, "Number of calls is wrong");
+            let expoptimizer = &master.sampler;
+            assert!(expoptimizer.budgets.iter().all(|b| *b.last().unwrap() == max_budget), "All brackets should have the same max budget.");
+            assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
+        },
+        None => panic!("Expected a master in the parallel experiment"),
+    }
+}

@@ -2,7 +2,7 @@ use std::process::exit;
 
 use crate::{
     FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::communicator::{
-        AskMsg, ByteMsg, Channel, CheckpointMsg, Envelope, ErasedMsg, FidMsg, OutMsg, Peers, StopMsg, XMsg
+        AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, ErasedMsg, FidMsg, Msg, OutMsg, Peers, StopMsg, XMsg
     }
 };
 
@@ -112,13 +112,13 @@ impl MPIChannel {
 
         let mut registry = MessageRegistry::new();
 
-        registry.register::<StopMsg>(0);
-        registry.register::<AskMsg>(1);
-        registry.register::<XMsg<P>>(2);
-        registry.register::<FidMsg<P>>(3);
-        registry.register::<OutMsg<P>>(4);
-        registry.register::<CheckpointMsg>(5);
-        registry.register::<ByteMsg>(6);
+        registry.register::<StopMsg>(StopMsg::TAG);
+        registry.register::<AskMsg>(AskMsg::TAG);
+        registry.register::<XMsg<P>>(XMsg::<P>::TAG);
+        registry.register::<FidMsg<P>>(FidMsg::<P>::TAG);
+        registry.register::<OutMsg<P>>(OutMsg::<P>::TAG);
+        registry.register::<ContainsIds<P::Id>>(ContainsIds::<P::Id>::TAG);
+        registry.register::<DiscardMsg<P::Id>>(DiscardMsg::<P::Id>::TAG);
 
         MPIChannel {
             universe,
@@ -131,6 +131,9 @@ impl MPIChannel {
 }
 
 impl Channel for MPIChannel {
+
+    const SHARED_MEM: bool = false;
+
     fn send(&self, message: Envelope) -> Result<(), CommunicatorError> {
         let tag = message.tag;
         let peer = message.to;
@@ -190,6 +193,7 @@ impl MPICommunicator {
 impl crate::utils::Communicator for MPICommunicator {
     
     type Channel = MPIChannel;
+    const SHARED_MEM: bool = false;
 
     fn me(&self) -> usize {
         self.proc.rank as usize

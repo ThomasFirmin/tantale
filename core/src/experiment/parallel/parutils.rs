@@ -1,0 +1,866 @@
+use std::{collections::HashMap, sync::{Arc, Mutex}};
+
+use log::warn;
+use tantale_macros::{basic_bounds, fidelity_bounds};
+
+use crate::{
+    Accumulator, Checkpointer, Codomain, Computed, FidOutcome, Fidelity, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasStep, HasStepId, HasX, Problem, Recordable, Recorder, Sampler, Schema, SolutionShape, Step, StepId, Stop, Var, aliases::{Accum, Cod, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CommunicatorError, WorkerError}, experiment::{
+        exputils::{FuncStatePool, Pool, record}, 
+        parallel::parexperiment::{MasterWorkerCom, ParState}
+    }, solution::shape::IntoComputedShape, stop::ExpStep, utils::{Communicator, communicator::{AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, FidMsg, InitMsg, Msg, OutMsg, StopMsg, XMsg}, record::{CompParts, SolParts}
+    }
+};
+
+
+/// A struct to map [`FuncState`] to its corresponding worker.
+pub(crate) struct FnStateMapper<P:Problem> {
+    /// Maps each [`SolId`](crate::SolId) to its corresponding worker where the [`FuncState`] is stored.
+    pub where_is: HashMap<P::Id, usize>,
+    /// A list of [`FuncState`] that are awaiting processing by each worker.
+    pub awaiting: Vec<Vec<Shape<P>>>,
+    /// A list of [`FuncState`] that are awaiting processing by any worker, when the worker is not known.
+    pub awaiting_unknown: Vec<Shape<P>>,
+}
+
+impl<P:Problem> FnStateMapper<P> {
+    pub fn new(size: usize) -> Self {
+        let awaiting: Vec<Vec<Shape<P>>> = (0..size).map(|_| Vec::new()).collect();
+        Self {
+            where_is: HashMap::new(),
+            awaiting,
+            awaiting_unknown: Vec::new(),
+        }
+    }
+
+    /// Add a [`FuncState`] to the awaiting list of a specific worker.
+    pub fn where_is(&self, id: &P::Id) -> Option<usize> {
+        self.where_is.get(id).copied()
+    }
+
+    /// Get the next [`FuncState`] awaiting processing for a specific worker.
+    pub fn pop_awaiting(&mut self, peer: usize) -> Option<Shape<P>> {
+        if let Some(sol) = self.awaiting[peer].pop() {
+            Some(sol)
+        } else { self.awaiting_unknown.pop() }
+    }
+
+}
+
+/// Receive a message from the channel with a specified failure tolerance for blokcing communications.
+pub(crate) fn receive_with_tolerance<Chan>(chan: &Chan, tolerance: usize) -> Result<Envelope, String>
+where
+    Chan: Channel,
+{
+    let mut receive_error_count = 0;
+    loop {
+        let msg = chan.receive();
+        match msg {
+            Err(e) => {
+                receive_error_count += 1;
+                if receive_error_count > tolerance {
+                    return Err(format!("Failed to receive a message after {} blocking attempts: {:?}", receive_error_count, e));
+                }
+            },
+            Ok(envelope) => {
+                return Ok(envelope);
+            }
+        }
+    }
+}
+
+/// Try to receive a message from the channel with a specified failure tolerance for non-blocking communications.
+fn try_receive_with_tolerance<Chan>(chan: &Chan, tolerance: usize) -> Result<Option<Envelope>, String>
+where
+    Chan: Channel,
+{
+    let mut receive_error_count = 0;
+    loop {
+        let msg = chan.try_receive();
+        match msg {
+            Err(e) => {
+                receive_error_count += 1;
+                if receive_error_count > tolerance {
+                    return Err(format!("Failed to receive a message after {} blocking attempts: {:?}", receive_error_count, e));
+                }
+            },
+            Ok(envelope) => {
+                return Ok(envelope);
+            }
+        }
+    }
+}
+
+/// Receive messages from workers and update the state of the experiment accordingly.
+#[basic_bounds(P)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn receive_and_update<O, S, R, P, Com>(
+    com: &mut Com,
+    problem: &P,
+    accumulator: &mut Accum<P>,
+    sampler: &mut O,
+    stop: &mut S,
+    recorder: &mut Option<R>,
+    state: &mut ParState<P>,
+    tolerance: usize,
+) -> Result<(), String>
+where
+    P: 'static,
+    O:Sampler<P, Opt<P>, Info = P::Info>,
+    S:Stop,
+    R:Recorder<P, ()>,
+    Com: MasterWorkerCom,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    // receive all available messages from workers, with a tolerance for blocking attempts
+    loop {
+        if stop.stop() {
+            break;
+        }
+        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
+        match msg {
+            Err(e) => return Err(e),
+            Ok(ref mut envelope) => {
+                match envelope.take() {
+                    None => break, // No more messages to process
+                    Some(envelope) => {
+                        let tag = envelope.tag;
+                        let from = envelope.from;
+                        com.set_idle(from);
+                        if com.is_dead(from){
+                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
+                            com.set_alive(from);
+                        }
+                        match tag {
+                            InitMsg::TAG | AskMsg::TAG => { // Initialize with a potential loaded solution
+                                log::info!("Worker {} initialized and ready to receive tasks.", from);
+                                com.set_alive(from);
+                                let res = fill_idle_with_state(com, state, from);
+                                if let Err(e) = res {
+                                    log::warn!(
+                                        "
+                                            Failed to send a solution to worker {}.
+                                            The worker will be considered as dead.
+                                            Error: {:?}
+                                        ", from, &e
+                                    );
+                                    com.set_dead(from);
+                                }
+                            },
+                            OutMsg::<P>::TAG => { // Usual f(x) = y management
+                                let msg = envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
+                                let out = &msg.as_ref().1;
+                                let sol = state.currently[from].take();
+                                match sol {
+                                    Some(s) => {
+                                        let y = problem.get_codomain().get_elem(out).into();
+                                        let computed = s.into_computed(y);
+                                        record(recorder, problem, &computed, out);
+                                        stop.update(ExpStep::Evaluation(Step::Evaluated));
+                                        accumulator.accumulate(&computed);
+                                        sampler.update(&computed, problem.get_searchspace(), accumulator);
+                                    },
+                                    None => {
+                                        log::warn!("
+                                            Received output for solution ID {:?} from worker {}, 
+                                            but no corresponding solution was found in the current state. 
+                                            This may indicate a mismatch between sent and received solutions.
+                                            Or failure when loading a previous state from a checkpoint.
+                                            ",
+                                            msg.as_ref().0,
+                                            from
+                                        );
+                                    }
+                                }
+                            },
+                            _ => {
+                                log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
+                                // Do nothing, just mark the worker as idle
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+
+
+
+/// Fill the idle worker with a solution from the current state, if available.
+#[basic_bounds(P)]
+pub(crate) fn fill_idle_with_state<P, Com>(
+    com: &mut Com,
+    state: &mut ParState<P>,
+    peer:usize,
+) -> Result<(), CommunicatorError>
+where
+    P: 'static,
+    Com: MasterWorkerCom,
+{
+    if com.is_busy(peer) || com.is_dead(peer) {
+        return Err(CommunicatorError::SendError("The peer the master process tries to communicate with, is busy or idle.".to_string()));
+    }
+    if let Some(sol) = &state.currently[peer]{
+        let x = sol.get_sobj().clone_x();
+        let id = sol.id();
+        let msg = XMsg::<P>(id, x);
+        let envelope = Envelope::new(0, peer, msg);
+        let res = com.channel(0).send(envelope);
+        com.set_busy(peer);
+        res
+    } else {
+        Ok(())
+    }
+}
+
+/// Fill all idle workers with solutions from the current state, if available.
+#[basic_bounds(P)]
+pub(crate) fn fill_all_idles<O, S, P, Com>(
+    com: &mut Com,
+    sampler: &mut O,
+    scp: &P::Scp,
+    accumulator: &mut Accum<P>,
+    stop: &mut S,
+    state: &mut ParState<P>,
+) -> Result<(), String>
+where
+    P: 'static,
+    O:Sampler<P, Opt<P>, Info = P::Info>,
+    S:Stop,
+    Com: MasterWorkerCom,
+{
+    while let Some(peer) = com.get_idle() 
+        && let Some(sol) = sampler.sample(scp, accumulator) 
+        && !stop.stop()
+    {
+        stop.update(ExpStep::Sampling);
+        let x = sol.get_sobj().clone_x();
+        let id = sol.id();
+        state.set_currently(peer, sol);
+        let msg = XMsg::<P>(id, x);
+        let envelope = Envelope::new(0, peer, msg);
+        let res = com.channel(0).send(envelope);
+        com.set_busy(peer);
+        if let Err(e) = res {
+            log::warn!(
+                "
+                    Failed to send solution ID {:?} to worker {}.
+                    The worker will be considered as dead.
+                    Error: {:?}
+                ",id, peer, &e
+            );
+           com.set_dead(peer);
+           com.set_idle(peer);
+           if com.all_dead() {
+            return Err(format!("All peers are dead. The last error was {:?}", &e));
+           }
+        }
+    }
+    Ok(())
+}
+
+/// Purge all workers by sending them a stop message and marking them as idle.
+pub(crate) fn purge_workers<Com: Communicator>(com: &mut Com) {
+    let tolerance = com.size() * 2;
+    let mut err_count = 0;
+    // while workers are busy, try to flush their channels and mark them as idle
+    while com.any_busy() && err_count < tolerance {
+        let res = com.channel(0).flush();
+        match res {
+            Ok(peer) => com.set_idle(peer),
+            Err(e) => {
+                log::warn!("Error while flushing workers: {}. Continuing...", e);
+                err_count += 1;
+            },
+        }
+    }
+    if err_count >= tolerance {
+        log::warn!("Reached maximum error tolerance while flushing workers. Some workers may still be busy or dead.");
+    }
+    // Send stop messages to all idle workers
+    for peer in com.idle() {
+        let msg = Envelope::new(0, peer, StopMsg(0));
+        let res = com.channel(0).send(msg);
+        if let Err(e) = res {
+            log::warn!("Error while sending stop message to worker {}: {}.", peer, e);
+        }
+    }
+    if com.any_busy() {
+        log::warn!("
+            Unexpected behavior: Some workers are still busy after purging.
+            The master will end the experiment, but some workers may not have received the stop message.
+            "
+        );
+    }
+}
+
+/// A worker routine for basic problems.
+#[basic_bounds(P)]
+pub(crate) fn simple_worker<P, Chan>(
+    obj: Arc<P::Func>, 
+    chan: &mut Chan, 
+) -> Result<(), WorkerError>
+where
+    P: 'static,
+    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>,
+    Chan: Channel,
+{
+    let me = chan.me();
+    let msg = Envelope::new(me, 0, InitMsg(0));
+    let res = chan.send(msg);
+    if let Err(e) = res {
+        return Err(WorkerError(format!("Failed to send initialization message from worker {}: {:?}.", me, e)));
+    }
+
+    loop {
+        let task = receive_with_tolerance(chan, 10);
+        if let Ok(msg) = task {
+            match msg.tag {
+                StopMsg::TAG => break,
+                XMsg::<P>::TAG => {
+                    let msg = msg.content.into_any().downcast::<XMsg::<P>>().unwrap();
+                    let x = msg.as_ref().1.clone();
+                    let id = msg.as_ref().0;
+                    let outcome = obj.compute(x, ());
+                    let outmsg = OutMsg::<P>(id, outcome);
+                    let envelope = Envelope::new(me, 0, outmsg);
+                    let res = chan.send(envelope);
+                    if let Err(e) = res {
+                        warn!("Failed to send output message from worker {}: {:?}. Trying to reinitialize the worker.", me, e);
+                        let init_msg = Envelope::new(me, 0, InitMsg(0));
+                        let res = chan.send(init_msg);
+                        if let Err(e) = res {
+                            return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
+                        }
+                    }
+                },
+                _ => {
+                    warn!("Received unexpected message: {:?}. Asking for work...", msg.tag);
+                    let envelope = Envelope::new(me, 0, AskMsg(0));
+                    let res = chan.send(envelope);
+                    if let Err(e) = res {
+                        return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
+                    }
+                },
+            }
+        } else {
+            warn!("Failed to receive a message: {:?}", task.err());
+            let envelope = Envelope::new(me, 0, AskMsg(0));
+            let res = chan.send(envelope);
+            if let Err(e) = res {
+                return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// A master routine for basic problems.
+#[basic_bounds(P)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn simple_master<O, S, R, C, P, Com>(
+    mut com: Com,
+    problem: P,
+    mut accumulator: Accum<P>,
+    mut sampler: O,
+    mut stop: S,
+    mut recorder: Option<R>,
+    checkpointer: Arc<Mutex<Option<C>>>,
+    mut state: ParState<P>,
+) -> Accum<P>
+where
+    P: 'static,
+    O: Sampler<P, Opt<P>, Info = P::Info>,
+    S: Stop,
+    R: Recorder<P, ()>,
+    C: Checkpointer<P, ()> + Send + Sync,
+    Com: MasterWorkerCom,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    let tolerance = com.size() * 2;
+    loop {
+        let res = receive_and_update(
+            &mut com,
+            &problem,
+            &mut accumulator,
+            &mut sampler,
+            &mut stop,
+            &mut recorder,
+            &mut state,
+            tolerance
+        );
+        if let Err(e) = res {
+            log::warn!("Error while receiving messages from workers: {}. Continuing with the experiment.", e);
+        } else {
+            stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        // Check if stop
+        if let Some(check) = checkpointer.lock().unwrap().as_ref() {
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+            let parameters = GlobalParameters::new();
+            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
+        if stop.stop() { break; };
+
+        let res = fill_all_idles(
+            &mut com,
+            &mut sampler,
+            problem.get_searchspace(),
+            &mut accumulator,
+            &mut stop,
+            &mut state
+        );
+        if let Err(e) = res {
+            log::warn!("Error while filling idle workers: {}. Continuing with the experiment.", e);
+        }
+        
+        if let Some(check) = checkpointer.lock().unwrap().as_ref() {
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
+    }
+    purge_workers(&mut com);
+    accumulator
+}
+
+/// Start the worker side from the current process.
+#[basic_bounds(P)]
+pub(crate) fn start_simple_workers<P, Com>(
+    problem: &P,
+    com: &mut Com,
+) -> Result<Com::Handle, WorkerError>
+where
+    P: 'static,
+    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>,
+    Com: MasterWorkerCom,
+{
+    let func = problem.clone_objective();
+    com.worker(func, move |obj, chan| {
+        simple_worker::<P, _>(obj, chan)
+    })
+}
+/// Receive messages from workers and update the state of the experiment accordingly, for multi-fidelity problems.
+#[fidelity_bounds(P)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn fid_receive_and_update<O, S, R, P, Com>(
+    com: &mut Com,
+    problem: &P,
+    accumulator: &mut Accum<P>,
+    sampler: &mut O,
+    stop: &mut S,
+    recorder: &mut Option<R>,
+    state: &mut ParState<P>,
+    map: &mut FnStateMapper<P>,
+    tolerance: usize,
+) -> Result<(), String>
+where
+    P: 'static,
+    O:Sampler<P, Opt<P>, Info = P::Info>,
+    S:Stop,
+    R:Recorder<P, ()>,
+    Com: MasterWorkerCom,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    // receive all available messages from workers, with a tolerance for blocking attempts
+    loop {
+        if stop.stop() {
+            break;
+        }
+        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
+        match msg {
+            Err(e) => return Err(e),
+            Ok(ref mut envelope) => {
+                match envelope.take() {
+                    None => break, // No more messages to process
+                    Some(envelope) => {
+                        let tag = envelope.tag;
+                        let from = envelope.from;
+                        com.set_idle(from);
+                        match tag {
+                            InitMsg::TAG => { // Initialize without loaded states
+                                log::info!("Worker {} initialized and ready to receive tasks.", from);
+                                com.set_alive(from);
+                            },
+                            ContainsIds::<P::Id>::TAG => { // Initialize with potentially loaded states
+                                let msg = envelope.content.into_any().downcast::<ContainsIds::<P::Id>>().unwrap();
+                                let ids = msg.as_ref().0.clone();
+                                for id in ids {
+                                    map.where_is.insert(id, from);
+                                }
+                                log::info!("Worker {} initialized and ready to receive tasks.", from);
+                                com.set_alive(from);
+                            },
+                            AskMsg::TAG => {}
+                            OutMsg::<P>::TAG => { // Usual f(x) = y management
+                                let msg = envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
+                                let out = &msg.as_ref().1;
+                                let step = out.get_step().into();
+                                let sol = state.currently[from].take();
+                                match sol {
+                                    Some(s) => {
+                                        let y = problem.get_codomain().get_elem(out).into();
+                                        let mut computed = s.into_computed(y);
+                                        computed.increment();
+                                        computed.set_step(step);
+                                        record(recorder, problem, &computed, out);
+                                        stop.update(ExpStep::Evaluation(step));
+                                        accumulator.accumulate(&computed);
+                                        sampler.update(&computed, problem.get_searchspace(), accumulator);
+                                    },
+                                    None => {
+                                        log::warn!("
+                                            Received output for solution ID {:?} from worker {}, 
+                                            but no corresponding solution was found in the current state. 
+                                            This may indicate a mismatch between sent and received solutions.
+                                            Or failure when loading a previous state from a checkpoint.
+                                            ",
+                                            msg.as_ref().0,
+                                            from
+                                        );
+                                    }
+                                }
+                            },
+                            _ => {
+                                log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
+                                // Do nothing, just mark the worker as idle
+                            }
+                        }
+                        if com.is_dead(from){
+                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
+                            com.set_alive(from);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[fidelity_bounds(P)]
+pub(crate) fn get_a_valid_sol<P, O>(scp: &P::Scp, accum: &Accum<P>, peer:usize, map: &mut FnStateMapper<P>, sampler: &mut O) -> Option<Shape<P>>
+where
+    P: 'static,
+    O:Sampler<P, Opt<P>, Info = P::Info>,
+{
+    if let Some(sol) = map.pop_awaiting(peer) {
+        Some(sol)
+    } else {
+        loop {
+            let sol = sampler.sample(scp, accum);
+            match sol {
+                Some(s) => {
+                    let peer_sol = map.where_is(&s.id());
+                    match peer_sol {
+                        Some(p) if p == peer => return Some(s),
+                        Some(p) => {
+                            map.awaiting[p].push(s);
+                        },
+                        None => return Some(s),
+                    }
+                },
+                None => return None,
+            }
+        }
+    }
+}
+
+/// Fill all idle workers with solutions from the current state, if available, for multi-fidelity problems.
+#[fidelity_bounds(P)]
+pub(crate) fn fid_fill_all_idles<O, S, P, Com>(
+    com: &mut Com,
+    sampler: &mut O,
+    scp: &P::Scp,
+    accumulator: &mut Accum<P>,
+    stop: &mut S,
+    map: &mut FnStateMapper<P>,
+    state: &mut ParState<P>,
+) -> Result<(), String>
+where
+    P: 'static,
+    O:Sampler<P, Opt<P>, Info = P::Info>,
+    S:Stop,
+    Com: MasterWorkerCom,
+{
+    let idles = com.idle().collect::<Vec<usize>>();
+    for peer in idles
+    {
+        if stop.stop() { break; }
+        let sol = match get_a_valid_sol(scp, accumulator, peer, map, sampler) {
+            Some(s) => s,
+            None => continue, // No valid solution available for this peer
+        };
+        
+        stop.update(ExpStep::Sampling);
+        let x = sol.get_sobj().clone_x();
+        let id = sol.id();
+        let fid = sol.fidelity();
+        let step = sol.step();
+        let envelope = match step {
+            Step::Pending | Step::Partially(_) => {
+                state.set_currently(peer, sol);
+                let msg = FidMsg::<P>(id, x, fid, step);
+                com.set_busy(peer);
+                Envelope::new(0, peer, msg)
+            },
+            _ => {
+                state.currently[peer] = None;
+                let msg = DiscardMsg(id);
+                Envelope::new(0, peer, msg)
+            },
+        };
+        let res = com.channel(0).send(envelope);
+        if let Err(e) = res {
+            log::warn!(
+                "
+                    Failed to send solution ID {:?} to worker {}.
+                    The worker will be considered as dead.
+                    Error: {:?}
+                ",id, peer, &e
+            );
+           com.set_dead(peer);
+           com.set_idle(peer);
+           if com.all_dead() {
+            return Err(format!("All peers are dead. The last error was {:?}", &e));
+           }
+        }
+    }
+    Ok(())
+}
+
+/// A worker routine for multi-fidelity problems.
+#[fidelity_bounds(P)]
+pub(crate) fn fidelity_worker<P, FnState, Chan, C>(
+    obj: Arc<P::Func>, 
+    chan: &mut Chan,
+    check: Arc<Mutex<Option<C>>>,
+    pool: Arc<Mutex<Pool<P::Id, FnState>>>,
+) -> Result<(), WorkerError>
+where
+    P: 'static,
+    P::Func: FuncWrapper<Context = (Fidelity, Option<FnState>), OutShape = (Out<P>, FnState)>,
+    FnState: FuncState,
+    C: Checkpointer<P, ()>,
+    Chan: Channel,
+{
+    let me = chan.me();
+    let msg = if Chan::SHARED_MEM {
+        Envelope::new(me, 0, InitMsg(0))
+    } else { 
+        let id = pool.lock().unwrap().stored_ids(&check.lock().unwrap(), &());
+        Envelope::new(me, 0, ContainsIds::<P::Id>(id))
+    };
+    let res = chan.send(msg);
+    if let Err(e) = res {
+        return Err(WorkerError(format!("Failed to send initialization message from worker {}: {:?}.", me, e)));
+    }
+
+    loop {
+        let task = receive_with_tolerance(chan, 10);
+        if let Ok(msg) = task {
+            match msg.tag {
+                StopMsg::TAG => break,
+                DiscardMsg::<P::Id>::TAG => {
+                    let msg = msg.content.into_any().downcast::<DiscardMsg::<P::Id>>().unwrap();
+                    let id = msg.as_ref().0;
+                    pool.lock().unwrap().remove_steps(&id, &check.lock().unwrap(), &());
+                },
+                FidMsg::<P>::TAG => {
+                    let msg = msg.content.into_any().downcast::<FidMsg::<P>>().unwrap();
+                    let x = msg.as_ref().1.clone();
+                    let id = msg.as_ref().0;
+                    let fid = msg.as_ref().2;
+                    let step = msg.as_ref().3;
+                    let result = match step {
+                        Step::Pending => {
+                            Some(
+                                obj.compute(x, (fid, None))
+                            )
+                        },
+                        Step::Partially(_) => {
+                            // Compute the output of the current solution
+                            let fn_state = pool.lock().unwrap().retrieve(&id, &check.lock().unwrap(), &());
+                            Some(
+                                obj.compute(x, (fid, fn_state))
+                            )
+                        },
+                        Step::Discard => {
+                            pool.lock().unwrap().remove_steps(&id, &check.lock().unwrap(), &());
+                            None
+                        },
+                        Step::Evaluated => {
+                            warn!("Solution with ID: {:?} has already been evaluated. Skipping evaluation.", id);
+                            pool.lock().unwrap().remove_steps(&id, &check.lock().unwrap(), &());
+                            None
+                        },
+                    };
+
+                    if let Some((outcome, fnstate)) = result{
+                        let mut new_id = id;
+                        new_id.increment();
+                        let new_step = outcome.get_step().into();
+                        if matches!(new_step, Step::Partially(_)) {
+                            pool.lock().unwrap().insert(new_id, fnstate, &check.lock().unwrap(), &());
+                        }
+                        pool.lock().unwrap().remove_steps(&id, &check.lock().unwrap(), &());
+
+                        let outmsg = OutMsg::<P>(id, outcome);
+                        let envelope = Envelope::new(me, 0, outmsg);
+                        let res = chan.send(envelope);
+                        if let Err(e) = res {
+                            warn!("Failed to send output message from worker {}: {:?}. Trying to reinitialize the worker.", me, e);
+                            let init_msg = Envelope::new(me, 0, InitMsg(0));
+                            let res = chan.send(init_msg);
+                            if let Err(e) = res {
+                                return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
+                            }
+                        }
+                    } else {
+                        let ask_msg = Envelope::new(me, 0, AskMsg(0));
+                        let res = chan.send(ask_msg);
+                        if let Err(e) = res {
+                            return Err(WorkerError(format!("Worker {} Failed to send ask message: {:?}. Trying initialization message.", me, e)));
+                        }
+                        let init_msg = Envelope::new(me, 0, InitMsg(0));
+                        let res = chan.send(init_msg);
+                        if let Err(e) = res {
+                            return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
+                        }
+                    };
+                },
+                _ => {
+                    warn!("Received unexpected message: {:?}. Asking for work...", msg.tag);
+                    let envelope = Envelope::new(me, 0, AskMsg(0));
+                    let res = chan.send(envelope);
+                    if let Err(e) = res {
+                        return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
+                    }
+                    let init_msg = Envelope::new(me, 0, InitMsg(0));
+                    let res = chan.send(init_msg);
+                    if let Err(e) = res {
+                        return Err(WorkerError(format!("Failed to reinitialize worker {}: {:?}.", me, e)));
+                    }
+                },
+            }
+        } else {
+            warn!("Failed to receive a message: {:?}", task.err());
+            let envelope = Envelope::new(me, 0, AskMsg(0));
+            let res = chan.send(envelope);
+            if let Err(e) = res {
+                return Err(WorkerError(format!("Failed to send AskMsg from worker {}: {:?}.", me, e)));
+            }
+        }
+    }
+    Ok(())
+}
+
+
+/// A master routine for multi-fidelity problems, with shared memory for the function state pool.
+#[fidelity_bounds(P)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn fidelity_master<O, S, R, C, P, Com>(
+    mut com: Com,
+    problem: P,
+    mut accumulator: Accum<P>,
+    mut sampler: O,
+    mut stop: S,
+    mut recorder: Option<R>,
+    checkpointer: Arc<Mutex<Option<C>>>,
+    mut state: ParState<P>,
+    mut map: FnStateMapper<P>,
+) -> Accum<P>
+where
+    P: 'static,
+    O: Sampler<P, Opt<P>, Info = P::Info>,
+    S: Stop,
+    R: Recorder<P, ()>,
+    C: Checkpointer<P, ()> + Send + Sync,
+    Com: MasterWorkerCom,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    let tolerance = com.size() * 2;
+    loop {
+        let res = fid_receive_and_update(
+            &mut com,
+            &problem,
+            &mut accumulator,
+            &mut sampler,
+            &mut stop,
+            &mut recorder,
+            &mut state,
+            &mut map,
+            tolerance
+        );
+        if let Err(e) = res {
+            log::warn!("Error while receiving messages from workers: {}. Continuing with the experiment.", e);
+        } else {
+            stop.update(ExpStep::Iteration); // New iteration
+        }
+
+        // Check if stop
+        if let Some(check) = checkpointer.lock().unwrap().as_ref() {
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+            let parameters = GlobalParameters::new();
+            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
+        if stop.stop() { break; };
+
+        let res = fid_fill_all_idles(
+            &mut com,
+            &mut sampler,
+            problem.get_searchspace(),
+            &mut accumulator,
+            &mut stop,
+            &mut map,
+            &mut state
+        );
+        if let Err(e) = res {
+            log::warn!("Error while filling idle workers: {}. Continuing with the experiment.", e);
+        }
+        
+        if let Some(check) = checkpointer.lock().unwrap().as_ref() {
+            check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
+    }
+    purge_workers(&mut com);
+    accumulator
+}
+
+/// Start the workers for a multi-fidelity problem.
+#[fidelity_bounds(P)]
+pub(crate) fn start_fidelity_workers<P, FnState, C, Com>(
+    problem: &P,
+    com: &mut Com,
+    check: Arc<Mutex<Option<C>>>,
+    pool: Arc<Mutex<Pool<P::Id, FnState>>>,
+) -> Result<Com::Handle, WorkerError>
+where
+    P: 'static,
+    P::Func: FuncWrapper<Context = (Fidelity, Option<FnState>), OutShape = (Out<P>, FnState)>,
+    C:Checkpointer<P, ()> + Send + Sync + 'static,
+    FnState: FuncState + Send + Sync + 'static,
+    Com: MasterWorkerCom,
+{
+    let func = problem.clone_objective();
+    com.worker(func, move |obj, chan| {
+        fidelity_worker::<P, FnState, _, C>(obj, chan, check.clone(), pool.clone())
+    })
+}

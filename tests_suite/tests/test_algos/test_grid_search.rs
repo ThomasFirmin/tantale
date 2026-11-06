@@ -44,9 +44,9 @@ fn test_seqrun() {
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(pb, rec, check);
-    assert_eq!(exp.sampler().1, 0, "Number of fully evaluated grid is wrong");
+    assert_eq!(exp.sampler.1, 0, "Number of fully evaluated grid is wrong");
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
     expstop.add(100);
 
@@ -61,7 +61,7 @@ fn test_seqrun() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(pb, rec, check);
-    assert_eq!(exp.sampler().1, 1, "Number of fully evaluated grid is wrong");
+    assert_eq!(exp.sampler.1, 1, "Number of fully evaluated grid is wrong");
     run_reader("tmp_test_gs_seqrun", 300);
     exp.run();
 }
@@ -92,9 +92,9 @@ fn test_fid_seq_run() {
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler().sampler.1, 0, "Number of fully evaluated grid is wrong");
+    assert_eq!(exp.sampler.sampler.1, 0, "Number of fully evaluated grid is wrong");
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
     expstop.add(100);
 
@@ -109,9 +109,9 @@ fn test_fid_seq_run() {
 
 
     let exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler().sampler.1, 1, "Number of fully evaluated grid is wrong");
+    assert_eq!(exp.sampler.sampler.1, 1, "Number of fully evaluated grid is wrong");
     run_reader("tmp_test_gs_fidseqrun", 1500);
-    let expstop: &Evaluated = exp.get_stop();
+    let expstop: &Evaluated = &exp.stop;
     assert_eq!(expstop.calls(), 300, "Number of calls is wrong");
 }
 
@@ -147,7 +147,7 @@ fn test_seq_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, GridSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Evaluated = m.mut_stop();
+        let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
     }
@@ -165,9 +165,8 @@ fn test_seq_parrun() {
     let mut _exp = ParExperiment::<_, GridSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
     match _exp.master_mut() {
         Some(m) => {
-            let expstop: &mut Evaluated = m.mut_stop();
+            let expstop= &m.stop;
             assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
-            expstop.add(100);
         },
         None => panic!("Master process not found"),
     }

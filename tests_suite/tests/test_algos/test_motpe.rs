@@ -52,7 +52,7 @@ fn test_mo_tpe_seq_run() {
 
     let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Evaluated = exp.mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -111,7 +111,7 @@ fn test_mo_tpe_seq_parrun() {
     let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _, _>::load(pb, rec, check, com);
     match exp.master_mut() {
         Some(m) => {
-            let expstop: &mut Evaluated = m.mut_stop();
+            let expstop: &mut Evaluated = &mut m.stop;
             assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
             expstop.add(50);
         },
@@ -130,6 +130,6 @@ fn test_mo_tpe_seq_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let _exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, MOSplit), Evaluated, _, _, _>::load(pb, rec, check, com);
     run_reader("tmp_test_mo_tpe_seq_parrun", 100);
 }

@@ -43,11 +43,11 @@ fn test_batch_run() {
 
     let mut exp = Experiment::<_, batchrandomsearch!(),Calls,_,_>::load(pb, rec, check);
 
-    let expstop: &mut Calls = exp.mut_stop();
+    let expstop: &mut Calls = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
-    let expoptimizer = exp.mut_sampler();
+    let expoptimizer = &mut exp.sampler;
     assert_eq!(expoptimizer.calls, 8, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     exp.run();
@@ -62,8 +62,8 @@ fn test_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, batchrandomsearch!(),Calls,_,_>::load(pb, rec, check);
-    let expstop: &Calls = exp.get_stop();
-    let expoptimizer = exp.sampler();
+    let expstop: &Calls = &exp.stop;
+    let expoptimizer = &exp.sampler;
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
     assert_eq!(expoptimizer.calls, 15, "Number of iteration is wrong");
     assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
@@ -99,7 +99,7 @@ fn test_seqrun() {
 
     let mut exp = Experiment::<_, RandomSearch, Calls, _, _>::load(pb, rec, check);
 
-    let expstop: &mut Calls = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
     expstop.add(50);
 
@@ -149,10 +149,10 @@ fn test_batch_parrun() {
     let mut exp = ParExperiment::<_, batchrandomsearch!(), Calls, _, _, _>::load(pb, rec, check, com);
 
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Calls = m.mut_stop();
+        let expstop= &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
-        let expoptimizer = m.sampler();
+        let expoptimizer = &mut m.sampler;
         assert!(expoptimizer.calls >=8, "Number of iteration is wrong. Should be at least 8, but got {}", expoptimizer.calls);
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     }
@@ -169,8 +169,8 @@ fn test_batch_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, batchrandomsearch!(), Calls, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &Calls = m.get_stop();
-        let expoptimizer = m.sampler();
+        let expstop = &mut m.stop;
+        let expoptimizer = &mut m.sampler;
         assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
         assert!(expoptimizer.calls >=15, "Number of iteration is wrong. Should be at least 15, but got {}", expoptimizer.calls);
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
@@ -212,7 +212,7 @@ fn test_parrun() {
     let com = ThreadCommunicator::new();
     let mut exp = ParExperiment::<_, RandomSearch, Calls, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
-        let expstop: &mut Calls = m.mut_stop();
+        let expstop = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
     }

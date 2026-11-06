@@ -2,10 +2,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use csv::Reader;
-use serial_test::serial;
 use tantale::algos::{MoAsha, Premade, RandomSearch, moasha};
 use tantale::core::{Evaluated, Experiment};
-use tantale::core::problem::Pb;
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
@@ -17,7 +15,6 @@ use tantale::{
 
 use crate::cleaner::Cleaner;
 use crate::init_func;
-use crate::run_checker::run_reader_eps;
 
 fn assert_moasha_promotion(path: &str) {
     let info_path = Path::new(path).join("recorder/info.csv");
@@ -213,10 +210,10 @@ fn test_fid_seq_run() {
 
     let mut exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec,check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(
         expoptimizer.budgets, budgets,
         "Budgets are wrong, {:?} != {:?}",
@@ -235,9 +232,9 @@ fn test_fid_seq_run() {
 
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     assert_moasha_fidelity_paths("tmp_test_moasha_rs", &[1.,2., 4.]);
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(
         expoptimizer.budgets, budgets,
         "Budgets are wrong, {:?} != {:?}",

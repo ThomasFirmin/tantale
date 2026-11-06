@@ -44,6 +44,7 @@ where
 /// This prevent overflowing RAM whith large [`FuncState`](crate::FuncState) by allowing to retrieve the state from memory if it is still there,
 /// or to load it from disk if it has been evicted.
 /// It is only used for multi-fidelity optimization where the state of the objective function has to be tracked.
+#[derive(Debug, Clone, Copy)]
 pub enum PoolMode {
     /// Retrieve the state saved in memory (if any) without loading from disk.
     InMemory,
@@ -61,6 +62,17 @@ pub trait FuncStatePool<Id: StepId, FnState: FuncState>: Default
     fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool;
     /// Retrieve the [`FuncState`] associated with the given solution [`StepId`], if it exists.
     fn retrieve<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> Option<FnState>;
+    /// Remove all previous [`FuncState`]s associated with the given solution [`StepId`], if they exist.
+    fn remove_steps<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) {
+        let mut prev_id = *id;
+        self.remove::<P, Ctx, C>(&prev_id, check, ctx);
+        while prev_id.id_step() > 0 {
+            prev_id = prev_id.previous_id();
+            self.remove::<P, Ctx, C>(&prev_id, check, ctx);
+        }
+    }
+    /// Tells which IDs are stored in the pool. This is useful for debugging and monitoring the state of the pool.
+    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, check: &Option<C>,ctx: &Ctx) -> Vec<Id>;
 }
 
 /// An implementation of [`FuncStatePool`] that uses an in-memory [`IndexMap`] to store function states.
@@ -98,12 +110,13 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
             let _ = c.save_fn_state(&id, &state, ctx);
         }
         self.0.insert(id, state);
+
     }
     /// Remove the [`FuncState`] associated with the given solution [`StepId`], if it exists.
     /// Returns `true` if the state was present and removed, `false` otherwise.
     fn remove<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, id: &Id, check: &Option<C>,ctx: &Ctx) -> bool {
         if let Some(c) = check {
-            let _ = c.remove_all_previous_fn_states::<Id, FnState>(id, ctx);
+            let _ = c.remove_fn_state::<Id, FnState>(id, ctx);
         }
         self.0.swap_remove(id).is_some()
     }
@@ -116,6 +129,10 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
         } else {
             res
         }
+    }
+    /// Returns a vector of all solution [`StepId`]s currently stored in the pool.
+    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, _check: &Option<C>, _ctx: &Ctx) -> Vec<Id> {
+        self.0.keys().copied().collect()
     }
 }
 
@@ -171,6 +188,16 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for LoadPool<Id,
             panic!("LoadPool requires a checkpointer to retrieve function states.");
         }
     }
+
+    /// Inspect the persistent storage to determine which solution [`StepId`]s have associated [`FuncState`]s stored.
+    /// This implementation relies on the checkpointer to provide the list of stored IDs.
+    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, check: &Option<C>,ctx: &Ctx) -> Vec<Id> {
+        if let Some(c) = check {
+            c.list_ids(ctx).unwrap_or_default()
+        } else {
+            panic!("LoadPool requires a checkpointer to list stored function states.");
+        }
+    }
 }
 
 pub enum Pool<Id: StepId, FnState: FuncState>
@@ -214,6 +241,13 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for Pool<Id, FnS
         match self {
             Pool::InMemory(p) => p.retrieve(id, check, ctx),
             Pool::Persistent(p) => p.retrieve(id, check, ctx),
+        }
+    }
+
+    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, check: &Option<C>,ctx: &Ctx) -> Vec<Id> {
+        match self {
+            Pool::InMemory(p) => p.stored_ids(check, ctx),
+            Pool::Persistent(p) => p.stored_ids(check, ctx),
         }
     }
 }
