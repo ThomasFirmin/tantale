@@ -63,7 +63,7 @@ fn test_python_function() {
 
     let mut exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec, check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert!(
         expstop.0 >= 50 && expstop.0 <= 50 + num_cpus::get(),
         "Number of calls is wrong"
@@ -81,7 +81,7 @@ fn test_python_function() {
     let exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec, check);
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
     run_reader_eps("tmp_test_python_fid_parrun", 400, 100); // 100 for randomness
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert!(
         expstop.0 >= 100 && expstop.0 <= 100 + num_cpus::get(),
         "Number of calls is wrong"

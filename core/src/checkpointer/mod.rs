@@ -271,4 +271,10 @@ pub trait Checkpointer<P: Problem, Context> {
 
     /// Add a suffix to a [`CheckpointerTargets`] to create a new target for saving state.
     fn append_to_target(&self, target: &CheckpointerTargets, suffix: &str) -> Result<PathBuf, CheckpointerError>;
+
+    /// Checks if the checkpointer is configured for parallel file system (PFS) usage, which may affect how checkpoints are saved and loaded.
+    fn is_pfs(&self) -> bool;
+
+    /// Sets the checkpointer's configuration for parallel file system (PFS) usage.
+    fn set_pfs(&mut self, pfs: bool);
 }

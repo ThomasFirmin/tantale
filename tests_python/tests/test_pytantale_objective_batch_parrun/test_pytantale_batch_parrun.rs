@@ -1,6 +1,6 @@
 use tantale::algos::{BatchRandomSearch, batchrandomsearch};
 use tantale::core::{
-    CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, PoolMode, Runable,
+    CSVRecorder, Evaluated, FolderConfig, MessagePack, ParExperiment, Pb, PoolMode, ThreadCommunicator,
 };
 use tantale::python::init_python;
 
@@ -44,7 +44,8 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    Experiment::new(pb, opt, stop, rec, check)
+    let com = ThreadCommunicator::new();
+    ParExperiment::new(pb, opt, stop, rec, check, com)
         .with_pool(PoolMode::Persistent)
         .run();
     run_reader("tmp_test_python_batch_parrun_rs", 50);
@@ -56,11 +57,19 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    let expstop = exp.mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    match exp.master_mut(){
+        Some(m) => {
+            let expstop = &mut m.stop;
+            assert_eq!(expstop.0, 50, "Number of calls is wrong");
+            expstop.1 = 100;
+        }
+        None => {
+            panic!("Experiment is not in master mode");
+        }
+    }
     exp.run();
 
     let sp = sp_ms_nosamp::get_searchspace();
@@ -70,8 +79,17 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
     run_reader("tmp_test_python_batch_parrun_rs", 100);
-    let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+
+    match exp.master(){
+        Some(m) => {
+            let expstop = &m.stop;
+            assert_eq!(expstop.0, 100, "Number of calls is wrong");
+        }
+        None => {
+            panic!("Experiment is not in master mode");
+        }
+    }
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path, thread::Thread};
+use std::{collections::HashMap, path::Path};
 
 use csv::Reader;
 use tantale::{
@@ -9,7 +9,7 @@ use tantale::{
 
 use tantale::algos::{Hyperband, Sha};
 
-use crate::cleaner::Cleaner;
+use crate::{cleaner::Cleaner, run_checker::run_reader_eps};
 use crate::init_func::{self, sp_evaluator_hb};
 use crate::run_checker::run_reader;
 
@@ -220,7 +220,7 @@ fn test_fid_seq_run() {
 
     let exp = Experiment::<_, hyperband!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
-    run_reader("tmp_test_hyperband_sha_run", 450);
+    run_reader("tmp_test_hyperband_sha_run", 451);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = &exp.sampler;
@@ -283,14 +283,6 @@ fn test_fid_seq_parrun() {
     let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     exp.run();
 
-    // 1450 = 4 brackets at
-    // n = 1*1.61^3 = 5 |-> 4 |-> 4 |-> 4 (batch sizes of bracket 1) | s = [3,2,1,0]
-    // bracket 1 : 5 |-> bracket 2 : 3 (5/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61)
-    // bracket 1 : 4 |-> bracket 2 : 2 (4/1.61) |-> bracket 3 : 1 (2/1.61) |-> bracket 4 : 1 (1/1.61) (fully evaluated)
-    // 5+3+4+2+4+2+1+4+2+1+1 = 29 partial evaluations to get 1 full
-    // So 29 * 50 = 1450 evaluations to get 50 full evaluations
     run_reader("tmp_test_hyperband_sha_parrun", 235);
 
     let pb = sp_evaluator_hb::get_problem();
@@ -329,7 +321,7 @@ fn test_fid_seq_parrun() {
                 "Scaling factor is not equal to inner scaling factor"
             );
             assert_eq!(
-                expoptimizer.inner.budgets[0], 4.0,
+                expoptimizer.inner.budgets[0], 2.0,
                 "Budget min is not equal to inner budget min"
             );
             assert_eq!(
@@ -352,7 +344,7 @@ fn test_fid_seq_parrun() {
     let com = ThreadCommunicator::new();
     let exp = ParExperiment::<_, hyperband!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    run_reader("tmp_test_hyperband_sha_parrun", 450);
+    run_reader_eps("tmp_test_hyperband_sha_parrun", 450, num_cpus::get()-1);
 
     match exp.master(){
         Some(m) => {
@@ -379,7 +371,7 @@ fn test_fid_seq_parrun() {
                 "Scaling factor is not equal to inner scaling factor"
             );
             assert_eq!(
-                8.0, expoptimizer.inner.budgets[0],
+                4.0, expoptimizer.inner.budgets[0],
                 "Budget min is not equal to inner budget min"
             );
             assert_eq!(

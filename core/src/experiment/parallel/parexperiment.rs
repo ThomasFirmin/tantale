@@ -182,6 +182,8 @@ where
     /// Flag indicating whether to consider Parallel File System (PFS).
     /// Meaning that all processes can access the same file system.
     pub pfs: bool,
+    /// Flag indicating whether the experiment state has been loaded from a checkpoint.
+    pub is_loaded: bool,
 }
 
 impl<P,C,Com> Worker<P, C, Com>
@@ -193,17 +195,19 @@ where
 {
     /// Creates a new `Worker` instance if the current process is not the master.
     /// If it is the master, returns `None`.
-    pub fn new(problem: P, checkpointer: Option<C>, pool_mode: PoolMode, com: Com) -> Option<Self> 
+    pub fn new(problem: P, mut checkpointer: Option<C>, pool_mode: PoolMode, com: Com) -> Option<Self> 
     {
         if com.is_master() {
             None
         } else {
+            if let Some(c) = checkpointer.as_mut() { c.set_pfs(true) }
             let checkpointer = Arc::new(Mutex::new(checkpointer));
             Some(Self {
                 problem,
                 checkpointer,
                 pool_mode,
                 com,
+                is_loaded: false,
                 pfs: true,
             })
         }
@@ -220,6 +224,7 @@ where
                 checkpointer,
                 pool_mode,
                 com,
+                is_loaded: true,
                 pfs: true,
             })
         }
@@ -227,6 +232,7 @@ where
 
     /// Set the Parallel File System (PFS) flag for the worker.
     pub fn with_pfs(self, pfs: bool) -> Self {
+        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() { c.set_pfs(pfs) }
         Self {
             pfs,
             ..self
@@ -290,7 +296,8 @@ where
 
     fn launch(mut self) -> Result<Self::Handle, WorkerError> {
         let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(self.pool_mode)));
-        start_fidelity_workers(&self.problem, &mut self.com, self.checkpointer, pool)
+        let pb = Arc::new(self.problem);
+        start_fidelity_workers(pb.clone(), &mut self.com, self.checkpointer, pool, self.is_loaded)
     }
 }
 
@@ -305,7 +312,7 @@ where
     Com: MasterWorkerCom
 {
     /// The [`Problem`] being solved in the experiment.
-    pub problem: P,
+    pub problem: Arc<P>,
     /// The [`Sampler`] used to generate new candidate solutions.sed to generate new candidate solutions.
     pub sampler: O,
     /// The [stopping](Stop) criterion for the experiment.
@@ -344,17 +351,18 @@ where
         sampler: O,
         stop: S, 
         recorder: Option<R>, 
-        checkpointer: Option<C>, 
+        mut checkpointer: Option<C>, 
         com: Com
     ) -> Option<Self> {
         if com.is_worker(){
             None
         } else {
             let accumulator = Accum::<P>::default();
+            if let Some(c) = checkpointer.as_mut() { c.set_pfs(true) }
             let checkpointer = Arc::new(Mutex::new(checkpointer));
             let peers = com.size();
             Some(Self {
-                problem,
+                problem: Arc::new(problem),
                 sampler,
                 stop,
                 recorder,
@@ -378,6 +386,8 @@ where
         if com.is_worker(){
             Err("Cannot load experiment state on a worker process.".to_string())
         } else {
+            checkpointer.set_pfs(true);
+
             if let Some(rec) = recorder.as_mut() {
                 rec.before_load(&problem, &()).expect(
                     " 
@@ -398,11 +408,11 @@ where
                 SOL_ID.store(parameters.sold_id, Ordering::SeqCst);
             }
             RUN_ID.store(parameters.run_id + 1, Ordering::SeqCst);
-
+            
             let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
             let peers = com.size();
             Ok(Master {
-                problem,
+                problem: Arc::new(problem),
                 sampler,
                 stop,
                 recorder,
@@ -419,6 +429,7 @@ where
 
     /// Set the Parallel File System (PFS) flag for the master process.
     pub fn with_pfs(self, pfs: bool) -> Self {
+        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() { c.set_pfs(pfs) }
         Self {
             pfs,
             ..self
@@ -464,14 +475,14 @@ where
     
     fn run(mut self) -> Accum<Self::Problem> 
     {   
-        let state = if self.is_loaded {
+        let state: ParState<SimplePb<Info, Scp, Out>> = if self.is_loaded {
             if let Some(rec) = &mut self.recorder{
                 rec.after_load(&self.problem, &()).unwrap();
             }
 
             if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
-                check.after_load(&self.problem, &()).unwrap();
                 let state = check.load(&CheckpointerTargets::Experiment, &());    
+                check.after_load(&self.problem, &()).unwrap();
                 match state {
                     Ok(e) => e,
                     Err(e) => {
@@ -551,14 +562,14 @@ where
     
     fn run(mut self) -> Accum<Self::Problem> 
     {   
-        let state = if self.is_loaded {
+        let state: ParState<FidPb<Info, Scp, Out, FnState>> = if self.is_loaded {
             if let Some(rec) = &mut self.recorder{
                 rec.after_load(&self.problem, &()).unwrap();
             }
 
             if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
-                check.after_load(&self.problem, &()).unwrap();
                 let state = check.load(&CheckpointerTargets::Experiment, &());    
+                check.after_load(&self.problem, &()).unwrap();
                 match state {
                     Ok(e) => e,
                     Err(e) => {
@@ -695,6 +706,14 @@ where
         Self { role }
     }
 
+    pub fn with_pool(mut self, pool_mode: PoolMode) -> Self {
+        match &mut self.role {
+            Role::Master(m) => m.pool_mode = pool_mode,
+            Role::Worker(w) => w.pool_mode = pool_mode,
+        }
+        self
+    }
+
     /// Set the Parallel File System (PFS) flag.
     pub fn with_pfs(mut self, pfs: bool) -> Self {
         match &mut self.role {
@@ -747,7 +766,7 @@ where
     pub fn run(self) -> Option<Accum<SimplePb<Info, Scp, Out>>> {
         match self.role {
             Role::Master(mut master) => {
-                let handle = start_simple_workers(&master.problem, &mut master.com)
+                let handle = start_simple_workers(master.problem.as_ref(), &mut master.com)
                     .map_err(|e| log::error!("Failed to start workers: {}", e))
                     .ok()?;
                 let accumulator = master.run();
@@ -797,10 +816,11 @@ where
             Role::Master(mut master) => {
                 let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(master.pool_mode)));
                 let handle = start_fidelity_workers(
-                    &master.problem, 
+                    master.problem.clone(), 
                     &mut master.com, 
                     master.checkpointer.clone(),
                     pool,
+                    master.is_loaded
                 ).map_err(|e| log::error!("Failed to start workers: {}", e)).ok()?;
                 let accumulator = master.run();
                 if let Err(e) = handle.join() {

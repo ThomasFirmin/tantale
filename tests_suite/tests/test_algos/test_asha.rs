@@ -321,7 +321,7 @@ fn test_asha_tpe() {
 
 #[test]
 fn test_asha_rs_par() {
-    // let _clean = Cleaner::new("tmp_test_asha_rs_par");
+    let _clean = Cleaner::new("tmp_test_asha_rs_par");
 
     let budgets = vec![1., 2., 4., 8.];
 

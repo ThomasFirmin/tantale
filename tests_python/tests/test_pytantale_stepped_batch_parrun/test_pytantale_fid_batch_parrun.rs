@@ -64,10 +64,10 @@ fn test_python_function() {
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
 
     exp.run();
@@ -81,8 +81,8 @@ fn test_python_function() {
 
     let exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_python_sha_parrun", 2000);
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.sampler();
+    let expoptimizer = &exp.sampler;
     assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
 }

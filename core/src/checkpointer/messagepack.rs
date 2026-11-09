@@ -29,6 +29,7 @@ pub struct MessagePack {
     path_acc: PathBuf,
     path_workers: PathBuf,
     path_func: PathBuf,
+    pfs: bool, // Indicates if the checkpointer is configured for parallel file system (PFS) usage.
 }
 
 impl MessagePack {
@@ -50,6 +51,7 @@ impl MessagePack {
             path_acc,
             path_workers,
             path_func,
+            pfs: true,
         })
     }
 
@@ -346,5 +348,13 @@ impl<P: Problem> Checkpointer<P, ()> for MessagePack
         } else {
             Err(CheckpointerError::FileNotFound(format!("The given path does not exist, {}.", target_path.display())))
         }
+    }
+    
+    fn is_pfs(&self) -> bool {
+        self.pfs
+    }
+    
+    fn set_pfs(&mut self, pfs: bool) {
+        self.pfs = pfs;
     }
 }

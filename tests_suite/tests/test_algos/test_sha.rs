@@ -32,8 +32,6 @@ pub mod searchspace {
                 None => FnState { state: 0 },
             };
             state.state += 1;
-            let fid = [! FIDELITY !];
-            println!("Fidelity: {}, State {}", fid, state.state);
             let evalstate = if state.state == 4 {Step::Evaluated} else{Step::Partially(state.state)};
 
             let obj = if state.state == 1 { b } else if state.state == 2 { c } else if state.state == 3 { d } else if state.state == 4 { e } else {panic!("Invalid state")};
@@ -80,6 +78,8 @@ fn test_fid_batch_run() {
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
+
+    println!("PENDING AFTER LOAD: {} -------------------------", exp.sampler.pending);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");

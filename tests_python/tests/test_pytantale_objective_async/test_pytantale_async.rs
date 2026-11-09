@@ -59,7 +59,7 @@ fn test_python_function() {
 
     let mut exp = Experiment::<_, randomsearch!(), Evaluated, _, _>::load(pb, rec, check);
 
-    let expstop = exp.mut_stop();
+    let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     exp.run();
@@ -73,6 +73,6 @@ fn test_python_function() {
 
     let exp = Experiment::<_, randomsearch!(), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_python_async_rs", 100);
-    let expstop = exp.get_stop();
+    let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
 }

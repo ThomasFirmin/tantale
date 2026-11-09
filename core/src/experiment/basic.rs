@@ -1,14 +1,12 @@
 use std::sync::atomic::Ordering;
 
 use crate::{
-    Accumulator, BaseSol, Codomain, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, 
-    HasState, HasStep, HasStepId, HasVariables, HasX, MultiStep, OneStep, Outcome, Problem, RUN_ID, Runable, SId, SOL_ID, Searchspace, 
-    SimplePb, SolInfo, SolutionShape, State, Step, StepSId, aliases::{Accum, Cod, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, 
-    checkpointer::{Checkpointer, CheckpointerTargets}, experiment::exputils::{FuncStatePool, InMemoryPool, LoadPool, Pool, PoolMode, record}, 
-    optimizer::Sampler, recorder::Recorder, solution::shape::IntoComputedShape, stop::{ExpStep, Stop},
+    Accumulator, BaseSol, Codomain, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasState, HasStep, HasStepId, 
+    HasVariables, HasX, MultiStep, OneStep, Outcome, Problem, RUN_ID, Runable, SId, SOL_ID, Searchspace, SimplePb, SolInfo, SolutionShape, State, Step, StepSId, 
+    aliases::{Accum, Cod, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, checkpointer::{Checkpointer, CheckpointerTargets}, 
+    experiment::exputils::{FuncStatePool, InMemoryPool, LoadPool, Pool, PoolMode, record}, optimizer::Sampler, recorder::Recorder, solution::shape::IntoComputedShape, stop::{ExpStep, Stop},
 };
 
-use log::warn;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -16,28 +14,17 @@ use serde::{Deserialize, Serialize};
 pub struct ExpState<P:Problem> {
     /// The current solution being evaluated.
     pub currently: Shape<P>,
-    /// The current output of the optimization process, if any.
-    pub output: Option<Out<P>>,
 }
 
 impl<P:Problem> State for ExpState<P> { }
 
 impl<P:Problem> ExpState<P> {
     pub fn new(currently: Shape<P>) -> Self {
-        Self { currently, output: None }
+        Self { currently }
     }
 
-    pub fn set_output(&mut self, output: Out<P>) {
-        self.output = Some(output);
-    }
-
-    pub fn has_output(&self) -> bool {
-        self.output.is_some()
-    }
-
-    pub fn to_computed(self, codomain: &Cod<P>) -> (CompShape<P>, Out<P>) {
-        let output = self.output.expect("No output available to convert to computed shape.");
-        (self.currently.into_computed(codomain.get_elem(&output).into()), output)
+    pub fn to_computed(self, codomain: &Cod<P>, outcome: Out<P>) -> (CompShape<P>, Out<P>) {
+        (self.currently.into_computed(codomain.get_elem(&outcome).into()), outcome)
     }
 }
 
@@ -134,7 +121,7 @@ where
         }
         checkpointer.before_load(&problem, &()).unwrap();
 
-        let sampler: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
+        let sampler = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
         let stop = checkpointer.load(&CheckpointerTargets::Stop, &()).unwrap();
         let accumulator = checkpointer.load(&CheckpointerTargets::Accumulator, &()).unwrap();
         let parameters: GlobalParameters = checkpointer.load(&CheckpointerTargets::Config, &()).unwrap();
@@ -192,8 +179,8 @@ where
                 rec.after_load(&self.problem, &()).unwrap();
             }
             if let Some(check) = self.checkpointer.as_mut() {
-                check.after_load(&self.problem, &()).unwrap();
                 let exp = check.load(&CheckpointerTargets::Experiment, &());
+                check.after_load(&self.problem, &()).unwrap();
                 match exp {
                     Ok(e) => e,
                     Err(e) => {
@@ -230,22 +217,7 @@ where
             ExpState::new(sol.unwrap())
         };
         
-        if state.has_output() 
-        {
-            // If the experiment state has an output, it means that the last evlauation was recorded
-            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
-            let (computed, output) = state.to_computed(self.problem.get_codomain());
-            record(&self.recorder, &self.problem, &computed, &output);
-
-            self.accumulator.accumulate(&computed);
-            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
-            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
-            state = ExpState::new(sol);
-            self.stop.update(ExpStep::Sampling);
-        }
-        
         loop {
-            // Check if stop
             if let Some(ref check) = self.checkpointer {
                 check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
                 check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
@@ -254,34 +226,39 @@ where
                 let parameters = GlobalParameters::new();
                 check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
             }
+
+            // Check if stop
             if self.stop.stop() { break; };
 
             // Compute the output of the current solution
             let output = self.problem.get_objective().compute(state.currently.get_sobj().clone_x(), ());
-            
-            state.set_output(output);
-            if let Some(ref check) = self.checkpointer {
-                check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-            }
-            
-            let (computed, output) = state.to_computed(self.problem.get_codomain());
+            let (computed, output) = state.to_computed(self.problem.get_codomain(), output);
 
             record(&self.recorder, &self.problem, &computed, &output);
             self.accumulator.accumulate(&computed);
-
-            if let Some(ref check) = self.checkpointer {
-                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-            }
             self.stop.update(ExpStep::Evaluation(Step::Evaluated));
 
             let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
-            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            let Some(sol) = new_sol else { 
+                log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                if let Some(ref check) = self.checkpointer {
+                    check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                }
+                break; 
+            };
 
             state = ExpState::new(sol);
             self.stop.update(ExpStep::Sampling);
             self.stop.update(ExpStep::Iteration); // New iteration
         }
 
+        if let Some(ref check) = self.checkpointer {
+            check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+            let parameters = GlobalParameters::new();
+            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
         self.accumulator
     }
 }
@@ -322,8 +299,8 @@ where
                 rec.after_load(&self.problem, &()).unwrap();
             }
             if let Some(check) = self.checkpointer.as_mut() {
-                check.after_load(&self.problem, &()).unwrap();
                 let exp = check.load(&CheckpointerTargets::Experiment, &());
+                check.after_load(&self.problem, &()).unwrap();
                 match exp {
                     Ok(e) => e,
                     Err(e) => {
@@ -360,20 +337,6 @@ where
             ExpState::new(sol.unwrap())
         };
 
-        if state.has_output() 
-        {
-            // If the experiment state has an output, it means that the last evlauation was recorded
-            // but not yet recorded, and accumulated. So we need to record it and update the accumulator.
-            let (computed, output) = state.to_computed(self.problem.get_codomain());
-            record(&self.recorder, &self.problem, &computed, &output);
-
-            self.accumulator.accumulate(&computed);
-            let new_sol = self.sampler.update_and_sample(&computed, self.problem.get_searchspace(), &self.accumulator);
-            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
-            state = ExpState::new(sol);
-            self.stop.update(ExpStep::Sampling);
-        }
-
         let mut pool = match self.pool_mode {
             PoolMode::InMemory => Pool::InMemory(InMemoryPool::default()),
             PoolMode::Persistent => Pool::Persistent(LoadPool::default()),
@@ -388,9 +351,10 @@ where
                 let parameters = GlobalParameters::new();
                 check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
             }
+
             // Check if stop
             if self.stop.stop() { break; };
-            
+
             let result = match state.currently.step() {
                 Step::Pending => {
                     let fidelity = state.currently.fidelity();
@@ -408,52 +372,50 @@ where
                 },
                 Step::Discard => {
                     pool.remove(state.currently.ref_id(), &self.checkpointer, &());
+                    self.stop.update(ExpStep::Evaluation(Step::Discard));
                     None
                 },
-                Step::Evaluated => {
-                    warn!("Solution with ID: {:?} has already been evaluated. Skipping evaluation.", state.currently.ref_id());
-                    pool.remove(state.currently.ref_id(), &self.checkpointer, &());
-                    None
-                },
+                Step::Evaluated => panic!("The current solution is already evaluated. This should not happen in the experiment loop."),
             };
             
-            let computed = if let Some((output, fnstate)) = result{
-                state.set_output(output);        
-                if let Some(ref check) = self.checkpointer {
-                    check.save_state(&state, &CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
-                }
-                pool.remove(state.currently.ref_id(), &self.checkpointer, &());
-
-                let (mut computed, output) = state.to_computed(self.problem.get_codomain());
+            if let Some((output, fnstate)) = result{
+                let (mut computed, output) = state.to_computed(self.problem.get_codomain(), output);
+                
+                pool.remove(computed.ref_id(), &self.checkpointer, &());
                 computed.increment();
                 computed.set_raw_step(output.get_step());
-    
                 if matches!(computed.step(), Step::Partially(_)) {
                     pool.insert(computed.id(), fnstate, &self.checkpointer, &());
                 }
+                
                 record(&self.recorder, &self.problem, &computed, &output);
                 self.accumulator.accumulate(&computed);
                 self.stop.update(ExpStep::Evaluation(computed.step()));
-                Some(computed)
-            } else {
-                None
-            };
-
-            if let Some(ref check) = self.checkpointer {
-                check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                self.sampler.update(&computed, self.problem.get_searchspace(), &self.accumulator);
             }
 
-            if let Some(comp) = &computed {
-                self.sampler.update(comp, self.problem.get_searchspace(), &self.accumulator);
-            }
             let new_sol = self.sampler.sample(self.problem.get_searchspace(), &self.accumulator);
-            let Some(sol) = new_sol else { log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate."); return self.accumulator; };
+            let Some(sol) = new_sol else { 
+                log::warn!("Optimizer returned None, stopping experiment. No new solution to evaluate.");
+                if let Some(ref check) = self.checkpointer {
+                    check.remove(&CheckpointerTargets::Experiment, &()).map_err(|e| log::warn!("{}", e)).ok();
+                }
+                break; 
+            };
 
             state = ExpState::new(sol);
             self.stop.update(ExpStep::Sampling);
             self.stop.update(ExpStep::Iteration); // New iteration
         }
 
+        if let Some(ref check) = self.checkpointer {
+            check.save_state(&self.sampler, &CheckpointerTargets::Optimizer, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&self.stop, &CheckpointerTargets::Stop, &()).map_err(|e| log::warn!("{}", e)).ok();
+            check.save_state(&self.accumulator, &CheckpointerTargets::Accumulator, &()).map_err(|e| log::warn!("{}", e)).ok();
+            let parameters = GlobalParameters::new();
+            check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
+        }
+        println!("SAMPLER {:?}", self.sampler);
         self.accumulator
     }
 }

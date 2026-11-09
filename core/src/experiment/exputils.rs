@@ -131,8 +131,15 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for InMemoryPool
         }
     }
     /// Returns a vector of all solution [`StepId`]s currently stored in the pool.
-    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, _check: &Option<C>, _ctx: &Ctx) -> Vec<Id> {
-        self.0.keys().copied().collect()
+    fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, check: &Option<C>, ctx: &Ctx) -> Vec<Id> {
+        if let Some(c) = check && c.is_pfs(){
+            let mut in_ram: Vec<Id> = self.0.keys().copied().collect();
+            let stored: Vec<Id> = c.list_ids(ctx).unwrap_or_default();
+            in_ram.extend(stored);
+            in_ram
+        } else {
+            self.0.keys().copied().collect()
+        }
     }
 }
 
@@ -192,10 +199,11 @@ impl<Id: StepId, FnState: FuncState> FuncStatePool<Id, FnState> for LoadPool<Id,
     /// Inspect the persistent storage to determine which solution [`StepId`]s have associated [`FuncState`]s stored.
     /// This implementation relies on the checkpointer to provide the list of stored IDs.
     fn stored_ids<P: Problem<Id=Id>, Ctx, C: Checkpointer<P, Ctx>>(&mut self, check: &Option<C>,ctx: &Ctx) -> Vec<Id> {
-        if let Some(c) = check {
-            c.list_ids(ctx).unwrap_or_default()
+        if let Some(c) = check && c.is_pfs(){
+            let stored: Vec<Id> = c.list_ids(ctx).unwrap_or_default();
+            stored
         } else {
-            panic!("LoadPool requires a checkpointer to list stored function states.");
+            Vec::new()
         }
     }
 }

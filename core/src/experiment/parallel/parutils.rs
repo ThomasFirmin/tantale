@@ -1,10 +1,11 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 
+use bitvec::bitvec;
 use log::warn;
 use tantale_macros::{basic_bounds, fidelity_bounds};
 
 use crate::{
-    Accumulator, Checkpointer, Codomain, Computed, FidOutcome, Fidelity, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasStep, HasStepId, HasX, Problem, Recordable, Recorder, Sampler, Schema, SolutionShape, Step, StepId, Stop, Var, aliases::{Accum, Cod, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CommunicatorError, WorkerError}, experiment::{
+    Accumulator, Checkpointer, Codomain, Computed, FidOutcome, Fidelity, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasStep, HasStepId, HasX, Problem, Recordable, Recorder, Sampler, Schema, SolutionShape, Step, StepId, Stop, Var, aliases::{Accum, Cod, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CheckpointerError, CommunicatorError, WorkerError}, experiment::{
         exputils::{FuncStatePool, Pool, record}, 
         parallel::parexperiment::{MasterWorkerCom, ParState}
     }, solution::shape::IntoComputedShape, stop::ExpStep, utils::{Communicator, communicator::{AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, FidMsg, InitMsg, Msg, OutMsg, StopMsg, XMsg}, record::{CompParts, SolParts}
@@ -364,7 +365,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn simple_master<O, S, R, C, P, Com>(
     mut com: Com,
-    problem: P,
+    problem: Arc<P>,
     mut accumulator: Accum<P>,
     mut sampler: O,
     mut stop: S,
@@ -387,7 +388,7 @@ where
     loop {
         let res = receive_and_update(
             &mut com,
-            &problem,
+            problem.as_ref(),
             &mut accumulator,
             &mut sampler,
             &mut stop,
@@ -449,6 +450,66 @@ where
         simple_worker::<P, _>(obj, chan)
     })
 }
+
+/// Receive messages from workers and update the state of the experiment accordingly, for multi-fidelity problems.
+#[fidelity_bounds(P)]
+pub(crate) fn init_and_update<P, Com>(
+    com: &mut Com,
+    map: &mut FnStateMapper<P>,
+    tolerance: usize,
+) -> Result<(), String>
+where
+    P: 'static,
+    Com: MasterWorkerCom,
+    Computed<SObj<P>, Out<P>>: Recordable<Cod<P>, Parts = CompParts> + for<'a> Schema<(&'a [Var<Obj<P>, TrueOpt<P>>] ,&'a Cod<P>), Parts = CompParts>,
+    SObj<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+    SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
+{
+    // receive all available messages from workers, with a tolerance for blocking attempts
+    let mut initialized = bitvec!(0; com.size());
+    initialized.set(0, true); // Master is always initialized
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !initialized.all() && Instant::now() < deadline {
+        let msg = receive_with_tolerance(com.channel(0), tolerance);
+        match msg {
+            Err(e) => return Err(e),
+            Ok(envelope) => {
+                let tag = envelope.tag;
+                let from = envelope.from;
+                if initialized[from] {
+                    return Err(format!("Received a message right after initialization from worker {}. This is unexpected.", from));
+                }
+                initialized.set(from, true);
+                com.set_idle(from);
+                match tag {
+                    InitMsg::TAG => { // Initialize without loaded states
+                        log::info!("Worker {} initialized and ready to receive tasks.", from);
+                        com.set_alive(from);
+                    },
+                    ContainsIds::<P::Id>::TAG => { // Initialize with potentially loaded states
+                        let msg = envelope.content.into_any().downcast::<ContainsIds::<P::Id>>().unwrap();
+                        let ids = msg.as_ref().0.clone();
+                        for id in ids {
+                            map.where_is.insert(id, from);
+                        }
+                        log::info!("Worker {} initialized and ready to receive tasks.", from);
+                        com.set_alive(from);
+                    },
+                    _ => {
+                        log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
+                        // Do nothing, just mark the worker as idle
+                    }
+                }
+                if com.is_dead(from){
+                    log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
+                    com.set_alive(from);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Receive messages from workers and update the state of the experiment accordingly, for multi-fidelity problems.
 #[fidelity_bounds(P)]
 #[allow(clippy::too_many_arguments)]
@@ -490,16 +551,16 @@ where
                         com.set_idle(from);
                         match tag {
                             InitMsg::TAG => { // Initialize without loaded states
-                                log::info!("Worker {} initialized and ready to receive tasks.", from);
+                                log::warn!("Worker {} send an initialization message after planned initialization.", from);
                                 com.set_alive(from);
                             },
                             ContainsIds::<P::Id>::TAG => { // Initialize with potentially loaded states
+                                log::warn!("Worker {} send an initialization with solution IDs message after planned initialization.", from);
                                 let msg = envelope.content.into_any().downcast::<ContainsIds::<P::Id>>().unwrap();
                                 let ids = msg.as_ref().0.clone();
                                 for id in ids {
                                     map.where_is.insert(id, from);
                                 }
-                                log::info!("Worker {} initialized and ready to receive tasks.", from);
                                 com.set_alive(from);
                             },
                             AskMsg::TAG => {}
@@ -643,10 +704,11 @@ where
 /// A worker routine for multi-fidelity problems.
 #[fidelity_bounds(P)]
 pub(crate) fn fidelity_worker<P, FnState, Chan, C>(
-    obj: Arc<P::Func>, 
+    pb: Arc<P>, 
     chan: &mut Chan,
     check: Arc<Mutex<Option<C>>>,
     pool: Arc<Mutex<Pool<P::Id, FnState>>>,
+    is_loaded: bool,
 ) -> Result<(), WorkerError>
 where
     P: 'static,
@@ -655,6 +717,34 @@ where
     C: Checkpointer<P, ()>,
     Chan: Channel,
 {
+
+    if let Some(c) = check.lock().unwrap().as_mut() && !c.is_pfs() {
+        if is_loaded {
+            match c.before_load(&pb, &()) {
+                Ok(()) => c.after_load(&pb, &()).map_err(|e| WorkerError(format!("Failed to after_load checkpointer: {:?}", e)))?,
+                Err(e) => {
+                    match e {
+                        CheckpointerError::FolderCreationError(e) | CheckpointerError::FileCreationError(e) => {
+                            return Err(WorkerError(format!("Failed to create checkpoint folder or file. Failed to before_load checkpointer: {:?}.", e)));
+                        },
+                        CheckpointerError::FileNotFound(_) => {
+                            warn!("Checkpoint folder not found. Failed to before_load checkpointer: {:?}. The checkpoint folder will be created", e);
+                            c.init(pb.as_ref(), &()).map_err(|e| WorkerError(format!("Failed to init checkpointer: {:?}", e)))?;
+                        },
+                        _ => {
+                            warn!("An unexpected error appended. Failed to before_load checkpointer: {:?}. The checkpoint folder will be created", e);
+                            c.init(pb.as_ref(), &()).map_err(|e| WorkerError(format!("Failed to init checkpointer: {:?}", e)))?;
+                        }
+                    }
+
+                },
+            }
+            
+        } else {
+            c.init(pb.as_ref(), &()).map_err(|e| WorkerError(format!("Failed to init checkpointer: {:?}", e)))?;
+        }
+    }
+
     let me = chan.me();
     let msg = if Chan::SHARED_MEM {
         Envelope::new(me, 0, InitMsg(0))
@@ -666,6 +756,8 @@ where
     if let Err(e) = res {
         return Err(WorkerError(format!("Failed to send initialization message from worker {}: {:?}.", me, e)));
     }
+
+    let obj = pb.clone_objective();
 
     loop {
         let task = receive_with_tolerance(chan, 10);
@@ -772,7 +864,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fidelity_master<O, S, R, C, P, Com>(
     mut com: Com,
-    problem: P,
+    problem: Arc<P>,
     mut accumulator: Accum<P>,
     mut sampler: O,
     mut stop: S,
@@ -793,10 +885,20 @@ where
     SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
 {
     let tolerance = com.size() * 2;
+    init_and_update(&mut com, &mut map,tolerance).unwrap();
+    for sol in state.currently.iter_mut().filter_map(|o| o.take()) {
+        let peer = map.where_is(&sol.id());
+        if let Some(p) = peer {
+            map.awaiting[p].push(sol);
+        } else {
+            map.awaiting_unknown.push(sol);
+        }
+    }
+
     loop {
         let res = fid_receive_and_update(
             &mut com,
-            &problem,
+            problem.as_ref(),
             &mut accumulator,
             &mut sampler,
             &mut stop,
@@ -847,10 +949,11 @@ where
 /// Start the workers for a multi-fidelity problem.
 #[fidelity_bounds(P)]
 pub(crate) fn start_fidelity_workers<P, FnState, C, Com>(
-    problem: &P,
+    problem: Arc<P>,
     com: &mut Com,
     check: Arc<Mutex<Option<C>>>,
     pool: Arc<Mutex<Pool<P::Id, FnState>>>,
+    is_loaded: bool,
 ) -> Result<Com::Handle, WorkerError>
 where
     P: 'static,
@@ -860,7 +963,7 @@ where
     Com: MasterWorkerCom,
 {
     let func = problem.clone_objective();
-    com.worker(func, move |obj, chan| {
-        fidelity_worker::<P, FnState, _, C>(obj, chan, check.clone(), pool.clone())
+    com.worker(func, move |_, chan| {
+        fidelity_worker::<P, FnState, _, C>(problem.clone(), chan, check.clone(), pool.clone(), is_loaded)
     })
 }

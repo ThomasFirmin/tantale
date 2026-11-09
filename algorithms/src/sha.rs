@@ -184,7 +184,7 @@ where
     pub scaling: f64,
     /// Count of pending candidates that have been sampled but not yet evaluated.
     ///  This is used to track the number of candidates in the current batch that are awaiting evaluation.
-    pending: usize,
+    pub pending: usize,
 }
 
 impl<P, Smpl> Clone for Sha<Smpl, P>
