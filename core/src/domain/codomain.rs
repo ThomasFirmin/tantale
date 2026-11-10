@@ -205,6 +205,24 @@ pub trait ElemCost {
     fn cost(&self) -> f64;
 }
 
+/// A trait for [`Accumulator`] that can provide the best element seen so far for a [`Single`]-objective [`Codomain`].
+pub trait SingleAccumulator<C>: Accumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemSingle + Ord,
+{
+    fn get_best(&self) -> Option<&C>;
+}
+
+/// A trait for [`Accumulator`] that can provide the Pareto front of non-dominated solutions for a [`Multi`]-objective [`Codomain`].
+pub trait MultiAccumulator<C>: Accumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemMulti,
+{
+    fn get_front(&self) -> &[C];
+}
+
 /// Accumulates the best [`TypeCodom`](Codomain::TypeCodom) seen so far for a [`Single`]-objective [`Codomain`].
 ///
 /// Since Tantale maximizes, [`update`](Accumulator::accumulate) keeps the element with the highest
@@ -218,6 +236,16 @@ where
 {
     /// The best element seen so far, or [`None`] if no element has been added yet.
     pub best: Option<C>,
+}
+
+impl<C> SingleAccumulator<C> for BestAccumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemSingle + Ord,
+{
+    fn get_best(&self) -> Option<&C> {
+        self.best.as_ref()
+    }
 }
 
 impl<C> BestAccumulator<C>
@@ -304,6 +332,16 @@ where
 {
     /// The current Pareto front (non-dominated set).
     pub front: Vec<C>,
+}
+
+impl<C> MultiAccumulator<C> for ParetoAccumulator<C>
+where
+    C: SolutionShape + HasY,
+    C::Y: ElemMulti,
+{
+    fn get_front(&self) -> &[C] {
+        &self.front
+    }
 }
 
 impl<C> ParetoAccumulator<C>

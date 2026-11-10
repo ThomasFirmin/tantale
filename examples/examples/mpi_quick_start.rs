@@ -1,9 +1,13 @@
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::macros::{Outcome, Schema, Recordable, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         #[maximize]
         pub obj: f64,
@@ -31,21 +35,12 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
-
-use searchspace::{get_function, get_searchspace};
-use tantale::algos::BatchRandomSearch;
+use searchspace::get_problem;
+use tantale::algos::RandomSearch;
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
+use tantale::core::{MPICommunicator, ParExperiment};
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{distributed, mpi::utils::MPIProcess},
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
     stop::Calls,
 };
 
@@ -55,35 +50,27 @@ fn main() {
         return;
     }
 
-    let proc = MPIProcess::new();
-
-    if proc.rank == 0 {
-        drop(Cleaner {
-            path: String::from("run_batch"),
-        });
-        let _clean = Cleaner {
-            path: String::from("run_batch"),
-        };
-    }
-
-    let sp = get_searchspace();
-    let obj = get_function();
-    let opt = BatchRandomSearch::new(7);
+    let pb = get_problem();
+    let sampler = RandomSearch::new();
 
     let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_batch_run").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("mpi_random_search");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
-
-    let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
+    
+    let com = MPICommunicator::new(&pb); // <==== Use an MPICommunicator to handle the parallelization of the experiment
+    if com.is_master() {
+        drop(Cleaner::new("mpi_random_search"));
+    }
+    let exp = ParExperiment::new(pb, sampler, stop, rec, check, com);
     let accumulator = exp.run();
-    if let Some(acc) = accumulator {
-        // <==== Because workers return None !
+    if let Some(acc) = accumulator { // <==== Because workers return None !
         let best = acc.get().unwrap().get_sobj();
         println!(
             "Best solution found: f({:?}) ={}",
             best.ref_x(),
             best.y().value
         );
+        drop(Cleaner::new("mpi_random_search"));
     }
 }

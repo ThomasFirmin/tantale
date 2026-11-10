@@ -1,4 +1,4 @@
-use std::process::exit;
+use std::rc::Rc;
 
 use crate::{
     FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::communicator::{
@@ -78,27 +78,28 @@ impl Default for MessageRegistry {
     }
 }
 
+#[derive(Clone)]
 /// Structure holding MPI-related information about the current process.
 pub struct MPIChannel {
     /// The MPI [`Universe`].
-    pub universe: Universe,
+    pub universe: Rc<Universe>,
     /// The MPI world [`SimpleCommunicator`].
-    pub world: SimpleCommunicator,
+    pub world: Rc<SimpleCommunicator>,
     /// The total number of processes in the MPI world.
     pub size: Rank,
     /// The [`Rank`] of the current process within the MPI world.
     pub rank: Rank,
     /// The message registry for decoding received messages.
-    pub registry: MessageRegistry,
+    pub registry: Rc<MessageRegistry>,
 }
 
 impl MPIChannel {
     /// Initialize a new [`MPIChannel`], setting up the MPI environment and communicator.
     /// It also sets the global `MPI_RANK` and `MPI_SIZE` once.
     /// Cannot be created twice during the same program execution.
-    pub fn new<P:Problem  +'static>() -> Self {
-        let universe = mpi::initialize().unwrap();
-        let world = universe.world();
+    pub fn new<P:Problem  +'static>(_pb: &P) -> Self {
+        let universe = Rc::new(mpi::initialize().unwrap());
+        let world = Rc::new(universe.world());
         let size = world.size();
         let rank = world.rank();
         if MPI_RANK.get().is_none() {
@@ -119,7 +120,7 @@ impl MPIChannel {
         registry.register::<InitMsg>(InitMsg::TAG);
         registry.register::<ContainsIds<P::Id>>(ContainsIds::<P::Id>::TAG);
         registry.register::<DiscardMsg<P::Id>>(DiscardMsg::<P::Id>::TAG);
-
+        let registry = Rc::new(registry);
         MPIChannel {
             universe,
             world,
@@ -170,6 +171,7 @@ impl Channel for MPIChannel {
     }
 }
 
+#[derive(Clone)]
 pub struct MPICommunicator {
     pub proc: MPIChannel,
     pub peers: Box<[usize]>,
@@ -177,8 +179,8 @@ pub struct MPICommunicator {
 }
 
 impl MPICommunicator {
-    pub fn new<P:Problem + 'static>() -> Self {
-        let proc = MPIChannel::new::<P>();
+    pub fn new<P:Problem + 'static>(pb: &P) -> Self {
+        let proc = MPIChannel::new::<P>(pb);
         let size = proc.size as usize;
         let me = proc.rank as usize;
         let peers = (0..size).filter(|&i| i != me).collect::<Vec<usize>>().into_boxed_slice();
@@ -189,6 +191,7 @@ impl MPICommunicator {
         }
     }
 }
+
 
 impl crate::utils::Communicator for MPICommunicator {
     
@@ -263,7 +266,7 @@ impl MasterWorkerCom for MPICommunicator {
         let me = channel.rank as usize;
         let res = routine(func.into(), channel);
         log::warn!("Worker process {} exiting with status: {:?}", me, res);
-        exit(42)
+        Ok(())
     }
     
     fn is_master(&self) -> bool {

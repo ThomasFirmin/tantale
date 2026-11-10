@@ -1,50 +1,60 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use std::{sync::{Arc, Mutex}, time::{Duration, Instant}};
 
 use bitvec::bitvec;
 use log::warn;
 use tantale_macros::{basic_bounds, fidelity_bounds};
 
 use crate::{
-    Accumulator, Checkpointer, Codomain, Computed, FidOutcome, Fidelity, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, HasStep, HasStepId, HasX, Problem, Recordable, Recorder, Sampler, Schema, SolutionShape, Step, StepId, Stop, Var, aliases::{Accum, Cod, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CheckpointerError, CommunicatorError, WorkerError}, experiment::{
+    Accumulator, Checkpointer, Codomain, Computed, FidOutcome, Fidelity, FuncState, FuncWrapper, GlobalParameters, HasFidelity, HasId, 
+    HasStep, HasStepId, HasX, Recordable, Recorder, Sampler, Schema, SolutionShape, Step, StepId, Stop, Var, 
+    aliases::{Accum, Cod, Obj, Opt, Out, SObj, SOpt, Shape, TrueOpt}, checkpointer::CheckpointerTargets, errors::{CheckpointerError, WorkerError}, 
+    experiment::{
         exputils::{FuncStatePool, Pool, record}, 
         parallel::parexperiment::{MasterWorkerCom, ParState}
     }, solution::shape::IntoComputedShape, stop::ExpStep, utils::{Communicator, communicator::{AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, FidMsg, InitMsg, Msg, OutMsg, StopMsg, XMsg}, record::{CompParts, SolParts}
     }
 };
 
-
-/// A struct to map [`FuncState`] to its corresponding worker.
-pub(crate) struct FnStateMapper<P:Problem> {
-    /// Maps each [`SolId`](crate::SolId) to its corresponding worker where the [`FuncState`] is stored.
-    pub where_is: HashMap<P::Id, usize>,
-    /// A list of [`FuncState`] that are awaiting processing by each worker.
-    pub awaiting: Vec<Vec<Shape<P>>>,
-    /// A list of [`FuncState`] that are awaiting processing by any worker, when the worker is not known.
-    pub awaiting_unknown: Vec<Shape<P>>,
-}
-
-impl<P:Problem> FnStateMapper<P> {
-    pub fn new(size: usize) -> Self {
-        let awaiting: Vec<Vec<Shape<P>>> = (0..size).map(|_| Vec::new()).collect();
-        Self {
-            where_is: HashMap::new(),
-            awaiting,
-            awaiting_unknown: Vec::new(),
+/// Receive messages from workers and update the state of the experiment accordingly.
+pub(crate) fn init_and_update<Com:MasterWorkerCom>(
+    com: &mut Com,
+    tolerance: usize,
+) -> Result<(), String>
+{
+    // receive all available messages from workers, with a tolerance for blocking attempts
+    let mut initialized = bitvec!(0; com.size());
+    initialized.set(0, true); // Master is always initialized
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !initialized.all() && Instant::now() < deadline {
+        let msg = receive_with_tolerance(com.channel(0), tolerance);
+        match msg {
+            Err(e) => return Err(e),
+            Ok(envelope) => {
+                let tag = envelope.tag;
+                let from = envelope.from;
+                if initialized[from] {
+                    return Err(format!("Received a message right after initialization from worker {}. This is unexpected.", from));
+                }
+                initialized.set(from, true);
+                com.set_idle(from);
+                match tag {
+                    InitMsg::TAG => { // Initialize without loaded states
+                        log::info!("Worker {} initialized and ready to receive tasks.", from);
+                        com.set_alive(from);
+                    },
+                    _ => {
+                        log::warn!("Received unexpected message: {:?}. Worker will be considered as idle", tag);
+                        // Do nothing, just mark the worker as idle
+                    }
+                }
+                if com.is_dead(from){
+                    log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
+                    com.set_alive(from);
+                }
+            }
         }
     }
-
-    /// Add a [`FuncState`] to the awaiting list of a specific worker.
-    pub fn where_is(&self, id: &P::Id) -> Option<usize> {
-        self.where_is.get(id).copied()
-    }
-
-    /// Get the next [`FuncState`] awaiting processing for a specific worker.
-    pub fn pop_awaiting(&mut self, peer: usize) -> Option<Shape<P>> {
-        if let Some(sol) = self.awaiting[peer].pop() {
-            Some(sol)
-        } else { self.awaiting_unknown.pop() }
-    }
-
+    Ok(())
 }
 
 /// Receive a message from the channel with a specified failure tolerance for blokcing communications.
@@ -129,25 +139,10 @@ where
                         let tag = envelope.tag;
                         let from = envelope.from;
                         com.set_idle(from);
-                        if com.is_dead(from){
-                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
-                            com.set_alive(from);
-                        }
                         match tag {
-                            InitMsg::TAG | AskMsg::TAG => { // Initialize with a potential loaded solution
+                            InitMsg::TAG => { // Initialize with a potential loaded solution
                                 log::info!("Worker {} initialized and ready to receive tasks.", from);
                                 com.set_alive(from);
-                                let res = fill_idle_with_state(com, state, from);
-                                if let Err(e) = res {
-                                    log::warn!(
-                                        "
-                                            Failed to send a solution to worker {}.
-                                            The worker will be considered as dead.
-                                            Error: {:?}
-                                        ", from, &e
-                                    );
-                                    com.set_dead(from);
-                                }
                             },
                             OutMsg::<P>::TAG => { // Usual f(x) = y management
                                 let msg = envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
@@ -180,42 +175,16 @@ where
                                 // Do nothing, just mark the worker as idle
                             }
                         }
+                        if com.is_dead(from){
+                            log::warn!("The master received a message from a dead Worker {}. This worker is now considered as alive", from);
+                            com.set_alive(from);
+                        }
                     }
                 }
             }
         }
     }
     Ok(())
-}
-
-
-
-
-/// Fill the idle worker with a solution from the current state, if available.
-#[basic_bounds(P)]
-pub(crate) fn fill_idle_with_state<P, Com>(
-    com: &mut Com,
-    state: &mut ParState<P>,
-    peer:usize,
-) -> Result<(), CommunicatorError>
-where
-    P: 'static,
-    Com: MasterWorkerCom,
-{
-    if com.is_busy(peer) || com.is_dead(peer) {
-        return Err(CommunicatorError::SendError("The peer the master process tries to communicate with, is busy or idle.".to_string()));
-    }
-    if let Some(sol) = &state.currently[peer]{
-        let x = sol.get_sobj().clone_x();
-        let id = sol.id();
-        let msg = XMsg::<P>(id, x);
-        let envelope = Envelope::new(0, peer, msg);
-        let res = com.channel(0).send(envelope);
-        com.set_busy(peer);
-        res
-    } else {
-        Ok(())
-    }
 }
 
 /// Fill all idle workers with solutions from the current state, if available.
@@ -235,7 +204,7 @@ where
     Com: MasterWorkerCom,
 {
     while let Some(peer) = com.get_idle() 
-        && let Some(sol) = sampler.sample(scp, accumulator) 
+        && let Some(sol) = state.awaiting_unknown.pop().or_else(|| sampler.sample(scp, accumulator)) 
         && !stop.stop()
     {
         stop.update(ExpStep::Sampling);
@@ -385,6 +354,9 @@ where
     SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
 {
     let tolerance = com.size() * 2;
+    init_and_update(&mut com, tolerance).unwrap();
+    state.currently.iter_mut().filter_map(|o| o.take()).for_each(|sol| state.awaiting_unknown.push(sol));
+
     loop {
         let res = receive_and_update(
             &mut com,
@@ -420,7 +392,7 @@ where
             problem.get_searchspace(),
             &mut accumulator,
             &mut stop,
-            &mut state
+            &mut state,
         );
         if let Err(e) = res {
             log::warn!("Error while filling idle workers: {}. Continuing with the experiment.", e);
@@ -453,9 +425,9 @@ where
 
 /// Receive messages from workers and update the state of the experiment accordingly, for multi-fidelity problems.
 #[fidelity_bounds(P)]
-pub(crate) fn init_and_update<P, Com>(
+pub(crate) fn fid_init_and_update<P, Com>(
     com: &mut Com,
-    map: &mut FnStateMapper<P>,
+    state: &mut ParState<P>,
     tolerance: usize,
 ) -> Result<(), String>
 where
@@ -490,7 +462,7 @@ where
                         let msg = envelope.content.into_any().downcast::<ContainsIds::<P::Id>>().unwrap();
                         let ids = msg.as_ref().0.clone();
                         for id in ids {
-                            map.where_is.insert(id, from);
+                            state.where_is.insert(id, from);
                         }
                         log::info!("Worker {} initialized and ready to receive tasks.", from);
                         com.set_alive(from);
@@ -521,7 +493,6 @@ pub(crate) fn fid_receive_and_update<O, S, R, P, Com>(
     stop: &mut S,
     recorder: &mut Option<R>,
     state: &mut ParState<P>,
-    map: &mut FnStateMapper<P>,
     tolerance: usize,
 ) -> Result<(), String>
 where
@@ -559,7 +530,7 @@ where
                                 let msg = envelope.content.into_any().downcast::<ContainsIds::<P::Id>>().unwrap();
                                 let ids = msg.as_ref().0.clone();
                                 for id in ids {
-                                    map.where_is.insert(id, from);
+                                    state.where_is.insert(id, from);
                                 }
                                 com.set_alive(from);
                             },
@@ -611,23 +582,23 @@ where
 }
 
 #[fidelity_bounds(P)]
-pub(crate) fn get_a_valid_sol<P, O>(scp: &P::Scp, accum: &Accum<P>, peer:usize, map: &mut FnStateMapper<P>, sampler: &mut O) -> Option<Shape<P>>
+pub(crate) fn get_a_valid_sol<P, O>(scp: &P::Scp, accum: &Accum<P>, peer:usize, state: &mut ParState<P>, sampler: &mut O) -> Option<Shape<P>>
 where
     P: 'static,
     O:Sampler<P, Opt<P>, Info = P::Info>,
 {
-    if let Some(sol) = map.pop_awaiting(peer) {
+    if let Some(sol) = state.pop_awaiting(peer) {
         Some(sol)
     } else {
         loop {
             let sol = sampler.sample(scp, accum);
             match sol {
                 Some(s) => {
-                    let peer_sol = map.where_is(&s.id());
+                    let peer_sol = state.where_is(&s.id());
                     match peer_sol {
                         Some(p) if p == peer => return Some(s),
                         Some(p) => {
-                            map.awaiting[p].push(s);
+                            state.awaiting[p].push(s);
                         },
                         None => return Some(s),
                     }
@@ -646,7 +617,6 @@ pub(crate) fn fid_fill_all_idles<O, S, P, Com>(
     scp: &P::Scp,
     accumulator: &mut Accum<P>,
     stop: &mut S,
-    map: &mut FnStateMapper<P>,
     state: &mut ParState<P>,
 ) -> Result<(), String>
 where
@@ -659,7 +629,7 @@ where
     for peer in idles
     {
         if stop.stop() { break; }
-        let sol = match get_a_valid_sol(scp, accumulator, peer, map, sampler) {
+        let sol = match get_a_valid_sol(scp, accumulator, peer, state, sampler) {
             Some(s) => s,
             None => continue, // No valid solution available for this peer
         };
@@ -871,7 +841,6 @@ pub(crate) fn fidelity_master<O, S, R, C, P, Com>(
     mut recorder: Option<R>,
     checkpointer: Arc<Mutex<Option<C>>>,
     mut state: ParState<P>,
-    mut map: FnStateMapper<P>,
 ) -> Accum<P>
 where
     P: 'static,
@@ -885,13 +854,14 @@ where
     SOpt<P>: Recordable<(), Parts = SolParts> + for<'a> Schema<&'a [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>,
 {
     let tolerance = com.size() * 2;
-    init_and_update(&mut com, &mut map,tolerance).unwrap();
-    for sol in state.currently.iter_mut().filter_map(|o| o.take()) {
-        let peer = map.where_is(&sol.id());
+    fid_init_and_update(&mut com, &mut state, tolerance).unwrap();
+    let saved_sol: Vec<_> = state.currently.iter_mut().filter_map(|o| o.take()).collect();
+    for sol in saved_sol{
+        let peer = state.where_is(&sol.id());
         if let Some(p) = peer {
-            map.awaiting[p].push(sol);
+            state.awaiting[p].push(sol);
         } else {
-            map.awaiting_unknown.push(sol);
+            state.awaiting_unknown.push(sol);
         }
     }
 
@@ -904,7 +874,6 @@ where
             &mut stop,
             &mut recorder,
             &mut state,
-            &mut map,
             tolerance
         );
         if let Err(e) = res {
@@ -931,7 +900,6 @@ where
             problem.get_searchspace(),
             &mut accumulator,
             &mut stop,
-            &mut map,
             &mut state
         );
         if let Err(e) = res {

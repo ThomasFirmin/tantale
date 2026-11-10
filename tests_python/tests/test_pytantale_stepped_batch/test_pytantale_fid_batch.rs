@@ -1,7 +1,7 @@
 use tantale::algos::{RandomSearch, Sha, sha};
 use tantale::core::optimizer::opt::Batched;
 use tantale::core::{
-    CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, PoolMode, Runable,
+    CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, Runable,
 };
 use tantale::python::init_python;
 
@@ -10,7 +10,7 @@ use crate::run_checker::run_reader;
 
 #[test]
 fn test_python_function() {
-    pub mod sp_ms_nosamp {
+    pub mod searchspace {
         use tantale::core::{
             domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
@@ -27,9 +27,8 @@ fn test_python_function() {
 
     let _clean = Cleaner::new("tmp_test_python_sha");
 
-    let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        MultiStep, sp_ms_nosamp,
+        MultiStep, searchspace,
         "/tests/test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch",
         "objective", "/tests/test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "MyOutcome",
         objectives: [maximize "obj1"],
@@ -37,28 +36,36 @@ fn test_python_function() {
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
+
     let sampler = RandomSearch::new();
-    let opt = Sha::new(sampler, 1., 5., 1.61, 10).unwrap(); // log(max/min)
+    let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let pb = Pb::new(sp, obj);
     let config = FolderConfig::new("tmp_test_python_sha");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    Experiment::new(pb, opt, stop, rec, check)
-        .with_pool(PoolMode::Persistent)
-        .run();
-    run_reader("tmp_test_python_sha", 1000);
+    let pb = Pb::new(searchspace::get_searchspace(), obj);
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let pb = Pb::new(sp, obj2);
+    let exp = Experiment::new(pb, opt, stop, rec, check);
+    exp.run();
+
+    // To get 2 fully evaluated solutions we need:
+    // 10 Evaluations at fidelity 1
+    // 6 Evaluations at fidelity 1.61 (n*1.61^-1)
+    // 3 Evaluations at fidelity 2.59 (n*1.61^-2)
+    // 2 Evaluations at fidelity 4.17 (5.) (n*1.61^-3)
+    // To get 50 fully evaluated solutions we need 25 times the above, so 525 evaluations in total
+    run_reader("tmp_test_python_sha", 900);
+
+    let pb = Pb::new(searchspace::get_searchspace(), obj2);
 
     let config = FolderConfig::new("tmp_test_python_sha");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
+
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -68,15 +75,15 @@ fn test_python_function() {
 
     exp.run();
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let pb = Pb::new(sp, obj3);
+    let pb = Pb::new(searchspace::get_searchspace(), obj3);
 
     let config = FolderConfig::new("tmp_test_python_sha");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
     let exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
-    run_reader("tmp_test_python_sha", 2000);
+
+    run_reader("tmp_test_python_sha", 1800);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = &exp.sampler;

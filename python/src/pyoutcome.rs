@@ -84,11 +84,6 @@ impl PyStep {
             inner: Step::Partially(value),
         }
     }
-    /// Creates a [`Step::Error`] value, indicating the evaluation raised an error.
-    #[staticmethod]
-    pub fn error() -> Self {
-        Self { inner: Step::Error }
-    }
     /// Creates a [`Step::Discard`] value, indicating the solution should be discarded.
     #[staticmethod]
     pub fn discarded() -> Self {
@@ -112,7 +107,6 @@ impl PyStep {
             Step::Partially(_) => "partially",
             Step::Evaluated => "evaluated",
             Step::Discard => "discarded",
-            Step::Error => "error",
         };
         let method = cls.getattr(method_name)?;
         let args: pyo3::Bound<'py, PyTuple> = match self.inner {

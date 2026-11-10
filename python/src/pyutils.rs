@@ -349,12 +349,16 @@ macro_rules! init_python {
                 ::std::result::Result::Ok($wrap(::serde::Deserialize::deserialize(d)?))
             }
         }
-        impl tantale::core::CSVWritable<(), ()> for $wrap {
-            fn header(e: &()) -> ::std::vec::Vec<::std::string::String> {
-                <tantale::python::PyOutcome as tantale::core::CSVWritable<(), ()>>::header(e)
+        impl tantale::core::Schema<()> for $wrap {
+            type Parts = ();
+            fn columns(context: &(), part: ()) -> Vec<String>{
+                <tantale::python::PyOutcome as tantale::core::Schema<()>>::columns(context, part)
             }
-            fn write(&self, c: &()) -> ::std::vec::Vec<::std::string::String> {
-                self.0.write(c)
+        }
+        impl tantale::core::Recordable<()> for $wrap {
+            type Parts = ();
+            fn record(&self, context: &(), part: ()) -> Vec<String>{
+                <tantale::python::PyOutcome as tantale::core::Recordable<()>>::record(&self.0, context, part)
             }
         }
     };
@@ -376,12 +380,16 @@ macro_rules! init_python {
                 ::std::result::Result::Ok($wrap(::serde::Deserialize::deserialize(d)?))
             }
         }
-        impl tantale::core::CSVWritable<(), ()> for $wrap {
-            fn header(e: &()) -> ::std::vec::Vec<::std::string::String> {
-                <tantale::python::PyFidOutcome as tantale::core::CSVWritable<(), ()>>::header(e)
+        impl tantale::core::Schema<()> for $wrap {
+            type Parts = ();
+            fn columns(context: &(), part: ()) -> Vec<String>{
+                <tantale::python::PyFidOutcome as tantale::core::Schema<()>>::columns(context, part)
             }
-            fn write(&self, c: &()) -> ::std::vec::Vec<::std::string::String> {
-                self.0.write(c)
+        }
+        impl tantale::core::Recordable<()> for $wrap {
+            type Parts = ();
+            fn record(&self, context: &(), part: ()) -> Vec<String>{
+                <tantale::python::PyFidOutcome as tantale::core::Recordable<()>>::record(&self.0, context, part)
             }
         }
     };
@@ -443,7 +451,7 @@ macro_rules! init_python {
                 )
             }
         }
-        objective.register::<_, __PyOutWrapper>()
+        objective.register::<_, __PyOutWrapper, _>()
     }};
 
     // 2. Single obj - constraints only > ConstCodomain
@@ -719,7 +727,7 @@ macro_rules! init_python {
             }
         }
         init_python!(@fid_outcome __PyFidWrapper, $s);
-        objective.register::<_, __PyFidWrapper>()
+        objective.register::<_, __PyFidWrapper, _>()
     }};
 
     // 10. Stepped single obj - constraints only > ConstCodomain + FidOutcome
@@ -857,7 +865,7 @@ macro_rules! init_python {
             }
         }
         init_python!(@fid_outcome __PyFidWrapper, $s);
-        objective.register::<_, __PyFidWrapper>()
+        objective.register::<_, __PyFidWrapper, _>()
     }};
 
     // 14. Stepped multi obj - constraints only > ConstMultiCodomain + FidOutcome

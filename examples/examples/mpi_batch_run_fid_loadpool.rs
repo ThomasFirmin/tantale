@@ -1,26 +1,23 @@
-use tantale::algos::BatchRandomSearch;
-use tantale::core::experiment::{PoolMode, distributed_with_pool};
+use tantale::algos::{RandomSearch, Sha, sha};
+use tantale::core::optimizer::opt::Batched;
+use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
+use tantale::core::experiment::PoolMode;
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, MultiStep,
-    experiment::{self, mpi::utils::MPIProcess},
-    load,
-    stop::Calls,
+    CSVRecorder, Fidelity, FolderConfig, MessagePack,
 };
 
-use std::path::Path;
-
-struct Cleaner(String);
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+#[path = "./run_checker.rs"]
+pub mod run_checker;
+pub use run_checker::run_reader;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Step, objective::outcome::FuncState};
-    use tantale::macros::{CSVWritable, Outcome};
+    use tantale::macros::{Outcome, Recordable, Schema};
 
     #[derive(Serialize, Deserialize, Debug)]
     pub struct FnState {
@@ -40,7 +37,7 @@ mod init_func {
         }
     }
 
-    #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
         #[maximize]
         pub obj: f64,
@@ -102,7 +99,10 @@ mod init_func {
                     None => FnState { state: 0 },
                 };
                 state.state += 1;
-                let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+                if state.state == 4 && [! FIDELITY !] != 8. {
+                    panic!("Fidelity mismatch: expected 8.0, got {}", [! FIDELITY !]);
+                }
+                let evalstate = if state.state == 4 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
                 (
                     FidOutEvaluator{
                         obj: [! j | Real(1000.0,2000.0, Uniform) | !],
@@ -156,82 +156,6 @@ pub struct RowSol {
     pub fidelity: Fidelity,
 }
 
-pub fn run_reader(path: &str, size: usize) {
-    let true_path = Path::new(path);
-    let eval_path = true_path
-        .join(Path::new("recorder"))
-        .join(Path::new("recorder_rank0"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let id_cod: Vec<usize> = linesobj
-        .filter_map(|s| {
-            let line: RowSol = s.unwrap().deserialize(None).unwrap();
-            if line.step == "Evaluated" {
-                Some(line.id)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let count_cod = linescod
-        .map(|s| {
-            let line: RowCod = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_opt = linesopt
-        .map(|s| {
-            let line: RowSol = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_info = linesinfo
-        .map(|s| {
-            let line: RowInfo = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_out = linesout
-        .map(|s| {
-            let line: RowOut = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-
-    let linesobj = rdr_obj.records();
-    linesobj.for_each(|l| println!("{:?}", l));
-    assert!(count_cod >= size * 5, "Some solutions are missing in cod.");
-    assert!(count_opt >= size * 5, "Some solutions are missing in opt.");
-    assert!(id_cod.len() >= size, "Some solutions are missing in cod.");
-    assert!(
-        count_info >= size * 5,
-        "Some solutions are missing in info."
-    );
-    assert!(count_out >= size * 5, "Some solutions are missing in out.");
-}
-
 fn main() {
     eprintln!("INFO : Running test_seq_run.");
 
@@ -240,104 +164,62 @@ fn main() {
         return;
     }
 
-    let proc = MPIProcess::new();
+    let pb = sp_evaluator::get_problem();
+    let sampler = RandomSearch::new();
+    let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_batch_run_fid_loadpool".into()));
-        let _clean = Cleaner("tmp_test_mpi_batch_run_fid_loadpool".into());
-    }
-
-    let sp = sp_evaluator::get_searchspace();
-    let obj = sp_evaluator::get_function();
-    let opt = BatchRandomSearch::new(7);
-
-    let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_sha_batch_mpirun_persistent");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(
-        &proc,
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let com = MPICommunicator::new(&pb);
+    let com1 = com.clone();
+    let com2 = com.clone();
+
+    if com.is_master() {
+        drop(Cleaner::new("tmp_test_sha_batch_mpirun_persistent"));
+    }
+    
+    ParExperiment::new(pb, opt, stop, rec, check, com)
+        .with_pool(PoolMode::Persistent)
+        .run();
+
+    run_reader("tmp_test_sha_batch_mpirun_persistent", 900);
+
+    let pb = sp_evaluator::get_problem();
+
+    let config = FolderConfig::new("tmp_test_sha_batch_mpirun_persistent");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1)
+        .with_pool(PoolMode::Persistent);
+
+    if let Some(m) = exp.master_mut() {
+        let expstop = &mut m.stop;
+        assert_eq!(expstop.0, 50, "Number of calls is wrong");
+        expstop.1 = 100;
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+    }
+
     exp.run();
 
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run_fid_loadpool", 50);
-    }
+    let pb = sp_evaluator::get_problem();
 
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-
-    let obj = MultiStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_sha_batch_mpirun_persistent");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        PoolMode::Persistent,
-        &proc,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2)
+        .with_pool(PoolMode::Persistent);
 
-    if proc.rank == 0 {
-        match exp {
-            experiment::MasterWorker::Master(mut e) => {
-                assert!(e.stop.0 >= 50 && e.stop.0 < 100, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 41, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
-                e.stop.1 = 100;
-                use tantale::core::experiment::MPIRunable;
-                e.run();
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a worker"),
-        }
-    } else {
-        exp.run();
-    }
-
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-
-    let obj = MultiStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_batch_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
-
-    let exp = load!(
-        distributed,
-        PoolMode::Persistent,
-        &proc,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run_fid_loadpool", 100);
-        match exp {
-            experiment::MasterWorker::Master(e) => {
-                assert!(e.stop.0 >= 100, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 61, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    }
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_batch_run_fid_loadpool".into()));
+    run_reader("tmp_test_sha_batch_mpirun_persistent", 1800);
+    if let Some(m) = exp.master() {
+        let expstop = &m.stop;
+        assert_eq!(expstop.0, 100, "Number of calls is wrong");
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
     }
 }

@@ -415,7 +415,6 @@ where
             let parameters = GlobalParameters::new();
             check.save_state(&parameters, &CheckpointerTargets::Config, &()).map_err(|e| log::warn!("{}", e)).ok();
         }
-        println!("SAMPLER {:?}", self.sampler);
         self.accumulator
     }
 }

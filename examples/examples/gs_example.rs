@@ -1,9 +1,13 @@
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::macros::{Outcome, Schema, Recordable, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         #[maximize]
         pub obj: f64,
@@ -29,44 +33,27 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
-
-use searchspace::{get_function, get_searchspace};
+use searchspace::get_problem;
 use tantale::algos::GridSearch;
+use tantale::core::{Experiment, Problem};
 use tantale::core::{
     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{Runable, mono},
+    experiment::Runable,
     stop::Calls,
 };
 
-use std::sync::Arc;
-
 fn main() {
-    drop(Cleaner {
-        path: String::from("tmp_gs_example"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_gs_example"),
-    };
+    let _clean = Cleaner::new("gs_example");
 
-    let sp = get_searchspace();
-    let obj = get_function();
-    let opt = GridSearch::new(&sp);
+    let pb = get_problem();
+    let sampler = GridSearch::new(pb.get_searchspace());
 
     let stop = Calls::new(50);
-    let config = Arc::new(FolderConfig::new("tmp_gs_example"));
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("gs_example");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = mono(sp, obj, opt, stop, (rec, check));
+    let exp = Experiment::new(pb, sampler, stop, rec, check);
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
     println!(

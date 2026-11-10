@@ -8,6 +8,19 @@ use std::fmt::Debug;
 
 use crate::utils::{refill_apply, with_rng};
 
+/// A helper macro to simplify the type signature of [`RandomSearch`].
+#[macro_export]
+macro_rules! randomsearch {
+    () => {RandomSearch};
+}
+
+
+/// A helper macro to simplify the type signature of [`BatchRandomSearch`].
+#[macro_export]
+macro_rules! batchrandomsearch {
+    () => {BatchRandomSearch<_>};
+}
+
 /// Metadata for a Random Search optimization step, associated to each [`Batch`].
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct RSInfo(pub usize);
@@ -25,19 +38,6 @@ impl Recordable<()> for RSInfo {
     }
 }
 impl SolInfo for RSInfo {}
-
-/// A helper macro to simplify the type signature of [`RandomSearch`].
-#[macro_export]
-macro_rules! randomsearch {
-    () => {RandomSearch};
-}
-
-
-/// A helper macro to simplify the type signature of [`BatchRandomSearch`].
-#[macro_export]
-macro_rules! batchrandomsearch {
-    () => {BatchRandomSearch<_>};
-}
 
 //------------------//
 //--- SEQUENTIAL ---//

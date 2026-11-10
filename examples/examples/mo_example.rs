@@ -1,7 +1,11 @@
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::macros::{Outcome, Schema, Recordable, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
@@ -44,7 +48,7 @@ mod searchspace {
         }
     }
 
-    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct MoFidOutEvaluator {
         #[maximize]
         pub obj1: f64, // First objective
@@ -92,55 +96,43 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
-
-use searchspace::{get_function, get_searchspace};
+use searchspace::get_problem;
 use tantale::algos::{MoAsha, RandomSearch};
+use tantale::core::{ParExperiment, ThreadCommunicator};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{
-        CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SaverConfig, SolutionShape,
-        experiment::{Runable, threaded},
+        CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
         stop::Calls,
     },
 };
 
 fn main() {
-    drop(Cleaner {
-        path: String::from("tmp_moasha_example"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_moasha_example"),
-    };
+    let _clean = Cleaner::new("moasha_example");
 
-    let sp = get_searchspace();
-    let obj = get_function();
+    let pb = get_problem();
     // Selector, budget min and max per solution, scaling factor
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61).unwrap();
 
     let stop = Calls::new(25);
-    let config = FolderConfig::new("tmp_moasha_example").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("moasha_example");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = threaded(sp, obj, opt, stop, (rec, check));
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     let acc = exp.run();
-    let pareto = acc.get();
-
-    for dominant in pareto {
-        println!(
-            "Dominant: f({:?}) ={:?}",
-            dominant.get_sobj().ref_x(),
-            dominant.y().value
-        );
+    if let Some(acc) = acc {
+        let pareto = acc.get();
+        for dominant in pareto {
+            println!(
+                "Dominant: f({:?}) ={:?}",
+                dominant.get_sobj().ref_x(),
+                dominant.y().value
+            );
+        }
+    } else {
+        panic!("No accumulator returned. This should not happen in a threaded experiment.");
     }
 }

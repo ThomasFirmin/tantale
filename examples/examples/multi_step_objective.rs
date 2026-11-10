@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-use tantale::macros::{Outcome, objective};
+use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-#[derive(Outcome, Debug, Serialize, Deserialize)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct FidOutExample {
     #[maximize]
     pub obj: f64,

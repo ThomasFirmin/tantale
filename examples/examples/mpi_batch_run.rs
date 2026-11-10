@@ -1,26 +1,21 @@
-use tantale::algos::BatchRandomSearch;
-use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, MessagePack, OneStep,
-    experiment::{self, distributed, mpi::utils::MPIProcess},
-    load,
-    stop::Calls,
-};
+use tantale::algos::{BatchRandomSearch, batchrandomsearch};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
+use tantale::core::optimizer::opt::Batched;
+use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack};
 
-use std::path::Path;
-
-struct Cleaner(String);
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+#[path = "./run_checker.rs"]
+pub mod run_checker;
+pub use run_checker::run_reader;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::macros::{CSVWritable, Outcome};
+    use tantale::macros::{Outcome, Schema, Recordable};
 
-    #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
         #[maximize]
         pub obj: f64,
@@ -79,42 +74,6 @@ mod init_func {
 
 use init_func::sp_evaluator;
 
-pub fn run_reader(path: &str, size: usize) {
-    let true_path = Path::new(path);
-    let true_path = true_path.join(Path::new("recorder"));
-    let eval_path = true_path.join(Path::new("recorder_rank0"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let count_obj = linesobj.count();
-    let count_opt = linesopt.count();
-    let count_cod = linescod.count();
-    let count_info = linesinfo.count();
-    let count_out = linesout.count();
-
-    assert_eq!(count_obj, size, "Some solutions are missing in obj.");
-    assert_eq!(count_opt, size, "Some solutions are missing in opt.");
-    assert_eq!(count_cod, size, "Some solutions are missing in cod.");
-    assert_eq!(count_info, size, "Some solutions are missing in info.");
-    assert_eq!(count_out, size, "Some solutions are missing in out.");
-}
-
 fn main() {
     eprintln!("INFO : Running test_seq_run.");
 
@@ -123,93 +82,57 @@ fn main() {
         return;
     }
 
-    let proc = MPIProcess::new();
-
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_batch_run".into()));
-        let _clean = Cleaner("tmp_test_mpi_batch_run".into());
-    }
-
-    let sp = sp_evaluator::get_searchspace();
-    let obj = sp_evaluator::get_function();
+    let pb = sp_evaluator::get_problem();
     let opt = BatchRandomSearch::new(7);
 
-    let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_batch_run").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_rs_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
-    let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
+
+    let com = MPICommunicator::new(&pb);
+    let com1 = com.clone();
+    let com2 = com.clone();
+
+    if com.is_master() {
+        drop(Cleaner::new("tmp_test_rs_batch_mpirun"));
+    }
+    
+    ParExperiment::new(pb, opt, stop, rec, check, com).run();
+
+    run_reader("tmp_test_rs_batch_mpirun", 50);
+
+    let pb = sp_evaluator::get_problem();
+
+    let config = FolderConfig::new("tmp_test_rs_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
+
+    if let Some(m) = exp.master_mut() {
+        let expstop = &mut m.stop;
+        assert_eq!(expstop.0, 50, "Number of calls is wrong");
+        expstop.1 = 100;
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 7, "Batch size is wrong");
+    }
+
     exp.run();
 
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run", 50);
-    }
+    let pb = sp_evaluator::get_problem();
 
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-
-    let obj = OneStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_batch_run").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_rs_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        &proc,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
 
-    if proc.rank == 0 {
-        match exp {
-            experiment::MasterWorker::Master(mut e) => {
-                assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 9, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
-                e.stop.1 = 100;
-                use tantale::core::experiment::MPIRunable;
-                e.run();
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    } else {
-        exp.run();
-    }
-
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-
-    let obj = OneStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_batch_run").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
-
-    let exp = load!(
-        distributed,
-        &proc,
-        BatchRandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_batch_run", 100);
-        match exp {
-            experiment::MasterWorker::Master(e) => {
-                assert_eq!(e.stop.0, 100, "Number of calls is wrong");
-                assert_eq!(e.optimizer.0.iteration, 17, "Number of iteration is wrong");
-                assert_eq!(e.optimizer.0.batch, 7, "Batch size is wrong");
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    }
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_batch_run".into()));
+    run_reader("tmp_test_rs_batch_mpirun", 100);
+    if let Some(m) = exp.master() {
+        let expstop = &m.stop;
+        assert_eq!(expstop.0, 100, "Number of calls is wrong");
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 7, "Batch size is wrong");
     }
 }

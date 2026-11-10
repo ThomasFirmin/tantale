@@ -295,4 +295,10 @@ pub use codomain::{
     ElemConstMultiCodomain,
     ElemCostConstMultiCodomain,
     Criteria,
+    SingleAccumulator,
+    MultiAccumulator,
+    ElemSingle,
+    ElemMulti,
+    ElemCost,
+    ElemConstrained,
 };

@@ -1,7 +1,7 @@
-use tantale::algos::BatchRandomSearch;
+use tantale::algos::{BatchRandomSearch, batchrandomsearch};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode,
-    distributed_with_pool, experiment, load,
+    CSVRecorder, Evaluated, FolderConfig, MPICommunicator, MessagePack, ParExperiment, Pb, PoolMode,
 };
 use tantale::python::init_python;
 
@@ -24,14 +24,9 @@ pub fn test_python_function() {
         }
     }
 
-    let proc = MPIProcess::new();
-    if proc.rank == 0 {
-        drop(Cleaner::new("tmp_mpi_test_python_batch_rs"));
-    }
-
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Objective, sp_ms_nosamp,
+        OneStep, sp_ms_nosamp,
         "/examples/mpi_test_pytantale_objective_batch/function_batch.py", "function_batch", "objective",
         "/examples/mpi_test_pytantale_objective_batch/function_batch.py", "function_batch", "MyOutcome",
         objectives: [maximize "obj1"]
@@ -42,79 +37,51 @@ pub fn test_python_function() {
     let opt = BatchRandomSearch::new(7); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let pb = Pb::new(sp, obj);
+    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    distributed_with_pool(
-        &proc,
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    )
-    .run();
-    if proc.rank == 0 {
-        run_reader("tmp_mpi_test_python_batch_rs", 50);
+    let com = MPICommunicator::new(&pb);
+    let com1 = com.clone();
+    let com2 = com.clone();
+    if com.is_master() {
+        drop(Cleaner::new("tmp_mpi_test_python_batch_rs"));
     }
+    ParExperiment::new(pb, opt, stop, rec, check, com)
+        .with_pool(PoolMode::Persistent)
+        .run();
+    run_reader("tmp_mpi_test_python_batch_rs", 50);
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj2;
+    let pb = Pb::new(sp, obj2);
 
-    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        &proc,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
 
-    if proc.rank == 0 {
-        match exp {
-            experiment::MasterWorker::Master(mut e) => {
-                assert_eq!(e.stop.0, 50, "Number of calls is wrong");
-                e.stop.1 = 100;
-                use tantale::core::experiment::MPIRunable;
-                e.run();
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    } else {
-        exp.run();
+    if let Some(m) = exp.master_mut() {
+        let expstop = &mut m.stop;
+        assert_eq!(expstop.0, 50, "Number of calls is wrong");
+        expstop.1 = 100;
     }
+    exp.run();
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj3;
+    let pb = Pb::new(sp, obj3);
 
-    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_mpi_test_python_batch_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        &proc,
-        BatchRandomSearch,
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        run_reader("tmp_mpi_test_python_batch_rs", 100);
-        match exp {
-            experiment::MasterWorker::Master(e) => {
-                assert_eq!(e.stop.0, 100, "Number of calls is wrong");
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
+    let exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
+    run_reader("tmp_mpi_test_python_batch_rs", 100);
+
+    if let Some(m) = exp.master() {
+        let expstop = &m.stop;
+        assert_eq!(expstop.0, 100, "Number of calls is wrong");
         drop(Cleaner::new("tmp_mpi_test_python_batch_rs"));
     }
 }

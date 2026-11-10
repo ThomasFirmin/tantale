@@ -1,176 +1,134 @@
-use rand::rngs::StdRng;
+use std::sync::Arc;
+
+use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
-use tantale::core::domain::codomain::ElemSingle;
-use std::cell::RefCell;
-use tantale::core::{
-    CompShape, EmptyInfo, HasFidelity, HasStep, Orderable, SolutionShape, StepSId,
-};
-use tantale::macros::OptState;
+use tantale::{
+    algos::utils::with_rng, basic_bounds, core::{HasInfo, HasState, HasX, HasY, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}}, macros::{Recordable, Schema}
+    };
 
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
-#[derive(OptState, Serialize, Deserialize)]
-#[serde(bound(
-    serialize = "SShape: Serialize",
-    deserialize = "SShape: for<'a> Deserialize<'a>",
-))]
-pub struct AshaState<SShape>
-where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
-{
-    // A vector of budget levels corresponding to the halving rounds.
-    pub budgets: Vec<f64>,
-    // Scaling factor ($\eta$) by which the budget is multiplied at each stage.
-    pub scaling: f64,
-    /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: Vec<Vec<SShape>>,
-    // The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
-    pub current_budget: f64,
+// A helper macro to simplify the type signature of `HillClimbing`.
+// This a convention to make it easier to use the optimizer in generic contexts, without having to write out the full type signature.
+// To use when generics can be infered in the usual load (resuming via a checkpoint) pipeline for example.
+#[allow(unused_macros)]
+macro_rules! hill_climbing {
+    () => {HillClimbing};
 }
 
-pub struct Asha<SShape>(pub AshaState<SShape>)
-where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable;
+/// Metadata for a Hill Climbing optimization step.
+#[derive(Schema, Recordable, Serialize, Deserialize, Debug, Default, Clone, Copy)]
+pub struct HCInfo {
+    pub iterations: usize,
+}
 
-impl<SShape> Asha<SShape>
-where
-    SShape: SolutionShape<StepSId, EmptyInfo> + HasStep + HasFidelity + Orderable,
-{
-    pub fn new(budget_min: f64, budget_max: f64, scaling: f64) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-        let mut budgets: Vec<f64> = (0..)
-            .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *budgets.last().unwrap() != budget_max {
-            let last = budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+// Implement the SolInfo trait for HCInfo, allowing it to be used as metadata for solutions in the Hill Climbing algorithm.
+impl SolInfo for HCInfo {}
 
-        let length = budgets.len();
-        let current_budget = budgets[0];
-        Asha(AshaState {
-            budgets,
-            scaling,
-            rung: (0..length).map(|_| Vec::new()).collect(),
-            current_budget,
-        })
-    }
-    pub fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+/// Hill Climbing optimizer implementation.
+/// Here the state IS the instance of the algorithm.
+/// Sometimes it might be helpful to have a separate state struct, but in this case, the algorithm itself is simple enough to serve as its own state.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct HillClimbing {
+    iterations: usize,
+}
+
+impl HillClimbing {
+    pub fn new() -> Self {
+        Self { iterations: 0 }
     }
 }
 
-use tantale::core::{
-    FidOutcome, FidelitySol, IntoComputedShape, LinkOpt, Sampler, Searchspace, Single, TypeCodom,
-};
+impl Default for HillClimbing {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
-where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
-{
-    type State = AshaState<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>;
-    type SInfo = EmptyInfo; // No metadata
+// Implement the State trait for HillClimbing. It allows checkpointing and restoring the state of the optimizer.
+impl State for HillClimbing {}
+
+// Implement the HasState trait for HillClimbing. Because HillClimbing is its own state, the methods simply return self.
+impl HasState for HillClimbing {
+    type State = Self;
 
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &mut self.0
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
     }
 
     fn from_state(state: Self::State) -> Self {
-        Asha(state)
+        state
     }
 }
 
-use tantale::core::{CompAcc, FuncState, OptionCompShape, RawObj, SingleOptimizer, Step, MultiStep};
+/// A simple neighborhood function, working in [0., 1.], that perturbs a solution by adding a small random value to one of its dimensions.
+fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
+    let mut new_x = x.to_vec();
+    let idx = rng.random_range(0..new_x.len());
+    let perturbation: f64 = rng.random_range(-0.1..0.1);
+    new_x[idx] = (new_x[idx] + perturbation).clamp(0., 1.);
+    Arc::from(new_x)
+}
 
-impl<Out, Scp, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        MultiStep<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Asha<CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>>
+// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem. 
+// It ensures that the sampler can work with any problem P that has a Unit domain. 
+// The macro expands to the necessary trait bounds for the sampler to be compatible with the HPO framework.
+// The domain can be generic.
+#[basic_bounds(P, Unit)] // <= Constraint: The optimizer works with any problem P within a Unit domain.
+impl<P> Sampler<P, Unit> for HillClimbing
 where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, EmptyInfo, Out>: HasStep + HasFidelity + Orderable,
-    FnState: FuncState,
+    Accum<P>: SingleAccumulator<CompShape<P>>, // <= Constraint: The accumulator must support single-objective optimization.
+    // CompShape<P> is the computed solution type (e.g. x and y)
+    CodElem<P>: ElemSingle + Ord, // The element of the codomain (y) must be single-objective and orderable.
 {
-    fn step(
-        &mut self,
-        x: OptionCompShape<Scp::SolShape, StepSId, Self::SInfo, Out>,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Scp::SolShape {
-        // If input is not empty (a solution has been computed)
-        if let Some(comp) = x {
-            // If this solution is partially computed, then store it within the next rung.
-            if let Step::Partially(_) = comp.step() {
-                // The idx of the budget cannot be stored within the solution
-                let idx = self
-                    .0
-                    .budgets
-                    .iter()
-                    .position(|&b| b == comp.fidelity().0)
-                    .unwrap();
-                self.0.rung[idx + 1].push(comp); // Store it within the next rung
-            }
+    type Info = HCInfo; // Metadata associated to each solution.
 
-            let mut i = self.0.budgets.len() - 1;
-            // Compute top k for final rung. (should be 0 if we are within the first iterations)
-            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            // Find a rung with promotable solutions
-            while k == 0 && i > 0 {
-                i -= 1;
-                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
+    // The 'sample_info' return a new candidate solution and its associated metadata.
+    // If no more candidates can be generated, it returns None.
+    fn sample_info(&mut self, scp: &P::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<HCInfo>)> {
+        self.iterations += 1;
+
+        // Generate a new candidate near the current best solution.
+        let shape = match acc.get_best() {
+            Some(best) => {
+                // Retrieve information about the best solution found so far.
+                // We must use '.find_info' to access the BHCInfo metadata associated with the best solution.
+                // This is because BHCInfo can be wrapped in other metadata types, and '.find_info' allows us to extract it regardless of the wrapping.
+                // For example, a sampler might use an inner sampler that adds its own metadata, and '.find_info' will still allow us to access the BHCInfo.
+                let info = best.sinfo().find_info::<HCInfo>().unwrap();
+                // Work with Optimizer side solution and retrieve 'x' the raw solution.
+                let x = best.get_sopt().ref_x();
+                let y = best.y().value();
+                println!("Best solution found so far: f({:?}) ={} at iteration {}", x, y, info.iterations);
+                // Generate a new candidate in the neighborhood of the best solution.
+                // Use 'with_rng' to ensure that the random number generator is properly seeded and used. (e.g. for multi-threaded scenarios)
+                let x = with_rng(|rng| neighbor(x, rng));
+                scp.new_opt(x)
+            },
+            // If there is no best solution yet, sample a random solution from the search space.
+            None => with_rng(|rng| scp.sample_pair(rng)),
+        };
+
+        // Return the new candidate and its associated metadata.
+        // If a solution is reused for example in the case of a multi-step evaluation,
+        // then instead of returning a new metadate, one can return Sampled::Reused instead of metadata.into().
+        Some((
+            shape,
+            HCInfo {
+                iterations: self.iterations,
             }
-            // If no rung was found, generate a random solution
-            if k == 0 {
-                let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
-                p.set_fidelity(self.0.budgets[0]); // Modify default fidelity to minimum budget
-                p // return p
-            } else {
-                // Select the top k (modify in place rung[i]), last elements are the top k
-                self.0.rung[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
-                // Pop the last element /!\ the rung is not sorted by select_nth_unstable, only partitioned
-                let (mut p, _): (Scp::SolShape, _) =
-                    IntoComputedShape::extract(self.0.rung[i].pop().unwrap());
-                p.set_fidelity(self.0.budgets[i]); // Modify previous fidelity with new budget
-                p
-            }
-        } else {
-            // If input is None (no computed, e.g. initialization of ASHA)
-            // Randomly sample a new candidate with minimum budget
-            let mut p = self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()));
-            p.set_fidelity(self.0.budgets[0]);
-            p
-        }
+            .into(),
+        ))
+    }
+
+    // The 'update' method is called after a solution has been evaluated and added to the accumulator.
+    // Be carefull update can be called multiple times before the next call to 'sample_info'.
+    // For example, in the case of parallel computing.
+    fn update(&mut self,_x: &CompShape<P>,_scp: &P::Scp,_acc: &Accum<P>) {
+        // The next call to sample_info uses the updated best solution.
     }
 }
 
-fn main() {}
+fn main() { }

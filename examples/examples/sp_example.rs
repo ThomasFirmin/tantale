@@ -1,9 +1,9 @@
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Nat, Real, Uniform};
-    use tantale::macros::{Outcome, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-    #[derive(Outcome, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutStruct {
         #[maximize]
         pub out: f64,
@@ -23,17 +23,14 @@ mod searchspace {
 }
 
 use searchspace::{ObjType, OptType};
-use tantale::core::{BaseSol, EmptyInfo, HasId, HasX, SId, Searchspace, Sp};
+use tantale::core::{BaseSol, EmptyInfo, HasId, HasX, OneStep, SId, Searchspace, Sp};
+
+use crate::searchspace::OutStruct;
 fn main() {
     let sp = searchspace::get_searchspace();
-    let info = std::sync::Arc::new(EmptyInfo {});
     let mut rng: rand::rngs::ThreadRng = rand::rng();
 
-    let sample: BaseSol<SId, ObjType, EmptyInfo> = <Sp<ObjType, OptType> as Searchspace<
-        BaseSol<_, OptType, _>,
-        _,
-        _,
-    >>::sample_obj(&sp, &mut rng, info.clone());
+    let sample: BaseSol<SId, ObjType, EmptyInfo> = <Sp<ObjType, OptType> as Searchspace<OneStep<_, OutStruct>>>::sample_obj::<>(&sp, &mut rng);
     let id1: SId = sample.id();
     let out = searchspace::example(sample.clone_x());
     println!("ID : {} -- Out {}", id1.id, out.out);

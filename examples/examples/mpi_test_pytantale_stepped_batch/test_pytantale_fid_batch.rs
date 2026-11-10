@@ -1,7 +1,8 @@
-use tantale::algos::{BatchRandomSearch, Sha, sha};
+use tantale::algos::{RandomSearch, Sha, sha};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
+use tantale::core::optimizer::opt::Batched;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Evaluated, FolderConfig, MPIProcess, MessagePack, PoolMode,
-    distributed_with_pool, experiment, load,
+    CSVRecorder, Evaluated, FolderConfig, MPICommunicator, MessagePack, ParExperiment, Pb,
 };
 use tantale::python::init_python;
 
@@ -9,7 +10,7 @@ use crate::cleaner::Cleaner;
 use crate::run_checker::run_reader;
 
 pub fn test_python_function() {
-    pub mod sp_ms_nosamp {
+    pub mod searchspace {
         use tantale::core::{
             domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
@@ -24,14 +25,8 @@ pub fn test_python_function() {
         }
     }
 
-    let proc = MPIProcess::new();
-    if proc.rank == 0 {
-        drop(Cleaner::new("tmp_mpi_test_python_sha"));
-    }
-
-    let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Stepped, sp_ms_nosamp,
+        MultiStep, searchspace,
         "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "objective",
         "/examples/mpi_test_pytantale_stepped_batch/function_fid_batch.py", "function_fid_batch", "MyOutcome",
         objectives: [maximize "obj1"],
@@ -39,93 +34,60 @@ pub fn test_python_function() {
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-    let sampler = BatchRandomSearch::new(10);
-    let opt = Sha::new(sampler, 10, 1., 5., 1.61).unwrap(); // log(max/min)
+    
+    
+    let sampler = RandomSearch::new();
+    let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_py_test_sha_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    distributed_with_pool(
-        &proc,
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    )
-    .run();
-    // 1 evaluated -> 20 partial evaluation * 50
-    if proc.rank == 0 {
-        run_reader("tmp_mpi_test_python_sha", 1000);
+    let pb = Pb::new(searchspace::get_searchspace(), obj);
+    
+    let com = MPICommunicator::new(&pb);
+    let com1 = com.clone();
+    let com2 = com.clone();
+    if com.is_master() {
+        drop(Cleaner::new("tmp_py_test_sha_batch_mpirun"));
     }
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj2;
+    run_reader("tmp_py_test_sha_batch_mpirun", 900);
 
-    let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let pb = Pb::new(searchspace::get_searchspace(), obj2);
+
+    let config = FolderConfig::new("tmp_py_test_sha_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        &proc,
-        sha!(BatchRandomSearch),
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        match exp {
-            experiment::MasterWorker::Master(mut e) => {
-                let max_call = 50 + proc.size as usize;
-                assert!(
-                    e.stop.0 >= 50 && e.stop.0 <= max_call,
-                    "Number of calls is wrong, it should be between 50 and {}",
-                    max_call
-                );
-                e.stop.1 = 100;
-                use tantale::core::experiment::MPIRunable;
-                e.run();
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    } else {
-        exp.run();
+    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1);
+
+    if let Some(m) = exp.master_mut() {
+        let expstop = &mut m.stop;
+        assert_eq!(expstop.0, 50, "Number of calls is wrong");
+        expstop.1 = 100;
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
     }
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj3;
+    exp.run();
 
-    let config = FolderConfig::new("tmp_mpi_test_python_sha").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let pb = Pb::new(searchspace::get_searchspace(), obj3);
+
+    let config = FolderConfig::new("tmp_py_test_sha_batch_mpirun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        &proc,
-        sha!(BatchRandomSearch),
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        run_reader("tmp_mpi_test_python_sha", 2000);
-        match exp {
-            experiment::MasterWorker::Master(e) => {
-                let max_call = 100 + proc.size as usize;
-                assert!(
-                    e.stop.0 >= 100 && e.stop.0 <= max_call,
-                    "Number of calls is wrong, it should be between 100 and {}",
-                    max_call
-                );
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-        drop(Cleaner::new("tmp_mpi_test_python_sha"));
+    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2);
+
+    run_reader("tmp_py_test_sha_batch_mpirun", 1800);
+    if let Some(m) = exp.master() {
+        let expstop = &m.stop;
+        assert_eq!(expstop.0, 100, "Number of calls is wrong");
+        let expoptimizer = &m.sampler;
+        assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
     }
 }

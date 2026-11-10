@@ -1,9 +1,13 @@
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
         #[maximize]
         pub obj: f64,
@@ -31,44 +35,27 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-use searchspace::{get_function, get_searchspace};
-use tantale::algos::BatchRandomSearch;
+use searchspace::get_problem;
+use tantale::algos::RandomSearch;
+use tantale::core::Experiment;
 use tantale::core::{
     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{Runable, mono},
+    experiment::Runable,
     stop::Calls,
 };
 
-use std::sync::Arc;
-
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
-
 fn main() {
-    drop(Cleaner {
-        path: String::from("tmp_run_batch"),
-    });
-    let _clean = Cleaner {
-        path: String::from("tmp_run_batch"),
-    };
+    let _clean = Cleaner::new("quick_start_example");
 
-    let sp = get_searchspace();
-    let obj = get_function();
-    let opt = BatchRandomSearch::new(7);
+    let pb = get_problem();
+    let sampler = RandomSearch::new();
 
     let stop = Calls::new(50);
-    let config = Arc::new(FolderConfig::new("tmp_run_batch"));
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("quick_start_example");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = mono(sp, obj, opt, stop, (rec, check));
+    let exp = Experiment::new(pb, sampler, stop, rec, check);
     let accumulator = exp.run();
     let best = accumulator.get().unwrap().get_sobj();
     println!(

@@ -90,8 +90,8 @@ impl<S:SolutionShape, I:SolInfo> From<(S, I)> for ShapeWithInfo<S, I> {
     }
 }
 
-impl<S:SolutionShape, I:SolInfo> From<(S, Sampled<I>)> for ShapeWithInfo<S, I> {
-    fn from(pair: (S, Sampled<I>)) -> Self {
-        ShapeWithInfo(pair.0, pair.1)
+impl<S:SolutionShape, I:SolInfo> From<ShapeWithInfo<S, I>> for (S, Sampled<I>) {
+    fn from(val: ShapeWithInfo<S, I>) -> Self {
+        (val.0, val.1)
     }
 }

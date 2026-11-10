@@ -1,213 +1,180 @@
+use std::{fmt::{Debug, Display}, sync::Arc};
+
+use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
-use tantale::core::domain::codomain::{ElemSingle, TypeCodom};
-use tantale::macros::OptState;
+use tantale::{
+    algos::utils::with_rng, basic_bounds, core::{HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}, utils::ShapeWithInfo}, macros::{Recordable, Schema}
+    };
 
-#[derive(OptState, Serialize, Deserialize)]
-pub struct ShaState {
-    pub batch: usize,     // batch size
-    pub budget_min: f64,  // b0
-    pub budget_max: f64,  // bmax
-    pub budget: f64,      // b
-    pub scaling: f64,     // eta
-    pub iteration: usize, // i
-}
-use tantale::macros::{CSVWritable, OptInfo};
-
-#[derive(OptInfo, CSVWritable, Default, Debug, Serialize, Deserialize)]
-pub struct ShaInfo {
-    pub iteration: usize,
+// A helper macro to simplify the type signature of `BatchedHillClimbing`.
+// This a convention to make it easier to use the optimizer in generic contexts, without having to write out the full type signature.
+// To use when generics can be infered in the usual load (resuming via a checkpoint) pipeline for example.
+#[allow(unused_macros)]
+macro_rules! batched_hill_climbing {
+    () => {BatchedHillClimbing};
 }
 
-use rand::prelude::ThreadRng;
-use tantale::core::{
-    Codomain, CompShape, Criteria, FidOutcome, Orderable, SingleCodomain, StepSId,
-};
+/// Metadata for a Batched Hill Climbing optimization step.
+#[derive(Schema, Recordable, Serialize, Deserialize, Debug, Default, Clone, Copy)]
+pub struct BHCInfo {
+    pub iterations: usize,
+}
 
-pub struct Sha(pub ShaState, ThreadRng);
+// Implement the SolInfo trait for BHCInfo, allowing it to be used as metadata for solutions in the Hill Climbing algorithm.
+impl SolInfo for BHCInfo {}
 
-impl Sha {
-    pub fn new(batch: usize, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-
-        let i_max = scaling.powf((budget_max / budget_min).log(scaling));
-        assert!(
-            batch as f64 >= i_max,
-            "Batch size should be greater or equal than {i_max}"
-        );
-
-        Sha(
-            ShaState {
-                batch,
-                budget_min,
-                budget_max,
-                budget: budget_min,
-                scaling,
-                iteration: 0,
-            },
-            rand::rng(),
-        )
-    }
-
-    pub fn codomain<Cod, Out>(extractor: Criteria<Out>) -> Cod
-    where
-        Cod: Codomain<Out> + From<SingleCodomain<Out>>,
-        Out: FidOutcome,
-    {
-        let out = SingleCodomain {
-            y_criteria: extractor,
-        };
-        out.into()
+impl BHCInfo {
+    pub fn new(iterations: usize) -> Self {
+        Self { iterations }
     }
 }
 
-use tantale::core::{EmptyInfo, FidelitySol, LinkOpt, Sampler, Searchspace, Single};
+impl Display for BHCInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Iteration : {}", self.iterations)
+    }
+}
 
-impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Sha
-where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-    type State = ShaState;
-    type SInfo = EmptyInfo;
+/// Batched Hill Climbing optimizer implementation.
+/// Here the state IS the instance of the algorithm.
+/// Sometimes it might be helpful to have a separate state struct, but in this case, the algorithm itself is simple enough to serve as its own state.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "ShapeWithInfo<Shape<P>, BHCInfo>: Serialize + for<'a> Deserialize<'a>")]
+pub struct BatchedHillClimbing<P:Problem> {
+    iterations: usize,
+    batch_size: usize, // The number of candidate solutions to generate in each iteration.
+    // We use ShapeWithInfo<Shape<P>, BHCInfo> to store both the candidate solution and its associated metadata (BHCInfo).
+    batch: Vec<ShapeWithInfo<Shape<P>, BHCInfo>>, // The batch of candidate solutions generated in the current iteration.
+    // We do not use ShapeWithInfo<CompShape<P>, BHCInfo> because the inner pipeline automatically assigns the BHCInfo 
+    // to the computed solutions. The metadata can be accessed via '.sinfo' (HasInfo trait)
+    comp_batch: Vec<CompShape<P>>, // The batch of computed solutions (e.g., x and y) corresponding to the candidate solutions.
+    pending: usize, // The number of pending evaluations in the current batch.
+}
+
+// Implement Clone and Debug by hand for BatchedHillClimbing.
+// This is necessary because the generic type P may not implement Clone or Debug, and we want to avoid requiring those traits on P.
+impl<P:Problem> Clone for BatchedHillClimbing<P> {
+    fn clone(&self) -> Self {
+        Self {
+            iterations: self.iterations,
+            batch_size: self.batch_size,
+            batch: self.batch.clone(),
+            comp_batch: self.comp_batch.clone(),
+            pending: self.pending,
+        }
+    }
+}
+
+impl<P:Problem> Debug for BatchedHillClimbing<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchedHillClimbing")
+            .field("iterations", &self.iterations)
+            .field("batch_size", &self.batch_size)
+            .field("batch", &self.batch)
+            .field("comp_batch", &self.comp_batch)
+            .field("pending", &self.pending)
+            .finish()
+    }
+}
+
+impl<P: Problem> BatchedHillClimbing<P> {
+    pub fn new(batch_size: usize) -> Self {
+        Self { iterations: 0, batch_size, batch: Vec::new(), comp_batch: Vec::new(), pending: 0 }
+    }
+}
+
+// Implement the State trait for BatchedHillClimbing. It allows checkpointing and restoring the state of the optimizer.
+impl<P: Problem> State for BatchedHillClimbing<P> {}
+
+// Implement the HasState trait for BatchedHillClimbing. Because BatchedHillClimbing is its own state, the methods simply return self.
+impl<P: Problem> HasState for BatchedHillClimbing<P> {
+    type State = Self;
 
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
     }
 
     fn from_state(state: Self::State) -> Self {
-        Sha(state, rand::rng())
+        state
     }
 }
 
-use tantale::core::{
-    Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, HasFidelity, HasStep, IntoComputedShape,
-    RawObj, Step, MultiStep,
-};
+/// A simple neighborhood function, working in [0., 1.], that perturbs a solution by adding a small random value to one of its dimensions.
+fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
+    let mut new_x = x.to_vec();
+    let idx = rng.random_range(0..new_x.len());
+    let perturbation: f64 = rng.random_range(-0.1..0.1);
+    new_x[idx] = (new_x[idx] + perturbation).clamp(0., 1.);
+    Arc::from(new_x)
+}
 
-impl<Out, Scp, FnState>
-    BatchOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        MultiStep<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Sha
+// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem. 
+// It ensures that the sampler can work with any problem P that has a Unit domain. 
+// The macro expands to the necessary trait bounds for the sampler to be compatible with the HPO framework.
+// The domain can be generic.
+#[basic_bounds(P, Unit)] // <= Constraint: The optimizer works with any problem P within a Unit domain.
+impl<P> Sampler<P, Unit> for BatchedHillClimbing<P>
 where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Orderable,
-    FnState: FuncState,
+    Accum<P>: SingleAccumulator<CompShape<P>>, // <= Constraint: The accumulator must support single-objective optimization.
+    // CompShape<P> is the computed solution type (e.g. x and y)
+    CodElem<P>: ElemSingle + Ord, // The element of the codomain (y) must be single-objective and orderable.
 {
-    type Info = ShaInfo;
+    type Info = BHCInfo; // Metadata associated to each solution.
 
-    fn first_step(
-        &mut self,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = ShaInfo {
-            iteration: self.0.iteration,
-        };
-        let pairs: Vec<_> = scp.vec_apply_pair(
-            // Use vec_apply_pair to set minimum fidelity
-            |mut pair| {
-                pair.set_fidelity(self.0.budget);
-                pair
-            },
-            &mut self.1,
-            self.0.batch,
-            EmptyInfo.into(), // EmptyInfo because to solution metadata
-        );
-        Batch::new(pairs, info.into())
-    }
-    fn step(
-        &mut self,
-        x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let (pairs, _) = x.extract(); // Extract component of CompBatch
-        // Keep only Partially computed solution
-        let mut pairs: Vec<_> = pairs
-            .into_iter()
-            .filter_map(|comp| match comp.step() {
-                Step::Partially(_) => Some(comp),
-                _ => None,
-            })
-            .collect();
-
-        // If no solution is remaining, then generate a new batch with first_step
-        if pairs.is_empty() {
-            self.0.budget = self.0.budget_min; // Reset budget
-            <Sha as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(
-                self, scp, acc,
-            )
-        } else {
-            // Compute the k to extract top k solution and discard others
-            let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
-            self.0.budget = (self.0.budget * self.0.scaling).min(self.0.budget_max); // min to prevent overflowing budget_max
-            self.0.iteration += 1;
-
-            // worst solutions before index k, top k  solution at index k and after
-            pairs.select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
-            // Extract Uncomputed solution from Computed
-            let new_pairs: Vec<_> = pairs
-                .into_iter()
-                .enumerate()
-                .map(|(i, computed)| {
-                    let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
-                    if i < k {
-                        pair.discard(); // Discard all solution before k and k others
-                    } else {
-                        pair.set_fidelity(self.0.budget); // Set new budget for solution after index k
-                    }
-                    pair
+    // The 'sample_info' return a new candidate solution and its associated metadata.
+    // If no more candidates can be generated, it returns None.
+    fn sample_info(&mut self, scp: &P::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<BHCInfo>)> {
+        // If there are still uncomputed solutions in the current batch, return one of them.
+        if let Some(sol) = self.batch.pop() {
+            self.pending += 1;
+            Some(sol.into())
+        } else if self.pending > 0 { // If there are still pending evaluations, return None to wait for them to complete.
+            None
+        } else { // If there are no pending evaluations and no uncomputed solutions, generate a new batch of candidate solutions.
+            self.iterations += 1;
+            // Generate a new batch of candidate solutions.
+            self.batch = (0..self.batch_size)
+                .map(|_| {
+                    let sol = match acc.get_best() {
+                        Some(best) => {
+                        // Retrieve information about the best solution found so far.
+                        // We must use '.find_info' to access the BHCInfo metadata associated with the best solution.
+                        // This is because BHCInfo can be wrapped in other metadata types, and '.find_info' allows us to extract it regardless of the wrapping.
+                        // For example, a sampler might use an inner sampler that adds its own metadata, and '.find_info' will still allow us to access the BHCInfo.
+                        let info = best.sinfo().find_info::<BHCInfo>().unwrap();
+                        // Work with Optimizer side solution and retrieve 'x' the raw solution.
+                        let x = best.get_sopt().ref_x();
+                        let y = best.y().value();
+                        println!("Best solution found so far: f({:?}) ={} at iteration {}", x, y, info.iterations);
+                        // Generate a new candidate in the neighborhood of the best solution.
+                        // Use 'with_rng' to ensure that the random number generator is properly seeded and used. (e.g. for multi-threaded scenarios)
+                        let x = with_rng(|rng| neighbor(x, rng));
+                        scp.new_opt(x)
+                    },
+                        None => with_rng(|rng| scp.sample_pair(rng)),
+                    };
+                    let info = Sampled::Fresh(BHCInfo::new(self.iterations).into());
+                    ShapeWithInfo(sol, info)
                 })
                 .collect();
-
-            // If no solution remaining then generate new ones
-            if new_pairs.is_empty() {
-                self.0.budget = self.0.budget_min; // Reset budget
-                <Sha as BatchOptimizer<_, _, _, _, _, MultiStep<_, _, FnState>>>::first_step(
-                    self, scp, acc,
-                )
-            } else {
-                Batch::new(
-                    new_pairs,
-                    ShaInfo {
-                        iteration: self.0.iteration,
-                    }
-                    .into(),
-                )
-            }
+            self.sample_info(scp, acc)
         }
     }
 
-    fn set_batch_size(&mut self, batch_size: usize) {
-        self.0.batch = batch_size
-    }
-
-    fn get_batch_size(&self) -> usize {
-        self.0.batch
+    // The 'update' method is called after a solution has been evaluated and added to the accumulator.
+    // Be carefull update can be called multiple times before the next call to 'sample_info'.
+    // For example, in the case of parallel computing.
+    fn update(&mut self, _x: &CompShape<P>,_scp: &P::Scp,_acc: &Accum<P>) {
+        if self.pending > 0 {
+            self.pending -= 1;
+        } else {
+            println!("Warning: update called with no pending evaluations. This may indicate a logic error in the optimizer.");
+        }
     }
 }
 
-fn main() {
-    let _sha = Sha::new(32, 1.0, 16.0, 2.0);
-}
+fn main() { }

@@ -1,7 +1,14 @@
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+#[path = "./run_checker.rs"]
+pub mod run_checker;
+pub use run_checker::run_reader;
+
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::macros::{Outcome, Schema, Recordable, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
@@ -44,7 +51,7 @@ mod searchspace {
         }
     }
 
-    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct MoFidOutEvaluator {
         #[maximize]
         pub obj1: f64, // First objective
@@ -95,56 +102,31 @@ mod searchspace {
     // let obj = example::get_function();
 }
 
-struct Cleaner {
-    path: String,
-}
-
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
-    }
-}
-
-use searchspace::{get_function, get_searchspace};
+use searchspace::get_problem;
 use tantale::algos::{MoAsha, RandomSearch};
-use tantale::core::{DistSaverConfig, MPIProcess, PoolMode, distributed_with_pool};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
+use tantale::core::{MPICommunicator, ParExperiment};
 use tantale::{
     algos::mo::NSGA2Selector,
     core::{CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls},
 };
 
 fn main() {
-    let proc = MPIProcess::new();
-
-    if proc.rank == 0 {
-        drop(Cleaner {
-            path: String::from("tmp_test_mpi_moasha"),
-        });
-        let _clean = Cleaner {
-            path: String::from("tmp_test_mpi_moasha"),
-        };
-    }
-
-    let sp = get_searchspace();
-    let obj = get_function();
     // Selector, budget min and max per solution, scaling factor
     let sampler = RandomSearch::new();
     let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61).unwrap();
 
     let stop = Calls::new(25);
-    let config = FolderConfig::new("tmp_test_mpi_moasha").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_mpi_moasha");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(
-        &proc,
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let pb = get_problem();
+    let com = MPICommunicator::new(&pb);
+    if com.is_master() {
+        drop(Cleaner::new("tmp_test_mpi_moasha"));
+    }
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     let acc = exp.run();
     if let Some(a) = acc {
         let pareto = a.get();
@@ -155,10 +137,6 @@ fn main() {
                 dominant.y().value
             );
         }
-    }
-    if proc.rank == 0 {
-        drop(Cleaner {
-            path: String::from("tmp_test_mpi_moasha"),
-        });
+        drop(Cleaner::new("tmp_test_mpi_moasha"));
     }
 }

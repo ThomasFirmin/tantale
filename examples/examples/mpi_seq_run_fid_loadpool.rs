@@ -1,26 +1,82 @@
-use tantale::algos::RandomSearch;
-use tantale::core::experiment::{PoolMode, distributed_with_pool};
+use std::collections::HashMap;
+
+use tantale::algos::{Asha, RandomSearch, asha};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 use tantale::core::{
-    CSVRecorder, DistSaverConfig, Fidelity, FolderConfig, MessagePack, MultiStep,
-    experiment::{self, mpi::utils::MPIProcess},
-    load,
-    stop::Calls,
+    CSVRecorder, Evaluated, Fidelity, FolderConfig, MPICommunicator, MessagePack, ParExperiment, PoolMode,
 };
 
-use std::path::Path;
+#[path = "./cleaner.rs"]
+pub mod cleaner;
+pub use cleaner::Cleaner;
+#[path = "./run_checker.rs"]
+pub mod run_checker;
+pub use run_checker::run_reader;
 
-struct Cleaner(String);
+fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
+    let info_path = std::path::Path::new(path).join("recorder/info.csv");
+    let mut reader = csv::Reader::from_path(info_path).unwrap();
+    let headers = reader.headers().unwrap().clone();
+    let id_idx = headers.iter().position(|header| header == "id").unwrap();
+    let id_step_idx = headers
+        .iter()
+        .position(|header| header == "id_step")
+        .unwrap();
+    let fidelity_idx = headers
+        .iter()
+        .position(|header| header == "fidelity")
+        .unwrap();
+    let mut paths: HashMap<String, Vec<(usize, f64)>> = HashMap::new();
+    let mut recorded_evaluations = 0;
 
-impl Drop for Cleaner {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+    for row in reader.records() {
+        let row = row.unwrap();
+        recorded_evaluations += 1;
+        let id = row[id_idx].to_owned();
+        let id_step = row[id_step_idx].parse::<usize>().unwrap();
+        let fidelity = row[fidelity_idx].parse::<f64>().unwrap();
+        paths.entry(id).or_default().push((id_step, fidelity));
+    }
+
+    let mut promoted = false;
+    let mut reached_max_budget = false;
+    for (id, path) in paths {
+        assert!(!path.is_empty(), "Candidate {id} has no recorded evaluations");
+        assert!(path.len() <= budgets.len(), "Candidate {id} exceeded the ASHA budget ladder");
+
+        for (index, (id_step, fidelity)) in path.iter().enumerate() {
+            assert_eq!(*id_step, index + 1, "Candidate {id} has a discontinuous evaluation step");
+            let expected_budget = budgets[index];
+            assert!(
+                (fidelity - expected_budget).abs() <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
+                "Candidate {id} used fidelity {fidelity} at step {}, expected {expected_budget}",
+                index + 1
+            );
+        }
+
+        promoted |= path.len() > 1;
+        reached_max_budget |= path.last().unwrap().1 == *budgets.last().unwrap();
+    }
+
+    assert!(promoted, "No candidate was promoted to a higher fidelity");
+    assert!(reached_max_budget, "No candidate reached the maximum ASHA budget");
+
+    let recorder_dir = std::path::Path::new(path).join("recorder");
+    for file in ["obj.csv", "opt.csv", "cod.csv", "out.csv"] {
+        let file_path = recorder_dir.join(file);
+        let mut file_reader = csv::Reader::from_path(file_path).unwrap();
+        assert_eq!(
+            file_reader.records().count(),
+            recorded_evaluations,
+            "Recorder file {file} has a different number of evaluations"
+        );
     }
 }
 
 mod init_func {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Step, objective::outcome::FuncState};
-    use tantale::macros::{CSVWritable, Outcome};
+    use tantale::macros::{Outcome, Recordable, Schema};
 
     #[derive(Serialize, Deserialize, Debug)]
     pub struct FnState {
@@ -40,7 +96,7 @@ mod init_func {
         }
     }
 
-    #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
+    #[derive(Outcome, Recordable, Schema, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
         #[maximize]
         pub obj: f64,
@@ -102,7 +158,10 @@ mod init_func {
                     None => FnState { state: 0 },
                 };
                 state.state += 1;
-                let evalstate = if state.state == 5 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
+                if state.state == 4 && [! FIDELITY !] != 8. {
+                    panic!("Fidelity mismatch: expected 8.0, got {}", [! FIDELITY !]);
+                }
+                let evalstate = if state.state == 4 {Step::Evaluated.into()} else{Step::Partially(state.state).into()};
                 (
                     FidOutEvaluator{
                         obj: [! j | Real(1000.0,2000.0, Uniform) | !],
@@ -156,82 +215,6 @@ pub struct RowSol {
     pub fidelity: Fidelity,
 }
 
-pub fn run_reader(path: &str, size: usize) {
-    let true_path = Path::new(path);
-    let eval_path = true_path
-        .join(Path::new("recorder"))
-        .join(Path::new("recorder_rank0"));
-    let path_obj = eval_path.join("obj.csv");
-    let path_opt = eval_path.join("opt.csv");
-    let path_out = eval_path.join("out.csv");
-    let path_cod = eval_path.join("cod.csv");
-    let path_info = eval_path.join("info.csv");
-
-    // Check `Obj`, `Opt`, `Codom`
-    let mut rdr_obj = csv::Reader::from_path(path_obj).unwrap();
-    let mut rdr_opt = csv::Reader::from_path(path_opt).unwrap();
-    let mut rdr_cod = csv::Reader::from_path(path_cod).unwrap();
-    let mut rdr_info = csv::Reader::from_path(path_info).unwrap();
-    let mut rdr_out = csv::Reader::from_path(path_out).unwrap();
-
-    let linesobj = rdr_obj.records();
-    let linesopt = rdr_opt.records();
-    let linescod = rdr_cod.records();
-    let linesinfo = rdr_info.records();
-    let linesout = rdr_out.records();
-
-    let id_cod: Vec<usize> = linesobj
-        .filter_map(|s| {
-            let line: RowSol = s.unwrap().deserialize(None).unwrap();
-            if line.step == "Evaluated" {
-                Some(line.id)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    let count_cod = linescod
-        .map(|s| {
-            let line: RowCod = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_opt = linesopt
-        .map(|s| {
-            let line: RowSol = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_info = linesinfo
-        .map(|s| {
-            let line: RowInfo = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-    let count_out = linesout
-        .map(|s| {
-            let line: RowOut = s.unwrap().deserialize(None).unwrap();
-            line
-        })
-        .filter(|line| id_cod.contains(&line.id))
-        .count();
-
-    let linesobj = rdr_obj.records();
-    linesobj.for_each(|l| println!("{:?}", l));
-    assert!(count_cod >= size * 5, "Some solutions are missing in cod.");
-    assert!(count_opt >= size * 5, "Some solutions are missing in opt.");
-    assert!(id_cod.len() >= size, "Some solutions are missing in cod.");
-    assert!(
-        count_info >= size * 5,
-        "Some solutions are missing in info."
-    );
-    assert!(count_out >= size * 5, "Some solutions are missing in out.");
-}
-
 fn main() {
     eprintln!("INFO : Running test_seq_run.");
 
@@ -240,100 +223,70 @@ fn main() {
         return;
     }
 
-    let proc = MPIProcess::new();
+    let budgets = vec![1., 2., 4., 8.];
 
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_seq_run_fid_loadpool".into()));
-        let _clean = Cleaner("tmp_test_mpi_seq_run_fid_loadpool".into());
-    }
+    let pb = sp_evaluator::get_problem();
+    
+    let sampler = RandomSearch::new();
+    let opt =  Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
 
-    let sp = sp_evaluator::get_searchspace();
-    let obj = sp_evaluator::get_function();
-    let opt = RandomSearch::new();
-
-    let stop = Calls::new(50);
-    let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let stop = Evaluated::new(10);
+    let config = FolderConfig::new("tmp_test_asha_rs_mpi_persistent");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(
-        &proc,
-        sp,
-        obj,
-        opt,
-        stop,
-        (rec, check),
-        PoolMode::Persistent,
-    );
+    let com = MPICommunicator::new(&pb);
+    let com1 = com.clone();
+    let com2 = com.clone();
+    if com.is_master() {
+        drop(Cleaner::new("tmp_test_asha_rs_mpi_persistent"));
+    }
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com).with_pool(PoolMode::Persistent);
     exp.run();
 
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_seq_run_fid_loadpool", 50);
-    }
+    assert_asha_fidelity_paths("tmp_test_asha_rs_mpi_persistent", &[1., 2., 4., 8.]);
 
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
+    let pb = sp_evaluator::get_problem();
 
-    let obj = MultiStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_asha_rs_mpi_persistent");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        PoolMode::Persistent,
-        &proc,
-        RandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let mut exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1).with_pool(PoolMode::Persistent);
 
-    if proc.rank == 0 {
-        match exp {
-            experiment::MasterWorker::Master(mut e) => {
-                assert!(e.stop.0 >= 50 && e.stop.0 < 100, "Number of calls is wrong");
-                e.stop.1 = 100;
-                use tantale::core::experiment::MPIRunable;
-                e.run();
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a worker"),
-        }
-    } else {
-        exp.run();
+    if let Some(m) = exp.master_mut() {
+        let expstop = &mut m.stop;
+        assert_eq!(expstop.0, 10, "Number of calls is wrong");
+        expstop.1 = 20;
+        let expoptimizer = &m.sampler;
+        assert_eq!(
+            expoptimizer.budgets, budgets,
+            "Budgets are wrong, {:?} != {:?}",
+            expoptimizer.budgets, budgets
+        );
+        assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
     }
+    exp.run();
+    
+    let pb = sp_evaluator::get_problem();
 
-    let sp = sp_evaluator::get_searchspace();
-    let func = sp_evaluator::example;
-
-    let obj = MultiStep::new(func);
-
-    let config = FolderConfig::new("tmp_test_mpi_seq_run_fid_loadpool").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_asha_rs_mpi_persistent");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        distributed,
-        PoolMode::Persistent,
-        &proc,
-        RandomSearch,
-        Calls,
-        sp,
-        obj,
-        (rec, check)
-    );
-    if proc.rank == 0 {
-        run_reader("tmp_test_mpi_seq_run_fid_loadpool", 100);
-        match exp {
-            experiment::MasterWorker::Master(e) => {
-                assert!(e.stop.0 >= 100, "Number of calls is wrong");
-            }
-            experiment::MasterWorker::Worker(_) => panic!("Rank 0 should not be a master"),
-        }
-    }
-    if proc.rank == 0 {
-        drop(Cleaner("tmp_test_mpi_seq_run_fid_loadpool".into()));
+    let exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2).with_pool(PoolMode::Persistent);
+
+    assert_asha_fidelity_paths("tmp_test_asha_rs_mpi_persistent", &budgets);
+
+    if let Some(m) = exp.master() {
+        let expstop = &m.stop;
+        assert_eq!(expstop.0, 20, "Number of calls is wrong");
+        let expoptimizer = &m.sampler;
+        assert_eq!(
+            expoptimizer.budgets, budgets,
+            "Budgets are wrong, {:?} != {:?}",
+            expoptimizer.budgets, budgets
+        );
+        assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
     }
 }

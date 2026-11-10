@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, atomic::Ordering};
+use std::{collections::HashMap, sync::{Arc, Mutex, atomic::Ordering}};
 
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ use crate::{
     Recorder, Runable, SId, SOL_ID, Sampler, Searchspace, SimplePb, SolInfo, SolutionShape, State, StepSId, 
     Stop, aliases::{Accum, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, 
     checkpointer::CheckpointerTargets, errors::WorkerError, experiment::{exputils::{Pool, PoolMode}, 
-    parallel::parutils::{FnStateMapper, fidelity_master, simple_master, start_fidelity_workers, start_simple_workers}}, 
+    parallel::parutils::{fidelity_master, simple_master, start_fidelity_workers, start_simple_workers}}, 
     utils::Communicator
 };
 
@@ -131,13 +131,24 @@ pub trait WorkerTrait<P: Problem> {
 pub struct ParState<P:Problem> {
     /// The current solution being evaluated.
     pub currently: Vec<Option<Shape<P>>>,
+    #[serde(skip)] // Skip because 'where' a solution can vary after loading, and we don't want to serialize it. 
+    /// Maps each [`SolId`](crate::SolId) to its corresponding worker where the [`FuncState`] is stored.
+    pub where_is: HashMap<P::Id, usize>,
+    /// A list of [`FuncState`] that are awaiting processing by each worker.
+    pub awaiting: Vec<Vec<Shape<P>>>,
+    /// A list of [`FuncState`] that are awaiting processing by any worker, when the worker is not known.
+    pub awaiting_unknown: Vec<Shape<P>>,
 }
 
 impl<P:Problem> State for ParState<P> { }
 
 impl<P:Problem> ParState<P> {
     pub fn new(size: usize) -> Self {
-        Self { currently: vec![None; size] }
+        Self { currently: vec![None; size], 
+               where_is: HashMap::new(), 
+               awaiting: vec![Vec::new(); size], 
+               awaiting_unknown: Vec::new() 
+            }
     }
 
     pub fn set_currently(&mut self, index: usize, currently: Shape<P>) {
@@ -146,6 +157,18 @@ impl<P:Problem> ParState<P> {
         } else {
             log::warn!("Index {} is out of bounds for currently vector. No update performed.", index);
         }
+    }
+
+    /// Add a [`FuncState`] to the awaiting list of a specific worker.
+    pub fn where_is(&self, id: &P::Id) -> Option<usize> {
+        self.where_is.get(id).copied()
+    }
+
+    /// Get the next [`FuncState`] awaiting processing for a specific worker.
+    pub fn pop_awaiting(&mut self, peer: usize) -> Option<Shape<P>> {
+        if let Some(sol) = self.awaiting[peer].pop() {
+            Some(sol)
+        } else { self.awaiting_unknown.pop() }
     }
 }
 
@@ -330,8 +353,6 @@ where
     pub pfs: bool,
     /// The [`PoolMode`] used for managing function states during the experiment.
     pub pool_mode: PoolMode,
-    /// The [`FnStateMapper`] used to map function states to solution IDs.
-    map: FnStateMapper<P>,
     /// Flag indicating whether the experiment state has been loaded from a checkpoint.
     is_loaded: bool,
 }
@@ -360,7 +381,6 @@ where
             let accumulator = Accum::<P>::default();
             if let Some(c) = checkpointer.as_mut() { c.set_pfs(true) }
             let checkpointer = Arc::new(Mutex::new(checkpointer));
-            let peers = com.size();
             Some(Self {
                 problem: Arc::new(problem),
                 sampler,
@@ -372,7 +392,6 @@ where
                 pfs: true,
                 is_loaded: false,
                 pool_mode: PoolMode::InMemory, // Default pool mode, can be changed later
-                map: FnStateMapper::new(peers),
             })
         }
     }
@@ -410,7 +429,6 @@ where
             RUN_ID.store(parameters.run_id + 1, Ordering::SeqCst);
             
             let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
-            let peers = com.size();
             Ok(Master {
                 problem: Arc::new(problem),
                 sampler,
@@ -422,7 +440,6 @@ where
                 pfs: true,
                 is_loaded: true,
                 pool_mode: PoolMode::InMemory, // Default pool mode when loading, can be changed later
-                map: FnStateMapper::new(peers),
             })
         }
     }
@@ -521,7 +538,7 @@ where
                 stop, 
                 recorder, 
                 checkpointer, 
-                state
+                state,
             )
         )
     }
@@ -597,7 +614,6 @@ where
         let stop = self.stop;
         let recorder = self.recorder;
         let checkpointer = self.checkpointer;
-        let map = self.map;
 
         self.com.master::<FidPb<Info, Scp, Out, FnState>,_>(
             move |com|
@@ -610,7 +626,6 @@ where
                 recorder, 
                 checkpointer, 
                 state,
-                map,
             )
         )
         
