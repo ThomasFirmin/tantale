@@ -1,17 +1,31 @@
-use std::{fmt::{Debug, Display}, sync::Arc};
+use std::{
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use tantale::{
-    algos::utils::with_rng, basic_bounds, core::{HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}, utils::ShapeWithInfo}, macros::{Recordable, Schema}
-    };
+    algos::utils::with_rng,
+    basic_bounds,
+    core::{
+        HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo,
+        SolutionShape, State, Unit,
+        aliases::{Accum, CodElem, CompShape, Shape},
+        domain::{ElemSingle, SingleAccumulator},
+        utils::ShapeWithInfo,
+    },
+    macros::{Recordable, Schema},
+};
 
 // A helper macro to simplify the type signature of `BatchedHillClimbing`.
 // This a convention to make it easier to use the optimizer in generic contexts, without having to write out the full type signature.
 // To use when generics can be infered in the usual load (resuming via a checkpoint) pipeline for example.
 #[allow(unused_macros)]
 macro_rules! batched_hill_climbing {
-    () => {BatchedHillClimbing};
+    () => {
+        BatchedHillClimbing
+    };
 }
 
 /// Metadata for a Batched Hill Climbing optimization step.
@@ -40,20 +54,20 @@ impl Display for BHCInfo {
 /// Sometimes it might be helpful to have a separate state struct, but in this case, the algorithm itself is simple enough to serve as its own state.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "ShapeWithInfo<Shape<P>, BHCInfo>: Serialize + for<'a> Deserialize<'a>")]
-pub struct BatchedHillClimbing<P:Problem> {
+pub struct BatchedHillClimbing<P: Problem> {
     iterations: usize,
     batch_size: usize, // The number of candidate solutions to generate in each iteration.
     // We use ShapeWithInfo<Shape<P>, BHCInfo> to store both the candidate solution and its associated metadata (BHCInfo).
     batch: Vec<ShapeWithInfo<Shape<P>, BHCInfo>>, // The batch of candidate solutions generated in the current iteration.
-    // We do not use ShapeWithInfo<CompShape<P>, BHCInfo> because the inner pipeline automatically assigns the BHCInfo 
+    // We do not use ShapeWithInfo<CompShape<P>, BHCInfo> because the inner pipeline automatically assigns the BHCInfo
     // to the computed solutions. The metadata can be accessed via '.sinfo' (HasInfo trait)
     comp_batch: Vec<CompShape<P>>, // The batch of computed solutions (e.g., x and y) corresponding to the candidate solutions.
-    pending: usize, // The number of pending evaluations in the current batch.
+    pending: usize,                // The number of pending evaluations in the current batch.
 }
 
 // Implement Clone and Debug by hand for BatchedHillClimbing.
 // This is necessary because the generic type P may not implement Clone or Debug, and we want to avoid requiring those traits on P.
-impl<P:Problem> Clone for BatchedHillClimbing<P> {
+impl<P: Problem> Clone for BatchedHillClimbing<P> {
     fn clone(&self) -> Self {
         Self {
             iterations: self.iterations,
@@ -65,7 +79,7 @@ impl<P:Problem> Clone for BatchedHillClimbing<P> {
     }
 }
 
-impl<P:Problem> Debug for BatchedHillClimbing<P> {
+impl<P: Problem> Debug for BatchedHillClimbing<P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BatchedHillClimbing")
             .field("iterations", &self.iterations)
@@ -79,7 +93,13 @@ impl<P:Problem> Debug for BatchedHillClimbing<P> {
 
 impl<P: Problem> BatchedHillClimbing<P> {
     pub fn new(batch_size: usize) -> Self {
-        Self { iterations: 0, batch_size, batch: Vec::new(), comp_batch: Vec::new(), pending: 0 }
+        Self {
+            iterations: 0,
+            batch_size,
+            batch: Vec::new(),
+            comp_batch: Vec::new(),
+            pending: 0,
+        }
     }
 }
 
@@ -104,7 +124,7 @@ impl<P: Problem> HasState for BatchedHillClimbing<P> {
 }
 
 /// A simple neighborhood function, working in [0., 1.], that perturbs a solution by adding a small random value to one of its dimensions.
-fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
+fn neighbor(x: &[f64], rng: &mut StdRng) -> Arc<[f64]> {
     let mut new_x = x.to_vec();
     let idx = rng.random_range(0..new_x.len());
     let perturbation: f64 = rng.random_range(-0.1..0.1);
@@ -112,8 +132,8 @@ fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
     Arc::from(new_x)
 }
 
-// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem. 
-// It ensures that the sampler can work with any problem P that has a Unit domain. 
+// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem.
+// It ensures that the sampler can work with any problem P that has a Unit domain.
 // The macro expands to the necessary trait bounds for the sampler to be compatible with the HPO framework.
 // The domain can be generic.
 #[basic_bounds(P, Unit)] // <= Constraint: The optimizer works with any problem P within a Unit domain.
@@ -127,34 +147,43 @@ where
 
     // The 'sample_info' return a new candidate solution and its associated metadata.
     // If no more candidates can be generated, it returns None.
-    fn sample_info(&mut self, scp: &P::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<BHCInfo>)> {
+    fn sample_info(
+        &mut self,
+        scp: &P::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<BHCInfo>)> {
         // If there are still uncomputed solutions in the current batch, return one of them.
         if let Some(sol) = self.batch.pop() {
             self.pending += 1;
             Some(sol.into())
-        } else if self.pending > 0 { // If there are still pending evaluations, return None to wait for them to complete.
+        } else if self.pending > 0 {
+            // If there are still pending evaluations, return None to wait for them to complete.
             None
-        } else { // If there are no pending evaluations and no uncomputed solutions, generate a new batch of candidate solutions.
+        } else {
+            // If there are no pending evaluations and no uncomputed solutions, generate a new batch of candidate solutions.
             self.iterations += 1;
             // Generate a new batch of candidate solutions.
             self.batch = (0..self.batch_size)
                 .map(|_| {
                     let sol = match acc.get_best() {
                         Some(best) => {
-                        // Retrieve information about the best solution found so far.
-                        // We must use '.find_info' to access the BHCInfo metadata associated with the best solution.
-                        // This is because BHCInfo can be wrapped in other metadata types, and '.find_info' allows us to extract it regardless of the wrapping.
-                        // For example, a sampler might use an inner sampler that adds its own metadata, and '.find_info' will still allow us to access the BHCInfo.
-                        let info = best.sinfo().find_info::<BHCInfo>().unwrap();
-                        // Work with Optimizer side solution and retrieve 'x' the raw solution.
-                        let x = best.get_sopt().ref_x();
-                        let y = best.y().value();
-                        println!("Best solution found so far: f({:?}) ={} at iteration {}", x, y, info.iterations);
-                        // Generate a new candidate in the neighborhood of the best solution.
-                        // Use 'with_rng' to ensure that the random number generator is properly seeded and used. (e.g. for multi-threaded scenarios)
-                        let x = with_rng(|rng| neighbor(x, rng));
-                        scp.new_opt(x)
-                    },
+                            // Retrieve information about the best solution found so far.
+                            // We must use '.find_info' to access the BHCInfo metadata associated with the best solution.
+                            // This is because BHCInfo can be wrapped in other metadata types, and '.find_info' allows us to extract it regardless of the wrapping.
+                            // For example, a sampler might use an inner sampler that adds its own metadata, and '.find_info' will still allow us to access the BHCInfo.
+                            let info = best.sinfo().find_info::<BHCInfo>().unwrap();
+                            // Work with Optimizer side solution and retrieve 'x' the raw solution.
+                            let x = best.get_sopt().ref_x();
+                            let y = best.y().value();
+                            println!(
+                                "Best solution found so far: f({:?}) ={} at iteration {}",
+                                x, y, info.iterations
+                            );
+                            // Generate a new candidate in the neighborhood of the best solution.
+                            // Use 'with_rng' to ensure that the random number generator is properly seeded and used. (e.g. for multi-threaded scenarios)
+                            let x = with_rng(|rng| neighbor(x, rng));
+                            scp.new_opt(x)
+                        }
                         None => with_rng(|rng| scp.sample_pair(rng)),
                     };
                     let info = Sampled::Fresh(BHCInfo::new(self.iterations).into());
@@ -168,13 +197,15 @@ where
     // The 'update' method is called after a solution has been evaluated and added to the accumulator.
     // Be carefull update can be called multiple times before the next call to 'sample_info'.
     // For example, in the case of parallel computing.
-    fn update(&mut self, _x: &CompShape<P>,_scp: &P::Scp,_acc: &Accum<P>) {
+    fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
         if self.pending > 0 {
             self.pending -= 1;
         } else {
-            println!("Warning: update called with no pending evaluations. This may indicate a logic error in the optimizer.");
+            println!(
+                "Warning: update called with no pending evaluations. This may indicate a logic error in the optimizer."
+            );
         }
     }
 }
 
-fn main() { }
+fn main() {}

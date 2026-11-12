@@ -1,6 +1,7 @@
 use tantale::algos::{RandomSearch, randomsearch};
 use tantale::core::{
-    CSVRecorder, Evaluated, FolderConfig, MessagePack, ParExperiment, Pb, PoolMode, ThreadCommunicator,
+    CSVRecorder, Evaluated, FolderConfig, MessagePack, ParExperiment, Pb, PoolMode,
+    ThreadCommunicator,
 };
 use tantale::python::init_python;
 
@@ -11,8 +12,8 @@ use crate::run_checker::run_reader;
 fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -58,9 +59,10 @@ fn test_python_function() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    match exp.master_mut(){
+    match exp.master_mut() {
         Some(m) => {
             let expstop = &mut m.stop;
             assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -82,7 +84,7 @@ fn test_python_function() {
     let com = ThreadCommunicator::new();
     let exp = ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
     run_reader("tmp_test_python_async_parrun_parrun_rs", 100);
-    match exp.master(){
+    match exp.master() {
         Some(m) => {
             let expstop = &m.stop;
             assert_eq!(expstop.0, 100, "Number of calls is wrong");

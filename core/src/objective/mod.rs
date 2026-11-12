@@ -318,7 +318,7 @@ impl std::fmt::Display for EvalStep {
 }
 
 pub mod obj;
-pub use obj::{FuncWrapper, OneStep, MultiStep};
+pub use obj::{FuncWrapper, MultiStep, OneStep};
 
 pub mod outcome;
 pub use outcome::{FidOutcome, Outcome};

@@ -1,5 +1,7 @@
 use crate::{
-    HasState, State, objective::Step, stop::{ExpStep, Stop},
+    HasState, State,
+    objective::Step,
+    stop::{ExpStep, Stop},
 };
 use serde::{Deserialize, Serialize};
 
@@ -11,19 +13,18 @@ pub struct Evaluated(pub usize, pub usize);
 impl State for Evaluated {}
 impl HasState for Evaluated {
     type State = Self;
-    
+
     fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
-    
+
     fn get_state(&self) -> &Self::State {
         self
     }
-    
+
     fn from_state(state: Self::State) -> Self {
         state
     }
-
 }
 
 impl Stop for Evaluated {

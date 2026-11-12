@@ -11,8 +11,8 @@ use crate::run_checker::run_reader;
 pub fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -60,7 +60,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
+    let mut exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
 
     if let Some(m) = exp.master_mut() {
         let expstop = &mut m.stop;
@@ -76,7 +77,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
+    let exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
     run_reader("tmp_mpi_test_python_batch_rs", 100);
 
     if let Some(m) = exp.master() {

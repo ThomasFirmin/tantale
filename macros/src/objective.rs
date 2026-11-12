@@ -471,7 +471,9 @@ pub fn obj(input: TokenStream) -> TokenStream {
     let sig = &fn_item.sig;
     let mut generics = sig.generics.clone();
     // Add generics
-    generics.params.push(parse_quote! {Info: tantale::core::SolInfo});
+    generics
+        .params
+        .push(parse_quote! {Info: tantale::core::SolInfo});
 
     let fn_ident = &sig.ident;
 
@@ -489,7 +491,7 @@ pub fn obj(input: TokenStream) -> TokenStream {
             {
                 tantale::core::MultiStep::new(#fn_ident)
             }
-            
+
             pub fn get_problem #generics () -> tantale::core::Pb<tantale::core::StepSId, Info, tantale::core::searchspace::Sp<#ident_mixed_obj,#ident_mixed_opt>, tantale::core::MultiStep<tantale::core::FidelitySol<tantale::core::StepSId, #ident_mixed_obj, Info>, #otype, #state>>
             {
                 let sp = get_searchspace();

@@ -18,7 +18,7 @@ type TestComp<Sol> = Computed<Sol, OutExample>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc>, pid: u32)
 where
-    Unc: Uncomputed<Id=ParSId, Dom=Dom, Info=TestSInfo, X = Arc<[Dom::Element]>>,
+    Unc: Uncomputed<Id = ParSId, Dom = Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
     Elem<Dom>: Sync + Send,
     Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,

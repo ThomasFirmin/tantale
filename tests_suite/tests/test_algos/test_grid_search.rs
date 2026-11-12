@@ -1,15 +1,9 @@
 use tantale::algos::{GridSearch, NoPruner, nopruner};
 use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
-use tantale::core::{Experiment, Problem};
 use tantale::core::problem::Pb;
-use tantale::{
-    core::{
-        CSVRecorder, FolderConfig, MessagePack,
-        experiment::Runable,
-        stop::Evaluated,
-    },
-};
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Evaluated};
+use tantale::core::{Experiment, Problem};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{sp_grid_evaluator, sp_grid_evaluator_fid};
@@ -91,8 +85,12 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler.sampler.1, 0, "Number of fully evaluated grid is wrong");
+    let mut exp =
+        Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(
+        exp.sampler.sampler.1, 0,
+        "Number of fully evaluated grid is wrong"
+    );
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
@@ -107,9 +105,12 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-
-    let exp = Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
-    assert_eq!(exp.sampler.sampler.1, 1, "Number of fully evaluated grid is wrong");
+    let exp =
+        Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(
+        exp.sampler.sampler.1, 1,
+        "Number of fully evaluated grid is wrong"
+    );
     run_reader("tmp_test_gs_fidseqrun", 1500);
     let expstop: &Evaluated = &exp.stop;
     assert_eq!(expstop.calls(), 300, "Number of calls is wrong");
@@ -165,9 +166,9 @@ fn test_seq_parrun() {
     let mut _exp = ParExperiment::<_, GridSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
     match _exp.master_mut() {
         Some(m) => {
-            let expstop= &m.stop;
+            let expstop = &m.stop;
             assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
-        },
+        }
         None => panic!("Master process not found"),
     }
     run_reader("tmp_test_gs_seq_parrun", 100);

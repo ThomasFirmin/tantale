@@ -37,23 +37,25 @@ impl<T: Orderable + Serialize + for<'a> Deserialize<'a>> Default for OrderedArch
     }
 }
 
-
 /// Archive of points which holds the observed points sorted in ascending order, each point is linked to a context.
 /// The sorted objects should implement the [`Orderable`] trait, which allows for comparison and ordering of elements.
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(serialize = "T: Serialize, Ctx: Serialize", deserialize = "T: for<'a> Deserialize<'a>, Ctx: for<'a> Deserialize<'a>"))]
-pub struct OrderedCtxArchive<T, Ctx> 
+#[serde(bound(
+    serialize = "T: Serialize, Ctx: Serialize",
+    deserialize = "T: for<'a> Deserialize<'a>, Ctx: for<'a> Deserialize<'a>"
+))]
+pub struct OrderedCtxArchive<T, Ctx>
 where
-    T: Orderable + Serialize + for<'a> Deserialize<'a>, 
-    Ctx: Serialize + for<'a> Deserialize<'a>
+    T: Orderable + Serialize + for<'a> Deserialize<'a>,
+    Ctx: Serialize + for<'a> Deserialize<'a>,
 {
-    pub points: Vec<(T,Ctx)>, // sorted ascending by point
+    pub points: Vec<(T, Ctx)>, // sorted ascending by point
 }
 
-impl<T ,Ctx> OrderedCtxArchive<T, Ctx> 
+impl<T, Ctx> OrderedCtxArchive<T, Ctx>
 where
-    T: Orderable + Serialize + for<'a> Deserialize<'a>, 
-    Ctx: Serialize + for<'a> Deserialize<'a>
+    T: Orderable + Serialize + for<'a> Deserialize<'a>,
+    Ctx: Serialize + for<'a> Deserialize<'a>,
 {
     /// Creates a new [`OrderedCtxArchive`] with a single element.
     pub fn new(elem: (T, Ctx)) -> Self {
@@ -76,10 +78,11 @@ where
     }
 }
 
-impl<T: Orderable + Serialize + for<'a> Deserialize<'a>, Ctx: Serialize + for<'a> Deserialize<'a>> Default for OrderedCtxArchive<T, Ctx> 
-where 
-    T: Orderable + Serialize + for<'a> Deserialize<'a>, 
-    Ctx: Serialize + for<'a> Deserialize<'a>
+impl<T: Orderable + Serialize + for<'a> Deserialize<'a>, Ctx: Serialize + for<'a> Deserialize<'a>>
+    Default for OrderedCtxArchive<T, Ctx>
+where
+    T: Orderable + Serialize + for<'a> Deserialize<'a>,
+    Ctx: Serialize + for<'a> Deserialize<'a>,
 {
     fn default() -> Self {
         OrderedCtxArchive { points: Vec::new() }

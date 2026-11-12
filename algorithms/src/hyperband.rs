@@ -87,11 +87,11 @@ use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use tantale_core::aliases::{Accum, CompShape, Opt, Shape};
 use tantale_core::optimizer::opt::{Batched, Pruner};
-use tantale_core::{HasState, Orderable, Prunable, Sampled};
 use tantale_core::utils::WrappedInfo;
 use tantale_core::{Domain, Problem};
-use tantale_core::{State, Sampler};
-use tantale_macros::{fidelity_bounds};
+use tantale_core::{HasState, Orderable, Prunable, Sampled};
+use tantale_core::{Sampler, State};
+use tantale_macros::fidelity_bounds;
 
 use crate::Sha;
 use crate::utils::BracketInfo;
@@ -223,7 +223,13 @@ where
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
-    pub fn new(budget_min : f64, budget_max : f64, scaling : f64, s_max : usize, inner : Sha<Smpl, P>) -> Self {
+    pub fn new(
+        budget_min: f64,
+        budget_max: f64,
+        scaling: f64,
+        s_max: usize,
+        inner: Sha<Smpl, P>,
+    ) -> Self {
         let current_s = s_max; // Start with the highest bracket
         Hyperband {
             budget_min,
@@ -244,14 +250,14 @@ where
     CompShape<P>: Orderable,
 {
     fn clone(&self) -> Self {
-        Self { 
+        Self {
             budget_min: self.budget_min,
             budget_max: self.budget_max,
             scaling: self.scaling,
             s_max: self.s_max,
             current_s: self.current_s,
             inner: self.inner.clone(),
-            _p: self._p
+            _p: self._p,
         }
     }
 }
@@ -281,24 +287,30 @@ where
     CompShape<P>: Orderable,
 {
     #[allow(clippy::type_complexity)]
-    fn wrap(&self, sampled: Option<(Shape<P>, Sampled<Smpl::Info>)>) -> Option<(Shape<P>, Sampled<WrappedInfo<Smpl::Info, BracketInfo>>)> {
+    fn wrap(
+        &self,
+        sampled: Option<(Shape<P>, Sampled<Smpl::Info>)>,
+    ) -> Option<(Shape<P>, Sampled<WrappedInfo<Smpl::Info, BracketInfo>>)> {
         sampled.map(|(sol, info)| match info {
             Sampled::Fresh(inner) => {
                 let hinfo = Arc::new(BracketInfo(self.current_s));
-                (sol, Sampled::Fresh(Arc::new(WrappedInfo::new(inner, hinfo))))
+                (
+                    sol,
+                    Sampled::Fresh(Arc::new(WrappedInfo::new(inner, hinfo))),
+                )
             }
             Sampled::Reused => (sol, Sampled::Reused),
         })
     }
 }
 
-
 #[fidelity_bounds(P)]
 impl<Smpl, P> State for Hyperband<Smpl, P>
 where
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
-{ }
+{
+}
 
 #[fidelity_bounds(P)]
 impl<Smpl, P> HasState for Hyperband<Smpl, P>
@@ -329,10 +341,14 @@ where
     Opt: Domain,
 {
     type Info = WrappedInfo<Smpl::Info, BracketInfo>;
-    
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if !self.inner.bracket_complete() {
-            let sampled = self.inner.sample_info(scp, acc); 
+            let sampled = self.inner.sample_info(scp, acc);
             self.wrap(sampled)
         } else {
             if self.current_s == 0 {
@@ -340,7 +356,8 @@ where
             } else {
                 self.current_s -= 1;
             }
-            let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.) * self.scaling.powi(self.current_s as i32);
+            let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.)
+                * self.scaling.powi(self.current_s as i32);
             self.inner.set_batch_size((n.ceil() as usize).max(1));
             let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
             self.inner.set_budgets(r, self.budget_max);
@@ -348,8 +365,8 @@ where
             self.wrap(sampled)
         }
     }
-    
-    fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
         self.inner.update(x, scp, acc);
     }
 }
@@ -410,8 +427,7 @@ where
 impl<'de> Visitor<'de> for HBFieldVisitor {
     type Value = HBField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter
-            .write_str("Hyperband state field")
+        formatter.write_str("Hyperband state field")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -558,7 +574,7 @@ where
             scaling,
             current_s,
             s_max,
-            inner: Sha::<Smpl,P>::from_state(inner_state),
+            inner: Sha::<Smpl, P>::from_state(inner_state),
             _p: PhantomData,
         })
     }

@@ -1,15 +1,12 @@
 use csv::Reader;
+use std::collections::HashMap;
+use std::path::Path;
 use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{
     Asha, LinearSplit, Premade, RandomSearch, Tpe, UniformWeighter, Univariate, asha, tpe,
 };
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, Runable, stop::Evaluated};
 use tantale::core::{Experiment, ParExperiment, ThreadCommunicator};
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack, Runable,
-    stop::Evaluated,
-};
-use std::collections::HashMap;
-use std::path::Path;
 
 use crate::cleaner::Cleaner;
 use crate::init_func;
@@ -31,7 +28,11 @@ fn assert_asha_promotion(path: &str) {
         sequence.push(name.to_string());
     }
 
-    assert_eq!(sequence, vec!["A", "B", "A", "C", "D", "B", "B"], "The sequence of candidates is not as expected");
+    assert_eq!(
+        sequence,
+        vec!["A", "B", "A", "C", "D", "B", "B"],
+        "The sequence of candidates is not as expected"
+    );
 }
 
 fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
@@ -62,14 +63,25 @@ fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
     let mut promoted = false;
     let mut reached_max_budget = false;
     for (id, path) in paths {
-        assert!(!path.is_empty(), "Candidate {id} has no recorded evaluations");
-        assert!(path.len() <= budgets.len(), "Candidate {id} exceeded the ASHA budget ladder");
+        assert!(
+            !path.is_empty(),
+            "Candidate {id} has no recorded evaluations"
+        );
+        assert!(
+            path.len() <= budgets.len(),
+            "Candidate {id} exceeded the ASHA budget ladder"
+        );
 
         for (index, (id_step, fidelity)) in path.iter().enumerate() {
-            assert_eq!(*id_step, index + 1, "Candidate {id} has a discontinuous evaluation step");
+            assert_eq!(
+                *id_step,
+                index + 1,
+                "Candidate {id} has a discontinuous evaluation step"
+            );
             let expected_budget = budgets[index];
             assert!(
-                (fidelity - expected_budget).abs() <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
+                (fidelity - expected_budget).abs()
+                    <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
                 "Candidate {id} used fidelity {fidelity} at step {}, expected {expected_budget}",
                 index + 1
             );
@@ -80,7 +92,10 @@ fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
     }
 
     assert!(promoted, "No candidate was promoted to a higher fidelity");
-    assert!(reached_max_budget, "No candidate reached the maximum ASHA budget");
+    assert!(
+        reached_max_budget,
+        "No candidate reached the maximum ASHA budget"
+    );
 
     let recorder_dir = std::path::Path::new(path).join("recorder");
     for file in ["obj.csv", "opt.csv", "cod.csv", "out.csv"] {
@@ -170,7 +185,7 @@ fn test_asha_promotion() {
     let _clean = Cleaner::new("tmp_test_asha_promotion");
 
     let pb = searchspace::get_problem();
-    
+
     let solutions = vec![
         (vec![0.1, 40., 25., 20.], "A".to_string()),
         (vec![0.2, 30., 35., 50.], "B".to_string()),
@@ -179,7 +194,7 @@ fn test_asha_promotion() {
     ];
 
     let sampler = Premade::new(solutions, false);
-    let opt =  Asha::new(sampler, 1., 4., 2.).unwrap(); // log(max/min)
+    let opt = Asha::new(sampler, 1., 4., 2.).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(1);
     let config = FolderConfig::new("tmp_test_asha_promotion");
@@ -199,9 +214,9 @@ fn test_asha_rs() {
     let budgets = vec![1., 2., 4., 8.];
 
     let pb = searchspace_four_states::get_problem();
-    
+
     let sampler = RandomSearch::new();
-    let opt =  Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
+    let opt = Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(10);
     let config = FolderConfig::new("tmp_test_asha_rs");
@@ -220,7 +235,6 @@ fn test_asha_rs() {
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, asha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
-
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 10, "Number of calls is wrong");
@@ -286,7 +300,13 @@ fn test_asha_tpe() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 10, "Number of calls is wrong");
@@ -306,7 +326,13 @@ fn test_asha_tpe() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)), Evaluated, _, _>::load(pb, rec, check);
+    let exp = Experiment::<
+        _,
+        asha!(tpe!(Univariate, Optuna, UniformWeighter, LinearSplit)),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     assert_asha_fidelity_paths("tmp_test_asha_tpe", &budgets);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 20, "Number of calls is wrong");
@@ -326,9 +352,9 @@ fn test_asha_rs_par() {
     let budgets = vec![1., 2., 4., 8.];
 
     let pb = searchspace_four_states::get_problem();
-    
+
     let sampler = RandomSearch::new();
-    let opt =  Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
+    let opt = Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(10);
     let config = FolderConfig::new("tmp_test_asha_rs_par");
@@ -348,7 +374,8 @@ fn test_asha_rs_par() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     match exp.master_mut() {
         Some(m) => {
@@ -366,7 +393,7 @@ fn test_asha_rs_par() {
         None => panic!("No master found in the parallel experiment"),
     }
     exp.run();
-    
+
     let pb = searchspace_four_states::get_problem();
 
     let config = FolderConfig::new("tmp_test_asha_rs_par");
@@ -374,7 +401,8 @@ fn test_asha_rs_par() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let exp =
+        ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     assert_asha_fidelity_paths("tmp_test_asha_rs_par", &budgets);
 

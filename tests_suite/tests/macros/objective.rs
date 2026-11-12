@@ -5,9 +5,9 @@ use tantale::core::{HasX, Problem, aliases::Shape, problem::Pb};
 fn obj_test() {
     mod searchspace {
         use serde::{Deserialize, Serialize};
-        use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
         use tantale::core::distribution::{Bernoulli, Uniform};
-        use tantale::macros::{Outcome, Schema, Recordable, objective};
+        use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
+        use tantale::macros::{Outcome, Recordable, Schema, objective};
 
         #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
         pub struct OutExample {
@@ -73,13 +73,12 @@ fn obj_test() {
     use tantale::core::{EmptyInfo, SId, Searchspace, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
     let func = searchspace::get_function();
-    let _pb: Pb<SId, EmptyInfo, _,_> = Pb::new(sp, func);
+    let _pb: Pb<SId, EmptyInfo, _, _> = Pb::new(sp, func);
     let pb = searchspace::get_problem();
 
     let mut rng = rand::rng();
 
-    fn get_pair<P:Problem<Info = EmptyInfo>>(pb: &P, rng: &mut ThreadRng) -> Shape<P>
-    {
+    fn get_pair<P: Problem<Info = EmptyInfo>>(pb: &P, rng: &mut ThreadRng) -> Shape<P> {
         let obj = pb.get_searchspace().sample_obj(rng);
         let pair = pb.get_searchspace().onto_opt(obj);
         println!(

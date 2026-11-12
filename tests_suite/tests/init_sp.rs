@@ -1,9 +1,10 @@
-pub mod one_step_func{
+pub mod one_step_func {
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{
-        BaseSol, Domain, EmptyInfo, OneStep, SId, utils::aliases::Elem
-    }, macros::{Outcome, Recordable, Schema}};
     use std::sync::Arc;
+    use tantale::{
+        core::{BaseSol, Domain, EmptyInfo, OneStep, SId, utils::aliases::Elem},
+        macros::{Outcome, Recordable, Schema},
+    };
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutStruct {
@@ -11,11 +12,11 @@ pub mod one_step_func{
         out: f64,
     }
 
-    fn example<ObjType:Domain>(_tantale_in: Arc<[Elem<ObjType>]>) -> OutStruct {
-            OutStruct { out: 42.0 }
-        }
+    fn example<ObjType: Domain>(_tantale_in: Arc<[Elem<ObjType>]>) -> OutStruct {
+        OutStruct { out: 42.0 }
+    }
 
-    pub fn get_function<ObjType:Domain>() -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, OutStruct> {
+    pub fn get_function<ObjType: Domain>() -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, OutStruct> {
         OneStep::new(example::<ObjType>)
     }
 
@@ -23,15 +24,18 @@ pub mod one_step_func{
     pub type SolType<ObjType> = BaseSol<SId, ObjType, EmptyInfo>;
 }
 
-pub mod one_step_func_with_out{
-    use tantale::{core::{BaseSol, Domain, EmptyInfo, OneStep, Outcome, SId, utils::aliases::Elem}};
+pub mod one_step_func_with_out {
     use std::sync::Arc;
+    use tantale::core::{BaseSol, Domain, EmptyInfo, OneStep, Outcome, SId, utils::aliases::Elem};
 
-    fn example<ObjType:Domain, Out:Outcome>(_tantale_in: Arc<[Elem<ObjType>]>) -> Out {
-            unreachable!("This function is only used to test the OneStep type, it should not be called");
-        }
+    fn example<ObjType: Domain, Out: Outcome>(_tantale_in: Arc<[Elem<ObjType>]>) -> Out {
+        unreachable!(
+            "This function is only used to test the OneStep type, it should not be called"
+        );
+    }
 
-    pub fn get_function<ObjType:Domain, Out:Outcome>() -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, Out> {
+    pub fn get_function<ObjType: Domain, Out: Outcome>()
+    -> OneStep<BaseSol<SId, ObjType, EmptyInfo>, Out> {
         OneStep::new(example::<ObjType, Out>)
     }
 
@@ -39,14 +43,16 @@ pub mod one_step_func_with_out{
     pub type SolType<ObjType> = BaseSol<SId, ObjType, EmptyInfo>;
 }
 
-pub mod multi_step_func{
+pub mod multi_step_func {
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{
-        Domain, EmptyInfo, Fidelity, FidelitySol, FuncState, MultiStep, StepSId, Step, 
-        utils::aliases::Elem}, 
-        macros::{Outcome, Recordable, Schema}
-    };
     use std::sync::Arc;
+    use tantale::{
+        core::{
+            Domain, EmptyInfo, Fidelity, FidelitySol, FuncState, MultiStep, Step, StepSId,
+            utils::aliases::Elem,
+        },
+        macros::{Outcome, Recordable, Schema},
+    };
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
@@ -74,26 +80,40 @@ pub mod multi_step_func{
         }
     }
 
-    fn example<ObjType:Domain>(_tantale_in: Arc<[Elem<ObjType>]>, _fid: Fidelity, _state: Option<FnState>) -> (FidOutEvaluator, FnState) {
-        (FidOutEvaluator { obj: 42.0, fid: Step::Partially(1) }, FnState { state: 1 })
+    fn example<ObjType: Domain>(
+        _tantale_in: Arc<[Elem<ObjType>]>,
+        _fid: Fidelity,
+        _state: Option<FnState>,
+    ) -> (FidOutEvaluator, FnState) {
+        (
+            FidOutEvaluator {
+                obj: 42.0,
+                fid: Step::Partially(1),
+            },
+            FnState { state: 1 },
+        )
     }
 
-    pub fn get_function<ObjType:Domain>() -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState> {
+    pub fn get_function<ObjType: Domain>()
+    -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState> {
         MultiStep::new(example::<ObjType>)
     }
 
-    pub type FuncType<ObjType> = MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState>;
+    pub type FuncType<ObjType> =
+        MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, FidOutEvaluator, FnState>;
     pub type SolType<ObjType> = FidelitySol<StepSId, ObjType, EmptyInfo>;
 }
 
-pub mod multi_step_func_with_out{
+pub mod multi_step_func_with_out {
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{
-        FidelitySol, Domain, EmptyInfo, FidOutcome, Fidelity, FuncState, MultiStep, StepSId, Step,
-        utils::aliases::Elem
-    },
-    macros::{Outcome, Recordable, Schema}};
     use std::sync::Arc;
+    use tantale::{
+        core::{
+            Domain, EmptyInfo, FidOutcome, Fidelity, FidelitySol, FuncState, MultiStep, Step,
+            StepSId, utils::aliases::Elem,
+        },
+        macros::{Outcome, Recordable, Schema},
+    };
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct FidOutEvaluator {
@@ -121,23 +141,30 @@ pub mod multi_step_func_with_out{
         }
     }
 
-    fn example<ObjType:Domain, Out:FidOutcome>(_tantale_in: Arc<[Elem<ObjType>]>, _fid: Fidelity, _state: Option<FnState>) -> (Out, FnState) {
-        unreachable!("This function is only used to test the MultiStep type, it should not be called");
+    fn example<ObjType: Domain, Out: FidOutcome>(
+        _tantale_in: Arc<[Elem<ObjType>]>,
+        _fid: Fidelity,
+        _state: Option<FnState>,
+    ) -> (Out, FnState) {
+        unreachable!(
+            "This function is only used to test the MultiStep type, it should not be called"
+        );
     }
 
-    pub fn get_function<ObjType:Domain, Out: FidOutcome>() -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState> {
+    pub fn get_function<ObjType: Domain, Out: FidOutcome>()
+    -> MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState> {
         MultiStep::new(example::<ObjType, Out>)
     }
 
-    pub type FuncType<ObjType, Out> = MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState>;
+    pub type FuncType<ObjType, Out> =
+        MultiStep<FidelitySol<StepSId, ObjType, EmptyInfo>, Out, FnState>;
     pub type SolType<ObjType> = FidelitySol<StepSId, ObjType, EmptyInfo>;
 }
 
-
 pub mod sp_mixed_to_single {
     use tantale::core::{
-        domain::{Bool, Cat, Int, Nat, Real},
         distribution::{Bernoulli, Uniform},
+        domain::{Bool, Cat, Int, Nat, Real},
     };
     use tantale::macros::hpo;
 
@@ -159,8 +186,8 @@ pub mod sp_mixed_to_single {
 ///////////////////////////////////////////////////
 
 pub mod sp_single_to_mixed {
-    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -181,8 +208,8 @@ pub mod sp_single_to_mixed {
 ///////////////////////////////////////////////////
 
 pub mod sp_mixed_to_nodomain {
-    use tantale::core::domain::{Bool, Cat, Int, Nat};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Int, Nat};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -203,8 +230,8 @@ pub mod sp_mixed_to_nodomain {
 ///////////////////////////////////////////////////
 
 pub mod sp_single_to_nodomain {
-    use tantale::core::domain::Real;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Real;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -225,8 +252,8 @@ pub mod sp_single_to_nodomain {
 ///////////////////////////////////////////////////
 
 pub mod sp_single_to_single {
-    use tantale::core::domain::{Int, Real};
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::{Int, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -247,8 +274,8 @@ pub mod sp_single_to_single {
 ///////////////////////////////////////////////////
 
 pub mod sp_single_to_mixed_first_hole {
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -266,8 +293,8 @@ pub mod sp_single_to_mixed_first_hole {
 }
 
 pub mod sp_single_to_mixed_second_hole {
-    use tantale::core::domain::{Bool, Cat, Int, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Int, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -285,8 +312,8 @@ pub mod sp_single_to_mixed_second_hole {
 }
 
 pub mod sp_single_to_mixed_last_hole {
-    use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -304,8 +331,8 @@ pub mod sp_single_to_mixed_last_hole {
 }
 
 pub mod sp_single_to_mixed_two_hole {
-    use tantale::core::domain::{Cat, Nat, Real};
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::{Cat, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -326,8 +353,8 @@ pub mod sp_single_to_mixed_two_hole {
 ///////////////////////////////////////////////////
 
 pub mod sp_mixed_to_single_first_hole {
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -345,8 +372,8 @@ pub mod sp_mixed_to_single_first_hole {
 }
 
 pub mod sp_mixed_to_single_second_hole {
-    use tantale::core::domain::{Bool, Cat, Int, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Int, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -364,8 +391,8 @@ pub mod sp_mixed_to_single_second_hole {
 }
 
 pub mod sp_mixed_to_single_last_hole {
-    use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::{Cat, Int, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -383,8 +410,8 @@ pub mod sp_mixed_to_single_last_hole {
 }
 
 pub mod sp_mixed_to_single_two_holes {
-    use tantale::core::domain::{Cat, Nat, Real};
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::{Cat, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -406,8 +433,8 @@ pub mod sp_mixed_to_single_two_holes {
 
 pub mod sp_repeats {
 
-    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::core::distribution::{Bernoulli, Uniform};
+    use tantale::core::domain::{Bool, Cat, Nat, Real};
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 6;
@@ -428,8 +455,8 @@ pub mod sp_repeats {
 ///////////////////////////////////////////////////
 
 pub mod sp_only_real {
-    use tantale::core::domain::Real;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Real;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -447,8 +474,8 @@ pub mod sp_only_real {
 }
 
 pub mod sp_only_int {
-    use tantale::core::domain::Int;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Int;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -465,8 +492,8 @@ pub mod sp_only_int {
     );
 }
 pub mod sp_only_nat {
-    use tantale::core::domain::Nat;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Nat;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -484,8 +511,8 @@ pub mod sp_only_nat {
 }
 
 pub mod sp_only_unit {
-    use tantale::core::domain::Unit;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Unit;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -502,8 +529,8 @@ pub mod sp_only_unit {
     );
 }
 pub mod sp_only_bool {
-    use tantale::core::domain::Bool;
     use tantale::core::distribution::Bernoulli;
+    use tantale::core::domain::Bool;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -521,8 +548,8 @@ pub mod sp_only_bool {
 }
 
 pub mod sp_only_cat {
-    use tantale::core::domain::Cat;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Cat;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -540,8 +567,8 @@ pub mod sp_only_cat {
 }
 
 pub mod sp_only_real_log {
-    use tantale::core::domain::Real;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Real;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -559,8 +586,8 @@ pub mod sp_only_real_log {
 }
 
 pub mod sp_only_int_log {
-    use tantale::core::domain::Int;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Int;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;
@@ -577,8 +604,8 @@ pub mod sp_only_int_log {
     );
 }
 pub mod sp_only_nat_log {
-    use tantale::core::domain::Nat;
     use tantale::core::distribution::Uniform;
+    use tantale::core::domain::Nat;
     use tantale::macros::hpo;
 
     pub const SP_SIZE: usize = 4;

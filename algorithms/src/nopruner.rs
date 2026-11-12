@@ -1,8 +1,16 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::{self, Visitor}, ser::SerializeStruct};
-use tantale_core::{Domain,  HasFidelity, HasState, HasStep, Problem, Sampled, Sampler, State, Step::{self, Partially},
-aliases::{Accum, CompShape, Opt, Shape}, solution::shape::IntoComputedShape};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
+    ser::SerializeStruct,
+};
+use tantale_core::{
+    Domain, HasFidelity, HasState, HasStep, Problem, Sampled, Sampler, State,
+    Step::{self, Partially},
+    aliases::{Accum, CompShape, Opt, Shape},
+    solution::shape::IntoComputedShape,
+};
 use tantale_macros::fidelity_bounds;
 
 /// A helper macro to simplify the type signature of [`NoPruner`].
@@ -19,38 +27,45 @@ macro_rules! nopruner {
 /// A pruner that does not prune any solution.
 /// It stores a [`Partially`](tantale_core::Step::Partially) evaluated solution in the state, and returns it as is
 /// until it becomes [`Evaluated`](tantale_core::Step::Evaluated).
-/// 
+///
 /// It is used when the objective function is a [`MultiStep`](tantale_core::MultiStep),
 /// but the [`Fidelity`](tantale_core::Fidelity) is ignored.
-/// 
+///
 /// The objective is to evaluate a multi-step solution as if it was computed by a [`OneStep`](tantale_core::OneStep)
 /// but with all the usual machinery between step.
-/// 
+///
 /// An optional vector of [`Fidelity`](tantale_core::Fidelity) can be provided to store the fidelity of each step, but it is not used for pruning.
 /// Be careful, the index of the fidelity vector must match the index of the [`Partially`](tantale_core::Step::Partially) step.
 /// Index `0` corresponds to a [`Pending`](tantale_core::Step::Pending) step, index `1` to [`Partially(1)`](tantale_core::Step::Partially) step, and so on.
-/// 
+///
 /// The inner [`Sampler`](tantale_core::Sampler) does not need to be [`Prunable`](tantale_core::Prunable).
 /// The [`update`](tantale_core::Sampler::update) method of the sampler will only be called with fully evaluated solution.
 #[fidelity_bounds(P)]
-pub struct NoPruner<Smpl: Sampler<P, Opt<P>>, P: Problem>{
+pub struct NoPruner<Smpl: Sampler<P, Opt<P>>, P: Problem> {
     pub sampler: Smpl,
     pub partially: Option<CompShape<P>>,
     pub fidelities: Option<Vec<f64>>,
 }
 
 #[fidelity_bounds(P)]
-impl<Smpl: Sampler<P, Opt<P>>, P: Problem> Debug for NoPruner<Smpl, P> where P: Problem {
+impl<Smpl: Sampler<P, Opt<P>>, P: Problem> Debug for NoPruner<Smpl, P>
+where
+    P: Problem,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NoPruner")
-        .field("sampler", &self.sampler)
-        .field("partially", &self.partially)
-        .field("fidelities", &self.fidelities).finish()
+            .field("sampler", &self.sampler)
+            .field("partially", &self.partially)
+            .field("fidelities", &self.fidelities)
+            .finish()
     }
 }
 
 #[fidelity_bounds(P)]
-impl<Smpl: Sampler<P, Opt<P>>, P: Problem> Clone for NoPruner<Smpl, P> where P: Problem { 
+impl<Smpl: Sampler<P, Opt<P>>, P: Problem> Clone for NoPruner<Smpl, P>
+where
+    P: Problem,
+{
     fn clone(&self) -> Self {
         NoPruner {
             sampler: self.sampler.clone(),
@@ -58,12 +73,10 @@ impl<Smpl: Sampler<P, Opt<P>>, P: Problem> Clone for NoPruner<Smpl, P> where P: 
             fidelities: self.fidelities.clone(),
         }
     }
-
 }
 
 #[fidelity_bounds(P)]
-impl<Smpl: Sampler<P, Opt<P>>, P: Problem> State for NoPruner<Smpl, P> where P: Problem { }
-
+impl<Smpl: Sampler<P, Opt<P>>, P: Problem> State for NoPruner<Smpl, P> where P: Problem {}
 
 #[fidelity_bounds(P)]
 impl<Smpl: Sampler<P, Opt<P>>, P: Problem> HasState for NoPruner<Smpl, P> {
@@ -95,14 +108,19 @@ impl<Smpl: Sampler<P, Opt<P>>, P: Problem> NoPruner<Smpl, P> {
 }
 
 #[fidelity_bounds(P, Opt)]
-impl<Smpl: Sampler<P, Opt>, P: Problem, Opt:Domain> Sampler<P, Opt> for NoPruner<Smpl, P> 
-{
+impl<Smpl: Sampler<P, Opt>, P: Problem, Opt: Domain> Sampler<P, Opt> for NoPruner<Smpl, P> {
     type Info = Smpl::Info;
 
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if let Some(partially) = self.partially.take() {
             let mut sol: Shape<P> = IntoComputedShape::extract(partially).0;
-            if let Some(fids) = self.fidelities.as_ref() && let Partially(step) = sol.step(){
+            if let Some(fids) = self.fidelities.as_ref()
+                && let Partially(step) = sol.step()
+            {
                 sol.set_fidelity(fids[step as usize]);
             }
             Some((sol, Sampled::Reused))
@@ -115,7 +133,7 @@ impl<Smpl: Sampler<P, Opt>, P: Problem, Opt:Domain> Sampler<P, Opt> for NoPruner
         }
     }
 
-    fn update(&mut self,x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
         match x.step() {
             Step::Partially(_) => self.partially = Some(x.clone()),
             Step::Evaluated => self.sampler.update(x, _scp, _acc),

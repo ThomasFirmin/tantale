@@ -6,11 +6,7 @@ use tantale::algos::{MoAsha, Premade, RandomSearch, moasha};
 use tantale::core::{Evaluated, Experiment, ParExperiment, ThreadCommunicator};
 use tantale::{
     algos::mo::NSGA2Selector,
-    core::{
-        CSVRecorder, FolderConfig, MessagePack,
-        experiment::Runable,
-        stop::Calls,
-    },
+    core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Calls},
 };
 
 use crate::cleaner::Cleaner;
@@ -26,12 +22,24 @@ fn assert_moasha_promotion(path: &str) {
     for row in readear.records() {
         let row = row.unwrap();
         let name = &row[name_idx];
-        let names = vec!["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"];
-        assert!(names.contains(&name),"Candidate {name} is not one of the expected candidates");
+        let names = vec![
+            "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
+        ];
+        assert!(
+            names.contains(&name),
+            "Candidate {name} is not one of the expected candidates"
+        );
         sequence.push(name.to_string());
     }
 
-    assert_eq!(sequence, vec!["A","K","A","B","B","B","L","F","E","E","D","D","A","D","H","G","C","C","I","J","F","M","N","G","O","P","P","C",], "The sequence of candidates is not as expected");
+    assert_eq!(
+        sequence,
+        vec![
+            "A", "K", "A", "B", "B", "B", "L", "F", "E", "E", "D", "D", "A", "D", "H", "G", "C",
+            "C", "I", "J", "F", "M", "N", "G", "O", "P", "P", "C",
+        ],
+        "The sequence of candidates is not as expected"
+    );
 }
 
 fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
@@ -62,14 +70,25 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
     let mut promoted = false;
     let mut reached_max_budget = false;
     for (id, path) in paths {
-        assert!(!path.is_empty(), "Candidate {id} has no recorded evaluations");
-        assert!(path.len() <= budgets.len(), "Candidate {id} exceeded the ASHA budget ladder");
+        assert!(
+            !path.is_empty(),
+            "Candidate {id} has no recorded evaluations"
+        );
+        assert!(
+            path.len() <= budgets.len(),
+            "Candidate {id} exceeded the ASHA budget ladder"
+        );
 
         for (index, (id_step, fidelity)) in path.iter().enumerate() {
-            assert_eq!(*id_step, index + 1, "Candidate {id} has a discontinuous evaluation step");
+            assert_eq!(
+                *id_step,
+                index + 1,
+                "Candidate {id} has a discontinuous evaluation step"
+            );
             let expected_budget = budgets[index];
             assert!(
-                (fidelity - expected_budget).abs() <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
+                (fidelity - expected_budget).abs()
+                    <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
                 "Candidate {id} used fidelity {fidelity} at step {}, expected {expected_budget}",
                 index + 1
             );
@@ -80,7 +99,10 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
     }
 
     assert!(promoted, "No candidate was promoted to a higher fidelity");
-    assert!(reached_max_budget, "No candidate reached the maximum ASHA budget");
+    assert!(
+        reached_max_budget,
+        "No candidate reached the maximum ASHA budget"
+    );
 
     let recorder_dir = std::path::Path::new(path).join("recorder");
     for file in ["obj.csv", "opt.csv", "cod.csv", "out.csv"] {
@@ -95,7 +117,7 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
 }
 
 pub mod searchspace {
-    use super::init_func::{MoFidOutEvaluator, FnState};
+    use super::init_func::{FnState, MoFidOutEvaluator};
     use tantale::core::Step;
     use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
@@ -145,29 +167,29 @@ fn test_moasha_promotion() {
     }
 
     let pb = searchspace::get_problem();
-    
+
     let solutions = vec![
         (vec![0.1, 10., 6.], "A".to_string()),
-        (vec![0.11, 1. , 2.], "K".to_string()),
-        (vec![0.2, 8. , 7.], "B".to_string()),
-        (vec![0.12, 1. , 2.], "L".to_string()),
-        (vec![0.6, 3. , 4.], "F".to_string()),
-        (vec![0.5, 4. , 5.], "E".to_string()),
-        (vec![0.4, 5. , 9.], "D".to_string()),
-        (vec![0.8, 1. , 2.], "H".to_string()),
-        (vec![0.7, 2. , 3.], "G".to_string()),
-        (vec![0.3, 6. , 8.], "C".to_string()),
-        (vec![0.8, 1. , 2.], "I".to_string()),
-        (vec![0.9, 1. , 2.], "J".to_string()),
-        (vec![0.13, 1. , 2.], "M".to_string()),
-        (vec![0.14, 1. , 2.], "N".to_string()),
-        (vec![0.15, 1. , 2.], "O".to_string()),
-        (vec![0.15, 1. , 2.], "P".to_string()),
-        (vec![0.15, 1. , 2.], "Q".to_string()),
+        (vec![0.11, 1., 2.], "K".to_string()),
+        (vec![0.2, 8., 7.], "B".to_string()),
+        (vec![0.12, 1., 2.], "L".to_string()),
+        (vec![0.6, 3., 4.], "F".to_string()),
+        (vec![0.5, 4., 5.], "E".to_string()),
+        (vec![0.4, 5., 9.], "D".to_string()),
+        (vec![0.8, 1., 2.], "H".to_string()),
+        (vec![0.7, 2., 3.], "G".to_string()),
+        (vec![0.3, 6., 8.], "C".to_string()),
+        (vec![0.8, 1., 2.], "I".to_string()),
+        (vec![0.9, 1., 2.], "J".to_string()),
+        (vec![0.13, 1., 2.], "M".to_string()),
+        (vec![0.14, 1., 2.], "N".to_string()),
+        (vec![0.15, 1., 2.], "O".to_string()),
+        (vec![0.15, 1., 2.], "P".to_string()),
+        (vec![0.15, 1., 2.], "Q".to_string()),
     ];
 
     let sampler = Premade::new(solutions, false);
-    let opt =  MoAsha::new(sampler, NSGA2Selector, 1., 4., 2.).unwrap(); // log(max/min)
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 4., 2.).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(4);
     let config = FolderConfig::new("tmp_test_moasha_promotion");
@@ -180,12 +202,11 @@ fn test_moasha_promotion() {
     assert_moasha_promotion("tmp_test_moasha_promotion");
 }
 
-
 #[test]
 fn test_fid_seq_run() {
     let _clean = Cleaner::new("tmp_test_moasha_rs");
 
-    let budgets = vec![1.,2.,4.];
+    let budgets = vec![1., 2., 4.];
 
     let pb = searchspace::get_problem();
     let sampler = RandomSearch::new();
@@ -208,7 +229,8 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec,check);
+    let mut exp =
+        Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -228,10 +250,11 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec,check);
+    let exp =
+        Experiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _>::load(pb, rec, check);
 
     // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-    assert_moasha_fidelity_paths("tmp_test_moasha_rs", &[1.,2., 4.]);
+    assert_moasha_fidelity_paths("tmp_test_moasha_rs", &[1., 2., 4.]);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = &exp.sampler;
@@ -247,7 +270,7 @@ fn test_fid_seq_run() {
 fn test_fid_seq_parrun() {
     let _clean = Cleaner::new("tmp_test_moasha_parrs");
 
-    let budgets = vec![1.,2.,4.];
+    let budgets = vec![1., 2., 4.];
 
     let pb = searchspace::get_problem();
     let sampler = RandomSearch::new();
@@ -272,7 +295,9 @@ fn test_fid_seq_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(pb, rec,check, com);
+    let mut exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(
+        pb, rec, check, com,
+    );
 
     match exp.master_mut() {
         Some(m) => {
@@ -286,7 +311,7 @@ fn test_fid_seq_parrun() {
                 expoptimizer.budgets, budgets
             );
             assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
-        },
+        }
         None => panic!("This should be the master process"),
     }
     exp.run();
@@ -298,12 +323,14 @@ fn test_fid_seq_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(pb, rec,check, com);
+    let exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(
+        pb, rec, check, com,
+    );
 
     match exp.master() {
         Some(m) => {
             // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-            assert_moasha_fidelity_paths("tmp_test_moasha_parrs", &[1.,2., 4.]);
+            assert_moasha_fidelity_paths("tmp_test_moasha_parrs", &[1., 2., 4.]);
             let expstop = &m.stop;
             assert_eq!(expstop.0, 100, "Number of calls is wrong");
             let expoptimizer = &m.sampler;
@@ -313,8 +340,7 @@ fn test_fid_seq_parrun() {
                 expoptimizer.budgets, budgets
             );
             assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
-        },
+        }
         None => panic!("This should be the master process"),
-        
     }
 }

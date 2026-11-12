@@ -1,11 +1,7 @@
 use tantale::algos::{RandomSearch, Sha, sha};
-use tantale::core::{Experiment, ParExperiment, ThreadCommunicator};
 use tantale::core::optimizer::opt::Batched;
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::Runable,
-    stop::Evaluated,
-};
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Evaluated};
+use tantale::core::{Experiment, ParExperiment, ThreadCommunicator};
 
 use crate::cleaner::Cleaner;
 use crate::init_func;
@@ -79,8 +75,6 @@ fn test_fid_batch_run() {
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
-    println!("PENDING AFTER LOAD: {} -------------------------", exp.sampler.pending);
-
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
@@ -136,9 +130,10 @@ fn test_fid_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    match exp.master_mut(){
+    match exp.master_mut() {
         Some(m) => {
             let expstop = &mut m.stop;
             assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -161,7 +156,7 @@ fn test_fid_batch_parrun() {
     let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     run_reader("tmp_test_sha_batch_parrun", 1800);
-    match exp.master(){
+    match exp.master() {
         Some(m) => {
             let expstop = &m.stop;
             assert_eq!(expstop.0, 100, "Number of calls is wrong");

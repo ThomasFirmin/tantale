@@ -3,8 +3,8 @@ use paste::paste;
 use tantale::core::utils::xy::XToNdArray;
 use tantale::core::{BaseSol, EmptyInfo, SId, Searchspace, Sp, solution::shape::SolutionShape};
 
-use super::init_sp::*;
 use super::init_sp::one_step_func::FuncType;
+use super::init_sp::*;
 use super::init_sp_grid::*;
 
 macro_rules! get_test {

@@ -15,8 +15,14 @@ pub enum SelectorError {
 impl ErrMsg for SelectorError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SelectorError::ConfigError(msg) => write!(f, "Selector error: Invalid configuration for the selector. {msg}"),
-            SelectorError::NotEnoughPoints(msg) => write!(f, "Selector error: Not enough points in the archive to perform selection. {msg}"),
+            SelectorError::ConfigError(msg) => write!(
+                f,
+                "Selector error: Invalid configuration for the selector. {msg}"
+            ),
+            SelectorError::NotEnoughPoints(msg) => write!(
+                f,
+                "Selector error: Not enough points in the archive to perform selection. {msg}"
+            ),
         }
     }
 }
@@ -28,8 +34,16 @@ err_msg!(SelectorError);
 /// # See also
 /// - [`NSGA2Selector`]: An implementation of the NSGA-II crowding distance selection operator.
 pub trait CandidateSelector: Debug + Clone + Serialize + for<'a> Deserialize<'a> {
-    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(&self, values: &'a mut [V], size: usize) -> Result<Vec<&'a T>, SelectorError>;
-    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Result<Vec<usize>, SelectorError>;
+    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(
+        &self,
+        values: &'a mut [V],
+        size: usize,
+    ) -> Result<Vec<&'a T>, SelectorError>;
+    fn arg_select_candidates<T: Dominate>(
+        &self,
+        values: &[T],
+        size: usize,
+    ) -> Result<Vec<usize>, SelectorError>;
 }
 
 /// Implements the NSGA-II crowding distance selection operator, described in [Deb et al. (2002)](https://ieeexplore.ieee.org/document/996017).
@@ -130,11 +144,17 @@ pub struct NSGA2Selector;
 /// 14. &emsp; **return** $C$
 /// ---
 impl CandidateSelector for NSGA2Selector {
-    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(&self, values: &'a mut [V], size: usize) -> Result<Vec<&'a T>, SelectorError> {
+    fn select_candidates<'a, T: Dominate, V: Dominate + DominateView<T>>(
+        &self,
+        values: &'a mut [V],
+        size: usize,
+    ) -> Result<Vec<&'a T>, SelectorError> {
         if values.len() == size {
             Ok(values.iter().map(|v| v.view()).collect())
         } else if values.len() < size {
-            Err(SelectorError::NotEnoughPoints("Not enough points in the archive to perform selection."))
+            Err(SelectorError::NotEnoughPoints(
+                "Not enough points in the archive to perform selection.",
+            ))
         } else {
             let fronts = values.non_dominated_sort();
             let mut candidates = Vec::new();
@@ -164,11 +184,17 @@ impl CandidateSelector for NSGA2Selector {
         }
     }
 
-    fn arg_select_candidates<T: Dominate>(&self, values: &[T], size: usize) -> Result<Vec<usize>, SelectorError> {
+    fn arg_select_candidates<T: Dominate>(
+        &self,
+        values: &[T],
+        size: usize,
+    ) -> Result<Vec<usize>, SelectorError> {
         if values.len() == size {
             Ok((0..values.len()).collect())
         } else if values.len() < size {
-            Err(SelectorError::NotEnoughPoints("Not enough points in the archive to perform selection."))
+            Err(SelectorError::NotEnoughPoints(
+                "Not enough points in the archive to perform selection.",
+            ))
         } else {
             let fronts = values.non_dominated_argsort();
             let mut candidates = Vec::new();

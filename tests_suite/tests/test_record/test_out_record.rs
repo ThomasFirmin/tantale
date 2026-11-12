@@ -3,7 +3,7 @@ use tantale::core::utils::record::{Recordable, Schema};
 mod outcome {
     use serde::{Deserialize, Serialize};
     use tantale::core::objective::Step;
-    use tantale::macros::{Schema, Recordable, Outcome};
+    use tantale::macros::{Outcome, Recordable, Schema};
 
     #[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
     pub struct OutExample {

@@ -30,7 +30,7 @@ fn is_evalstate_type(ty: &Type) -> bool {
 /// This function processes a struct and derives implementations for automatic recordable functionality.
 pub fn proc_recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let tantale_crate = schema_crate_path();
-    
+
     let input = parse_macro_input!(input as ItemStruct);
 
     let eident = input.ident;
@@ -64,7 +64,7 @@ pub fn proc_recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         }
     });
 
-    quote!{
+    quote! {
         impl #egenerics #tantale_crate::Recordable<()> for #eident #egenerics #ewhere
         {
             type Parts = ();
@@ -72,5 +72,6 @@ pub fn proc_recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
                 Vec::from([#(#to_string_stmts,)*])
             }
         }
-    }.into()
+    }
+    .into()
 }

@@ -23,7 +23,10 @@ where
     ///
     /// # Returns
     /// A tuple containing two slices: the first slice corresponds to the "good" set (the best points), and the second slice corresponds to the "bad" set (the worst points).
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError>;
+    fn split<'a>(
+        &self,
+        archive: &'a OrderedArchive<T>,
+    ) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError>;
 }
 
 /// A simple linear [`Splitter`].
@@ -50,12 +53,20 @@ impl<T> Splitter<T> for LinearSplit
 where
     T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
+    fn split<'a>(
+        &self,
+        archive: &'a OrderedArchive<T>,
+    ) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         if archive.size() <= 1 {
-            return Err(SplitError::NotEnoughPoints("Archive must have more than one point"));
+            return Err(SplitError::NotEnoughPoints(
+                "Archive must have more than one point",
+            ));
         } else if archive.size() == 2 {
             // last is put in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
-            return Ok((vec![archive.points.first().unwrap()], vec![archive.points.last().unwrap()]));
+            return Ok((
+                vec![archive.points.first().unwrap()],
+                vec![archive.points.last().unwrap()],
+            ));
         }
         let quantile = (archive.size() as f64 * (1.0 - self.0)).ceil() as usize;
         let (bad, good) = archive.points.split_at(quantile);
@@ -92,18 +103,28 @@ impl<T> Splitter<T> for SqrtSplit
 where
     T: Orderable + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
+    fn split<'a>(
+        &self,
+        archive: &'a OrderedArchive<T>,
+    ) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         if archive.size() <= 1 {
-            return Err(SplitError::NotEnoughPoints("Archive must have more than one point"));
+            return Err(SplitError::NotEnoughPoints(
+                "Archive must have more than one point",
+            ));
         } else if archive.size() == 2 {
             // last is put in the good set and first in the bad set to avoid empty good set, which would cause an error in the TPE algorithm
-            return Ok((vec![archive.points.last().unwrap()], vec![archive.points.first().unwrap()]));
+            return Ok((
+                vec![archive.points.last().unwrap()],
+                vec![archive.points.first().unwrap()],
+            ));
         }
 
         let size = archive.size() as f64;
         let quantile = (size - (self.0 / size.sqrt())).ceil();
         if quantile <= 0.0 || quantile >= size {
-            return Err(SplitError::NotEnoughPoints("Not enough points in the archive to perform a valid split."));
+            return Err(SplitError::NotEnoughPoints(
+                "Not enough points in the archive to perform a valid split.",
+            ));
         }
         let quantile = quantile as usize;
         let (bad, good) = archive.points.split_at(quantile);
@@ -119,7 +140,9 @@ where
         return Ok(std::mem::take(front));
     }
     if front.len() < n {
-        return Err(SplitError::NotEnoughPoints("Not enough points in the front to extract the requested number of points."));
+        return Err(SplitError::NotEnoughPoints(
+            "Not enough points in the front to extract the requested number of points.",
+        ));
     }
 
     // Create a 2D array from the front points / negate because WFG consider a minimization problem
@@ -209,7 +232,10 @@ impl<T> Splitter<T> for MOSplit
 where
     T: Dominate + Serialize + for<'a> Deserialize<'a>,
 {
-    fn split<'a>(&self, archive: &'a OrderedArchive<T>) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
+    fn split<'a>(
+        &self,
+        archive: &'a OrderedArchive<T>,
+    ) -> Result<(Vec<&'a T>, Vec<&'a T>), SplitError> {
         let quantile = (archive.size() as f64 * self.0).ceil() as usize;
 
         let mut fronts = archive.lex_non_dominated_sort();

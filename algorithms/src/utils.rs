@@ -5,7 +5,12 @@ use std::{cell::RefCell, fmt::Debug};
 use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use tantale_core::{
-    Dominate, Orderable, Problem, Recordable, Schema, Searchspace, SolInfo, aliases::{CompShape, Shape}, err_msg, errors::ErrMsg, utils::ShapeWithInfo};
+    Dominate, Orderable, Problem, Recordable, Schema, Searchspace, SolInfo,
+    aliases::{CompShape, Shape},
+    err_msg,
+    errors::ErrMsg,
+    utils::ShapeWithInfo,
+};
 
 pub mod mo;
 
@@ -16,14 +21,16 @@ pub enum PrunerError {
 impl ErrMsg for PrunerError {
     fn _err_msg(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            PrunerError::BudgetError(msg) => write!(f, "Pruner error: Invalid budget configuration. {msg}"),
+            PrunerError::BudgetError(msg) => {
+                write!(f, "Pruner error: Invalid budget configuration. {msg}")
+            }
             PrunerError::SamplerError(msg) => write!(f, "Pruner error: Sampler error. {msg}"),
         }
     }
 }
 err_msg!(PrunerError);
 
-pub fn build_halving_budgets(min: f64,max: f64,scaling: f64) -> Result<Vec<f64>, PrunerError> {
+pub fn build_halving_budgets(min: f64, max: f64, scaling: f64) -> Result<Vec<f64>, PrunerError> {
     if !scaling.is_finite() || scaling <= 1.0 {
         return Err(PrunerError::BudgetError(
             "Scaling factor must be finite and > 1.0",
@@ -69,7 +76,12 @@ pub fn build_halving_budgets(min: f64,max: f64,scaling: f64) -> Result<Vec<f64>,
     Ok(budgets)
 }
 
-pub fn build_halving_budgets_with_levels(min: f64,max: f64,scaling: f64,num_levels: usize) -> Result<Vec<f64>, PrunerError> {
+pub fn build_halving_budgets_with_levels(
+    min: f64,
+    max: f64,
+    scaling: f64,
+    num_levels: usize,
+) -> Result<Vec<f64>, PrunerError> {
     if !scaling.is_finite() || scaling <= 1.0 {
         return Err(PrunerError::BudgetError(
             "Scaling factor must be finite and > 1.0",
@@ -89,9 +101,7 @@ pub fn build_halving_budgets_with_levels(min: f64,max: f64,scaling: f64,num_leve
     }
 
     if num_levels == 0 {
-        return Err(PrunerError::BudgetError(
-            "Number of levels must be > 0",
-        ));
+        return Err(PrunerError::BudgetError("Number of levels must be > 0"));
     }
 
     if num_levels == 1 {
@@ -131,16 +141,18 @@ pub fn build_halving_budgets_with_levels(min: f64,max: f64,scaling: f64,num_leve
     Ok(budgets)
 }
 
-
 /// A single entry in a rung of the Asynchronous Successive Halving algorithm.
 #[derive(Serialize, Deserialize)]
-#[serde(bound(serialize = "CompShape<P>: Serialize", deserialize = "CompShape<P>: Deserialize<'de>"))]
+#[serde(bound(
+    serialize = "CompShape<P>: Serialize",
+    deserialize = "CompShape<P>: Deserialize<'de>"
+))]
 pub struct PromotableShape<P: Problem> {
     pub result: CompShape<P>,
     pub promoted: bool,
 }
 
-impl<P:Problem> Debug for PromotableShape<P> 
+impl<P: Problem> Debug for PromotableShape<P>
 where
     CompShape<P>: Orderable,
 {
@@ -152,7 +164,7 @@ where
     }
 }
 
-impl<P:Problem> Orderable for PromotableShape<P>
+impl<P: Problem> Orderable for PromotableShape<P>
 where
     CompShape<P>: Orderable,
 {
@@ -161,28 +173,28 @@ where
     }
 }
 
-impl<P:Problem> Dominate for PromotableShape<P> 
+impl<P: Problem> Dominate for PromotableShape<P>
 where
     CompShape<P>: Dominate,
 {
     fn dominates(&self, other: &Self) -> bool {
         self.result.dominates(&other.result)
     }
-    
+
     fn get_objectives(&self) -> &[f64] {
         self.result.get_objectives()
     }
-    
+
     fn get_objective_by_index(&self, idx: usize) -> f64 {
         self.result.get_objective_by_index(idx)
     }
-    
+
     fn len_objectives(&self) -> usize {
         self.result.len_objectives()
     }
 }
 
-impl<P:Problem> Clone for PromotableShape<P> 
+impl<P: Problem> Clone for PromotableShape<P>
 where
     CompShape<P>: Orderable,
 {
@@ -194,7 +206,7 @@ where
     }
 }
 
-impl<P:Problem> PromotableShape<P> 
+impl<P: Problem> PromotableShape<P>
 where
     CompShape<P>: Orderable,
 {
@@ -222,7 +234,7 @@ where
     }
 }
 
-/// A type alias for a vector of vectors of [`PromotableShape`]s, 
+/// A type alias for a vector of vectors of [`PromotableShape`]s,
 /// representing the rungs in the Asynchronous Successive Halving algorithm
 /// or its multi-objective version.
 pub type Rungs<P> = Vec<Vec<PromotableShape<P>>>;
@@ -244,19 +256,19 @@ impl Recordable<()> for BracketInfo {
     }
 }
 
-impl SolInfo for BracketInfo { }
+impl SolInfo for BracketInfo {}
 
 thread_local! {
     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
 }
 
 /// Executes a closure with a thread-local random number generator.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```rust
 /// use tantale::algorithms::utils::with_rng;
-/// 
+///
 /// let random_value = with_rng(|rng| rng.gen::<f64>());
 /// ```
 pub fn with_rng<F, T>(f: F) -> T
@@ -266,9 +278,8 @@ where
     THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
 }
 
-
 /// Refills a vector of [`Shape`]s until it reaches the specified length by sampling from the provided [`Searchspace`].
-pub fn refill<P, I>(v:&mut Vec<ShapeWithInfo<Shape<P>, I>>, scp: &P::Scp, until: usize) 
+pub fn refill<P, I>(v: &mut Vec<ShapeWithInfo<Shape<P>, I>>, scp: &P::Scp, until: usize)
 where
     P: Problem,
     I: SolInfo,
@@ -281,14 +292,18 @@ where
 
 /// Refills a vector of [`Shape`]s until it reaches the specified length by sampling from the provided [`Searchspace`],
 /// and applies a transformation function to each sampled shape.
-pub fn refill_apply<P, I, F>(v:&mut Vec<ShapeWithInfo<Shape<P>, I>>, scp: &P::Scp, until: usize, f: F) 
-where
-    P:Problem,
+pub fn refill_apply<P, I, F>(
+    v: &mut Vec<ShapeWithInfo<Shape<P>, I>>,
+    scp: &P::Scp,
+    until: usize,
+    f: F,
+) where
+    P: Problem,
     I: SolInfo,
     F: Fn(Shape<P>) -> (Shape<P>, I) + Send + Sync,
 {
     while v.len() < until {
         let res = f(with_rng(|rng| scp.sample_pair(rng)));
-        v.push(res.into())        
+        v.push(res.into())
     }
 }

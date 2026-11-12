@@ -1,12 +1,14 @@
 use crate::{
-    Cat, GridDom, GridInt, GridNat, GridReal, domain::{
+    Cat, GridDom, GridInt, GridNat, GridReal,
+    domain::{
         Domain, PreDomain,
         bool::Bool,
         bounded::{Int, Nat, Real},
         grid::GridBounds,
         onto::{Onto, OntoDom},
         unit::Unit,
-    }, errors::OntoError,
+    },
+    errors::OntoError,
     utils::aliases::Elem,
 };
 

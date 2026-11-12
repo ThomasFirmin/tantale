@@ -94,7 +94,12 @@
 use std::{cmp::Ordering, fmt::Debug};
 
 use crate::{
-    Dominate, HasState, HasY, SolutionShape, State, objective::outcome::Outcome, utils::{orderable::Orderable, record::{Recordable, Schema}},
+    Dominate, HasState, HasY, SolutionShape, State,
+    objective::outcome::Outcome,
+    utils::{
+        orderable::Orderable,
+        record::{Recordable, Schema},
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -106,7 +111,14 @@ pub type Criteria<Out> = fn(&Out) -> f64;
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>: Send + Sync + Debug + Sized {
     /// The type of elements extracted from the [`Outcome`] by this [`Codomain`].
-    type TypeCodom: Send + Sync + Clone + Debug + Schema<Self, Parts = ()> + Recordable<Self, Parts = ()> + Serialize + for<'a> Deserialize<'a>;
+    type TypeCodom: Send
+        + Sync
+        + Clone
+        + Debug
+        + Schema<Self, Parts = ()>
+        + Recordable<Self, Parts = ()>
+        + Serialize
+        + for<'a> Deserialize<'a>;
 
     /// The accumulator type used to track the best solution seen so far.
     type Acc<C>: Accumulator<C>
@@ -148,7 +160,7 @@ where
 }
 
 /// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Single`] [`Codomain`].
-pub trait ElemSingle : Orderable {
+pub trait ElemSingle: Orderable {
     fn value(&self) -> f64;
 }
 
@@ -165,7 +177,7 @@ where
 }
 
 /// Defines an element [`TypeCodom`](Codomain::TypeCodom) from a [`Multi`] [`Codomain`].
-pub trait ElemMulti : Dominate {
+pub trait ElemMulti: Dominate {
     fn value(&self) -> &[f64];
 }
 
@@ -174,7 +186,7 @@ pub trait ElemMulti : Dominate {
 /// revealed through the evaluation of the objective function.
 /// The [`Optimizer`](crate::Optimizer) defines how to handle these constraints, by defining
 /// when a constraint is satisfied or not.
-pub trait Constrained<Out: Outcome>: Codomain<Out> 
+pub trait Constrained<Out: Outcome>: Codomain<Out>
 where
     Self::TypeCodom: ElemConstrained,
 {
@@ -190,7 +202,7 @@ pub trait ElemConstrained {
 }
 
 /// Defines a [`Codomain`] containing the cost (e.g. time) of an evaluation.
-pub trait Cost<Out: Outcome>: Codomain<Out> 
+pub trait Cost<Out: Outcome>: Codomain<Out>
 where
     Self::TypeCodom: ElemCost,
 {
@@ -255,9 +267,7 @@ where
 {
     /// Creates an empty [`BestAccumulator`].
     pub fn new() -> Self {
-        BestAccumulator {
-            best: None,
-        }
+        BestAccumulator { best: None }
     }
 
     /// Returns a reference to the best element, or [`None`].
@@ -276,11 +286,12 @@ where
     }
 }
 
-impl<C> State for BestAccumulator<C> 
+impl<C> State for BestAccumulator<C>
 where
     C: SolutionShape + HasY,
     C::Y: ElemSingle + Ord,
-{}
+{
+}
 
 impl<C> HasState for BestAccumulator<C>
 where
@@ -310,9 +321,7 @@ where
     fn accumulate(&mut self, computed: &C) {
         match &self.best {
             None => self.best = Some(computed.clone()),
-            Some(current) if computed.y() > current.y() => {
-                self.best = Some(computed.clone())
-            }
+            Some(current) if computed.y() > current.y() => self.best = Some(computed.clone()),
             _ => {}
         }
     }
@@ -351,7 +360,7 @@ where
 {
     /// Creates an empty [`ParetoAccumulator`].
     pub fn new() -> Self {
-        ParetoAccumulator { front: Vec::new()}
+        ParetoAccumulator { front: Vec::new() }
     }
 
     /// Returns a slice of the current Pareto front.
@@ -374,24 +383,24 @@ impl<C> State for ParetoAccumulator<C>
 where
     C: SolutionShape + HasY,
     C::Y: ElemMulti,
-{}
-
+{
+}
 
 impl<C> HasState for ParetoAccumulator<C>
 where
     C: SolutionShape + HasY,
-    C::Y: ElemMulti, 
+    C::Y: ElemMulti,
 {
     type State = ParetoAccumulator<C>;
-    
+
     fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
-    
+
     fn get_state(&self) -> &Self::State {
         self
     }
-    
+
     fn from_state(state: Self::State) -> Self {
         state
     }
@@ -424,8 +433,6 @@ impl<Out: Outcome> SingleCodomain<Out> {
         SingleCodomain { y_criteria: crit }
     }
 }
-
-
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`SingleCodomain`].
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -479,9 +486,10 @@ impl ElemSingle for ElemSingleCodomain {
 
 impl<Out: Outcome> Codomain<Out> for SingleCodomain<Out> {
     type TypeCodom = ElemSingleCodomain;
-    type Acc<C> = BestAccumulator<C>
+    type Acc<C>
+        = BestAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemSingleCodomain {
@@ -595,9 +603,10 @@ impl ElemCost for ElemCostCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostCodomain<Out> {
     type TypeCodom = ElemCostCodomain;
-    type Acc<C> = BestAccumulator<C>
+    type Acc<C>
+        = BestAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostCodomain {
@@ -633,8 +642,6 @@ impl<Out: Outcome> ConstCodomain<Out> {
         }
     }
 }
-
-
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`ConstCodomain`].
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -722,9 +729,10 @@ impl ElemConstrained for ElemConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstCodomain<Out> {
     type TypeCodom = ElemConstCodomain;
-    type Acc<C> = BestAccumulator<C>
+    type Acc<C>
+        = BestAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemConstCodomain {
@@ -763,9 +771,6 @@ impl<Out: Outcome> CostConstCodomain<Out> {
         }
     }
 }
-
-
-
 
 /// An element [`TypeCodom`](Codomain::TypeCodom) from [`CostConstCodomain`].
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -878,9 +883,10 @@ impl ElemConstrained for ElemCostConstCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstCodomain<Out> {
     type TypeCodom = ElemCostConstCodomain;
-    type Acc<C> = BestAccumulator<C>
+    type Acc<C>
+        = BestAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostConstCodomain {
@@ -976,9 +982,10 @@ impl ElemMulti for ElemMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for MultiCodomain<Out> {
     type TypeCodom = ElemMultiCodomain;
-    type Acc<C> = ParetoAccumulator<C>
+    type Acc<C>
+        = ParetoAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemMultiCodomain {
@@ -1080,7 +1087,8 @@ impl ElemCost for ElemCostMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostMultiCodomain<Out> {
     type TypeCodom = ElemCostMultiCodomain;
-    type Acc<C> = ParetoAccumulator<C>
+    type Acc<C>
+        = ParetoAccumulator<C>
     where
         C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
@@ -1198,7 +1206,8 @@ impl ElemConstrained for ElemConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for ConstMultiCodomain<Out> {
     type TypeCodom = ElemConstMultiCodomain;
-    type Acc<C> = ParetoAccumulator<C>
+    type Acc<C>
+        = ParetoAccumulator<C>
     where
         C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
@@ -1341,9 +1350,10 @@ impl ElemConstrained for ElemCostConstMultiCodomain {
 
 impl<Out: Outcome> Codomain<Out> for CostConstMultiCodomain<Out> {
     type TypeCodom = ElemCostConstMultiCodomain;
-    type Acc<C> = ParetoAccumulator<C>
+    type Acc<C>
+        = ParetoAccumulator<C>
     where
-        C: SolutionShape + HasY<Y = Self::TypeCodom>,;
+        C: SolutionShape + HasY<Y = Self::TypeCodom>;
 
     fn get_elem(&self, o: &Out) -> Self::TypeCodom {
         ElemCostConstMultiCodomain {

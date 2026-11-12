@@ -26,12 +26,14 @@
 //! recorder.save(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
 //! ```
 
-use crate::{Problem, errors::RecorderError, utils::record::{Recordable, Schema}};
+use crate::{
+    Problem,
+    errors::RecorderError,
+    utils::record::{Recordable, Schema},
+};
 
 pub mod csv;
 pub use csv::CSVRecorder;
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecorderTargets {
@@ -51,7 +53,7 @@ pub enum RecorderTargets {
 ///
 /// This is a base trait that all recorders must implement. The actual recording functionality
 /// is provided by specialized traits like [`SeqRecorder`] and [`BatchRecorder`].
-/// 
+///
 /// # See Also
 /// - [`CSVRecorder`] - A concrete implementation that saves results to CSV files.
 pub trait Recorder<P: Problem, Context> {
@@ -70,12 +72,24 @@ pub trait Recorder<P: Problem, Context> {
     /// Record a evaluated solution and its outcome.
     ///
     /// This method is called after each solution evaluation to persist the result.
-    fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    fn record<T, CR, CS>(
+        &self,
+        target: &RecorderTargets,
+        object: &T,
+        contexts: (&CR, &CS),
+        part: <T as Recordable<CR>>::Parts,
+    ) -> Result<(), RecorderError>
     where
         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>;
 
     /// Same as [`record`](Recorder::record) but for a vector of [`Recordable`] objects.
-    fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    fn vec_record<I, T, CR, CS>(
+        &self,
+        target: &RecorderTargets,
+        object: I,
+        contexts: (&CR, &CS),
+        part: <T as Recordable<CR>>::Parts,
+    ) -> Result<(), RecorderError>
     where
         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
         I: IntoIterator<Item = T>;

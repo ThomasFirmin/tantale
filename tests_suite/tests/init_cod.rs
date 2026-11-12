@@ -1,4 +1,3 @@
-use tantale::{core::{ElemSpikeCostCodomain, Outcome, spikes::{ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain}}, macros::{Recordable, Schema}};
 pub use tantale::core::{
     domain::codomain::{
         ConstCodomain, ConstMultiCodomain, CostCodomain, CostConstCodomain, CostConstMultiCodomain,
@@ -9,6 +8,17 @@ pub use tantale::core::{
     objective::Step,
 };
 use tantale::macros::Outcome;
+use tantale::{
+    core::{
+        ElemSpikeCostCodomain, Outcome,
+        spikes::{
+            ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain,
+            ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain,
+            ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain,
+        },
+    },
+    macros::{Recordable, Schema},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -283,7 +293,14 @@ pub struct OutSpikeCodSingle {
 }
 
 pub fn get_elemspike() -> (<OutSpikeCodSingle as Outcome>::Cod, ElemSpikeCodomain) {
-    (OutSpikeCodSingle::codomain(), ElemSpikeCodomain { value: 1.1 , samples: 10, spiking: 3})
+    (
+        OutSpikeCodSingle::codomain(),
+        ElemSpikeCodomain {
+            value: 1.1,
+            samples: 10,
+            spiking: 3,
+        },
+    )
 }
 
 #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
@@ -376,7 +393,10 @@ pub struct OutSpikeCodCostConst {
     #[spiking]
     pub spiking: usize,
 }
-pub fn get_elemspikecostconst() -> (<OutSpikeCodCostConst as Outcome>::Cod, ElemSpikeCostConstCodomain) {
+pub fn get_elemspikecostconst() -> (
+    <OutSpikeCodCostConst as Outcome>::Cod,
+    ElemSpikeCostConstCodomain,
+) {
     (
         OutSpikeCodCostConst::codomain(),
         ElemSpikeCostConstCodomain {
@@ -447,7 +467,10 @@ pub struct OutSpikeCodCostMulti {
     #[spiking]
     pub spiking: usize,
 }
-pub fn get_elemspikecostmulti() -> (<OutSpikeCodCostMulti as Outcome>::Cod, ElemSpikeCostMultiCodomain) {
+pub fn get_elemspikecostmulti() -> (
+    <OutSpikeCodCostMulti as Outcome>::Cod,
+    ElemSpikeCostMultiCodomain,
+) {
     (
         OutSpikeCodCostMulti::codomain(),
         ElemSpikeCostMultiCodomain {
@@ -485,7 +508,10 @@ pub struct OutSpikeCodConstMulti {
     #[spiking]
     pub spiking: usize,
 }
-pub fn get_elemspikeconstmulti() -> (<OutSpikeCodConstMulti as Outcome>::Cod, ElemSpikeConstMultiCodomain) {
+pub fn get_elemspikeconstmulti() -> (
+    <OutSpikeCodConstMulti as Outcome>::Cod,
+    ElemSpikeConstMultiCodomain,
+) {
     (
         OutSpikeCodConstMulti::codomain(),
         ElemSpikeConstMultiCodomain {

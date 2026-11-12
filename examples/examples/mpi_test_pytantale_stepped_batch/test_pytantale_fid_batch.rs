@@ -12,8 +12,8 @@ use crate::run_checker::run_reader;
 pub fn test_python_function() {
     pub mod searchspace {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -34,8 +34,7 @@ pub fn test_python_function() {
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-    
-    
+
     let sampler = RandomSearch::new();
     let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
@@ -45,7 +44,7 @@ pub fn test_python_function() {
     let check = MessagePack::new(config);
 
     let pb = Pb::new(searchspace::get_searchspace(), obj);
-    
+
     let com = MPICommunicator::new(&pb);
     let com1 = com.clone();
     let com2 = com.clone();
@@ -63,7 +62,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1);
+    let mut exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1);
 
     if let Some(m) = exp.master_mut() {
         let expstop = &mut m.stop;
@@ -81,7 +81,8 @@ pub fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2);
+    let exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2);
 
     run_reader("tmp_py_test_sha_batch_mpirun", 1800);
     if let Some(m) = exp.master() {

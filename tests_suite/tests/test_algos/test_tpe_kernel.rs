@@ -13,7 +13,7 @@ const EPS: f64 = 1e-9;
 fn test_gaussian_kernel_real() {
     let dom = Real::new(0.0, 1.0, Uniform);
 
-    let ctx = GaussianKernel::get_context(&0.4,1.0, &dom).unwrap();
+    let ctx = GaussianKernel::get_context(&0.4, 1.0, &dom).unwrap();
 
     let k = GaussianKernel::compute(&0.5, &0.4, &ctx, &dom);
     let g =
@@ -176,7 +176,7 @@ fn test_gaussian_kernel_nat_positive() {
 fn test_gaussian_kernel_nat_same_point_higher() {
     // Kernel at the same point should be >= kernel at a distant point
     let dom = Nat::new(0_u64, 10_u64, Uniform);
-    
+
     let ctx = GaussianKernel::get_context(&4, 5.0, &dom).unwrap();
     let k_same = GaussianKernel::compute(&4, &4, &ctx, &dom);
 

@@ -11,8 +11,8 @@ use crate::run_checker::run_reader;
 fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -58,7 +58,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, batchrandomsearch!(), Evaluated, _,_>::load(pb, rec, check);
+    let mut exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -73,7 +73,7 @@ fn test_python_function() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, batchrandomsearch!(), Evaluated, _,_>::load(pb, rec, check);
+    let exp = Experiment::<_, batchrandomsearch!(), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_python_batch_rs", 100);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

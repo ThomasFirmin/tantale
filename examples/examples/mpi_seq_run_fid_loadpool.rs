@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use tantale::algos::{Asha, RandomSearch, asha};
 use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 use tantale::core::{
-    CSVRecorder, Evaluated, Fidelity, FolderConfig, MPICommunicator, MessagePack, ParExperiment, PoolMode,
+    CSVRecorder, Evaluated, Fidelity, FolderConfig, MPICommunicator, MessagePack, ParExperiment,
+    PoolMode,
 };
 
 #[path = "./cleaner.rs"]
@@ -41,14 +42,25 @@ fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
     let mut promoted = false;
     let mut reached_max_budget = false;
     for (id, path) in paths {
-        assert!(!path.is_empty(), "Candidate {id} has no recorded evaluations");
-        assert!(path.len() <= budgets.len(), "Candidate {id} exceeded the ASHA budget ladder");
+        assert!(
+            !path.is_empty(),
+            "Candidate {id} has no recorded evaluations"
+        );
+        assert!(
+            path.len() <= budgets.len(),
+            "Candidate {id} exceeded the ASHA budget ladder"
+        );
 
         for (index, (id_step, fidelity)) in path.iter().enumerate() {
-            assert_eq!(*id_step, index + 1, "Candidate {id} has a discontinuous evaluation step");
+            assert_eq!(
+                *id_step,
+                index + 1,
+                "Candidate {id} has a discontinuous evaluation step"
+            );
             let expected_budget = budgets[index];
             assert!(
-                (fidelity - expected_budget).abs() <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
+                (fidelity - expected_budget).abs()
+                    <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
                 "Candidate {id} used fidelity {fidelity} at step {}, expected {expected_budget}",
                 index + 1
             );
@@ -59,7 +71,10 @@ fn assert_asha_fidelity_paths(path: &str, budgets: &[f64]) {
     }
 
     assert!(promoted, "No candidate was promoted to a higher fidelity");
-    assert!(reached_max_budget, "No candidate reached the maximum ASHA budget");
+    assert!(
+        reached_max_budget,
+        "No candidate reached the maximum ASHA budget"
+    );
 
     let recorder_dir = std::path::Path::new(path).join("recorder");
     for file in ["obj.csv", "opt.csv", "cod.csv", "out.csv"] {
@@ -128,8 +143,8 @@ mod init_func {
         use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
         use tantale::core::{
             Bool, Cat, Int, Nat, Real,
-            objective::Step,
             distribution::{Bernoulli, Uniform},
+            objective::Step,
         };
         use tantale::macros::objective;
 
@@ -226,9 +241,9 @@ fn main() {
     let budgets = vec![1., 2., 4., 8.];
 
     let pb = sp_evaluator::get_problem();
-    
+
     let sampler = RandomSearch::new();
-    let opt =  Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
+    let opt = Asha::new(sampler, 1., 8., 2.).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(10);
     let config = FolderConfig::new("tmp_test_asha_rs_mpi_persistent");
@@ -252,7 +267,9 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1).with_pool(PoolMode::Persistent);
+    let mut exp =
+        ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1)
+            .with_pool(PoolMode::Persistent);
 
     if let Some(m) = exp.master_mut() {
         let expstop = &mut m.stop;
@@ -267,14 +284,16 @@ fn main() {
         assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
     }
     exp.run();
-    
+
     let pb = sp_evaluator::get_problem();
 
     let config = FolderConfig::new("tmp_test_asha_rs_mpi_persistent");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2).with_pool(PoolMode::Persistent);
+    let exp =
+        ParExperiment::<_, asha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2)
+            .with_pool(PoolMode::Persistent);
 
     assert_asha_fidelity_paths("tmp_test_asha_rs_mpi_persistent", &budgets);
 

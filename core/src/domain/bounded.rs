@@ -28,9 +28,17 @@
 //! ```
 
 use crate::{
-    GridDomDistribution, distribution::{BoundedDistribution, Distribution}, domain::{
-        Domain, Element, NumericalDomain, PreDomain, bool::Bool, grid::{GridBounds, GridDom}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
-    }, errors::OntoError,
+    GridDomDistribution,
+    distribution::{BoundedDistribution, Distribution},
+    domain::{
+        Domain, Element, NumericalDomain, PreDomain,
+        bool::Bool,
+        grid::{GridBounds, GridDom},
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+        unit::Unit,
+    },
+    errors::OntoError,
     utils::aliases::Elem,
 };
 
@@ -71,7 +79,7 @@ pub trait BoundedBounds:
 {
 }
 impl<T> BoundedBounds for T where
-    T: Element 
+    T: Element
         + Num
         + NumCast
         + PartialEq
@@ -105,8 +113,7 @@ pub struct Bounded<T: BoundedBounds> {
     log: bool,
 }
 
-fn to_log<T: BoundedBounds>(x:T) -> T 
-{
+fn to_log<T: BoundedBounds>(x: T) -> T {
     T::from(f64::ln(x.as_())).unwrap()
 }
 
@@ -271,7 +278,6 @@ where
                 in_x = item.as_();
             }
 
-
             let out_lower: f64;
             let out_upper: f64;
             let out_width: f64;
@@ -288,7 +294,7 @@ where
             let out_x = if in_lower == out_lower && in_upper == out_upper {
                 in_x
             } else {
-                ((in_x - in_lower) / in_width * out_width) + out_lower  
+                ((in_x - in_lower) / in_width * out_width) + out_lower
             };
 
             let mapped = if target.log {
@@ -304,7 +310,7 @@ where
             }
         } else {
             Err(OntoError(format!("{} input not in {}", item, self)))
-        }   
+        }
     }
 }
 

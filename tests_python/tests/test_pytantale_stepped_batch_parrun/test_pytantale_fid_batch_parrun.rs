@@ -12,8 +12,8 @@ use crate::run_checker::run_reader;
 fn test_python_function() {
     pub mod searchspace {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -28,7 +28,7 @@ fn test_python_function() {
     let _clean = Cleaner::new("tmp_py_test_sha_batch_parrun");
 
     let obj = init_python!(
-        MultiStep, searchspace, 
+        MultiStep, searchspace,
         "/tests/test_pytantale_stepped_batch_parrun/function_fid_batch_parrun.py",
         "function_fid_batch_parrun",
         "objective",
@@ -40,8 +40,7 @@ fn test_python_function() {
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-    
-    
+
     let sampler = RandomSearch::new();
     let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
@@ -65,9 +64,10 @@ fn test_python_function() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    match exp.master_mut(){
+    match exp.master_mut() {
         Some(m) => {
             let expstop = &mut m.stop;
             assert_eq!(expstop.0, 50, "Number of calls is wrong");
@@ -90,7 +90,7 @@ fn test_python_function() {
     let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     run_reader("tmp_py_test_sha_batch_parrun", 1800);
-    match exp.master(){
+    match exp.master() {
         Some(m) => {
             let expstop = &m.stop;
             assert_eq!(expstop.0, 100, "Number of calls is wrong");

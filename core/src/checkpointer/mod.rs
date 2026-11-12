@@ -209,7 +209,6 @@ pub trait Checkpointer<P: Problem, Context> {
         ctx: &Context,
     ) -> Result<Vec<T>, CheckpointerError>;
 
-
     /// Saves a specific [`FuncState`] associated with a given [`SolId`] to the checkpoint folder.
     fn save_fn_state<Id: SolId, FnState: FuncState>(
         &self,
@@ -230,7 +229,7 @@ pub trait Checkpointer<P: Problem, Context> {
         &self,
         id: &Id,
         ctx: &Context,
-    ) -> Result<(), CheckpointerError>{
+    ) -> Result<(), CheckpointerError> {
         let res = self.remove_fn_state::<Id, FnState>(id, ctx);
         if res.is_ok() {
             self.remove_all_previous_fn_states::<Id, FnState>(&id.previous_id(), ctx)
@@ -256,11 +255,7 @@ pub trait Checkpointer<P: Problem, Context> {
     fn list_ids<Id: SolId>(&self, ctx: &Context) -> Result<Vec<Id>, CheckpointerError>;
 
     /// Removes the checkpointed state at a specific target.
-    fn remove(
-        &self,
-        target: &CheckpointerTargets,
-        ctx: &Context,
-    ) -> Result<(), CheckpointerError>;
+    fn remove(&self, target: &CheckpointerTargets, ctx: &Context) -> Result<(), CheckpointerError>;
 
     /// Creates a backup of the checkpointed state at a specific target.
     fn backup(
@@ -270,7 +265,11 @@ pub trait Checkpointer<P: Problem, Context> {
     ) -> Result<PathBuf, CheckpointerError>;
 
     /// Add a suffix to a [`CheckpointerTargets`] to create a new target for saving state.
-    fn append_to_target(&self, target: &CheckpointerTargets, suffix: &str) -> Result<PathBuf, CheckpointerError>;
+    fn append_to_target(
+        &self,
+        target: &CheckpointerTargets,
+        suffix: &str,
+    ) -> Result<PathBuf, CheckpointerError>;
 
     /// Checks if the checkpointer is configured for parallel file system (PFS) usage, which may affect how checkpoints are saved and loaded.
     fn is_pfs(&self) -> bool;

@@ -4,11 +4,14 @@ use bincode::{config, serde::Compat};
 use bitvec::{bitbox, boxed::BitBox};
 use serde::{Deserialize, Serialize};
 
-use crate::{Fidelity, Problem, SolId, Step, aliases::{Out, XObj}, errors::CommunicatorError};
+use crate::{
+    Fidelity, Problem, SolId, Step,
+    aliases::{Out, XObj},
+    errors::CommunicatorError,
+};
 
 /// A simple message for a [`Communicator`].
-pub trait Msg : Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static
-{
+pub trait Msg: Sized + Send + Serialize + for<'de> Deserialize<'de> + 'static {
     const TAG: u32;
 }
 
@@ -33,7 +36,8 @@ impl<T: Msg> ErasedMsg for T {
     }
 
     fn encode(&self) -> Result<Vec<u8>, CommunicatorError> {
-        bincode::encode_to_vec(Compat(self), config::standard()).map_err(|e| CommunicatorError::SerializeError(e.to_string()))
+        bincode::encode_to_vec(Compat(self), config::standard())
+            .map_err(|e| CommunicatorError::SerializeError(e.to_string()))
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -66,8 +70,7 @@ impl Msg for AskMsg {
 #[serde(bound = "P::Id: SolId, XObj<P>: Serialize + for<'a> Deserialize<'a>")]
 pub struct XMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>);
 
-impl<P: Problem + 'static> Msg for XMsg<P>
-{
+impl<P: Problem + 'static> Msg for XMsg<P> {
     const TAG: u32 = 2;
 }
 
@@ -76,8 +79,7 @@ impl<P: Problem + 'static> Msg for XMsg<P>
 #[serde(bound = "P::Id: SolId, XObj<P>: Serialize + for<'a> Deserialize<'a>")]
 pub struct FidMsg<P: Problem + 'static>(pub P::Id, pub XObj<P>, pub Fidelity, pub Step);
 
-impl<P: Problem + 'static> Msg for FidMsg<P>
-{
+impl<P: Problem + 'static> Msg for FidMsg<P> {
     const TAG: u32 = 3;
 }
 
@@ -86,8 +88,7 @@ impl<P: Problem + 'static> Msg for FidMsg<P>
 #[serde(bound = "P::Id: SolId, Out<P>: Serialize + for<'a> Deserialize<'a>")]
 pub struct OutMsg<P: Problem + 'static>(pub P::Id, pub Out<P>);
 
-impl<P: Problem + 'static> Msg for OutMsg<P>
-{
+impl<P: Problem + 'static> Msg for OutMsg<P> {
     const TAG: u32 = 4;
 }
 
@@ -103,7 +104,7 @@ impl Msg for InitMsg {
 /// has the following solutions states in its memory.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "Id: SolId")]
-pub struct ContainsIds<Id:SolId>(pub Vec<Id>);
+pub struct ContainsIds<Id: SolId>(pub Vec<Id>);
 
 impl<Id: SolId + 'static> Msg for ContainsIds<Id> {
     const TAG: u32 = 6;
@@ -112,23 +113,23 @@ impl<Id: SolId + 'static> Msg for ContainsIds<Id> {
 /// A message that can be sent via a [`Communicator`] to signal that the worker should discard a solution.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "Id: SolId")]
-pub struct DiscardMsg<Id:SolId>(pub Id);
+pub struct DiscardMsg<Id: SolId>(pub Id);
 
 impl<Id: SolId + 'static> Msg for DiscardMsg<Id> {
     const TAG: u32 = 7;
 }
 
-/// A message envelope that can hold any type of message, 
+/// A message envelope that can hold any type of message,
 /// allowing for dynamic message passing in a communication system.
 pub struct Envelope {
     pub from: usize,
     pub to: usize,
     pub tag: u32,
-    pub content:  Box<dyn ErasedMsg>,
+    pub content: Box<dyn ErasedMsg>,
 }
 
 impl Envelope {
-    pub fn new<M: Msg>(from:usize, to:usize, content: M) -> Self {
+    pub fn new<M: Msg>(from: usize, to: usize, content: M) -> Self {
         Envelope {
             from,
             to,
@@ -158,16 +159,15 @@ pub trait Channel {
 }
 
 pub trait Communicator: Sized {
-
     type Channel: Channel;
     /// A constant indicating whether the communicator uses shared memory.
     /// If `true`, all processes can access the same file system.
-    const SHARED_MEM : bool = <Self::Channel as Channel>::SHARED_MEM;
-    
+    const SHARED_MEM: bool = <Self::Channel as Channel>::SHARED_MEM;
+
     /// This methods returns `me` a usize representing the current process identifier.
     fn me(&self) -> usize;
     /// Takes a peer identifier and returns the corresponding channel for communication with that peer.
-    fn channel(&self, peer:usize) -> &Self::Channel;
+    fn channel(&self, peer: usize) -> &Self::Channel;
     /// Returns an iterator over all peers managed by the communicator, except
     /// the peer calling this method (i.e. the [`me`](Self::me) peer).
     fn peers(&self) -> impl Iterator<Item = usize>;
@@ -200,15 +200,15 @@ pub trait Communicator: Sized {
         self.peers().filter(|peer| self.is_busy(*peer))
     }
     /// Returns true if all peers are idle.
-    fn all_idle(&self) -> bool{
+    fn all_idle(&self) -> bool {
         self.peers().all(|peer| self.is_idle(peer))
     }
     /// Returns true if all peers are busy.
-    fn all_busy(&self) -> bool{
+    fn all_busy(&self) -> bool {
         self.peers().all(|peer| self.is_busy(peer))
     }
     /// Returns true if all peers are dead.
-    fn all_dead(&self) -> bool{
+    fn all_dead(&self) -> bool {
         self.peers().all(|peer| self.is_dead(peer))
     }
     /// Returns true if any peer is idle.
@@ -224,19 +224,18 @@ pub trait Communicator: Sized {
         self.peers().any(|peer| self.is_dead(peer))
     }
     /// Returns an idle peer if one exists, otherwise returns None.
-    fn get_idle(&self) -> Option<usize>{
+    fn get_idle(&self) -> Option<usize> {
         self.peers().find(|peer| self.is_idle(*peer))
     }
     /// Returns a busy peer if one exists, otherwise returns None.
-    fn get_busy(&self) -> Option<usize>{
+    fn get_busy(&self) -> Option<usize> {
         self.peers().find(|peer| self.is_busy(*peer))
     }
     /// Returns a dead peer if one exists, otherwise returns None.
-    fn get_dead(&self) -> Option<usize>{
+    fn get_dead(&self) -> Option<usize> {
         self.peers().find(|peer| self.is_dead(*peer))
     }
 }
-
 
 pub struct NoChannel;
 
@@ -257,7 +256,7 @@ impl Channel for NoChannel {
     fn flush(&self) -> Result<usize, CommunicatorError> {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
-    
+
     fn me(&self) -> usize {
         unreachable!("NoChannel is not meant to be used for actual communication")
     }
@@ -266,7 +265,6 @@ impl Channel for NoChannel {
 pub struct NoCommunicator;
 
 impl Communicator for NoCommunicator {
-    
     type Channel = NoChannel;
 
     fn me(&self) -> usize {
@@ -357,7 +355,7 @@ impl Peers {
     pub fn set_dead(&mut self, peer: usize) {
         self.1.set(peer, true)
     }
-    
+
     pub fn set_alive(&mut self, peer: usize) {
         self.1.set(peer, false)
     }

@@ -1,5 +1,7 @@
 use crate::{
-    HasState, State, objective::Step, stop::{ExpStep, Stop},
+    HasState, State,
+    objective::Step,
+    stop::{ExpStep, Stop},
 };
 use serde::{Deserialize, Serialize};
 

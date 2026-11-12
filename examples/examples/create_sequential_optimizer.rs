@@ -3,15 +3,25 @@ use std::sync::Arc;
 use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use tantale::{
-    algos::utils::with_rng, basic_bounds, core::{HasInfo, HasState, HasX, HasY, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}}, macros::{Recordable, Schema}
-    };
+    algos::utils::with_rng,
+    basic_bounds,
+    core::{
+        HasInfo, HasState, HasX, HasY, Sampled, Sampler, Searchspace, SolInfo, SolutionShape,
+        State, Unit,
+        aliases::{Accum, CodElem, CompShape, Shape},
+        domain::{ElemSingle, SingleAccumulator},
+    },
+    macros::{Recordable, Schema},
+};
 
 // A helper macro to simplify the type signature of `HillClimbing`.
 // This a convention to make it easier to use the optimizer in generic contexts, without having to write out the full type signature.
 // To use when generics can be infered in the usual load (resuming via a checkpoint) pipeline for example.
 #[allow(unused_macros)]
 macro_rules! hill_climbing {
-    () => {HillClimbing};
+    () => {
+        HillClimbing
+    };
 }
 
 /// Metadata for a Hill Climbing optimization step.
@@ -64,7 +74,7 @@ impl HasState for HillClimbing {
 }
 
 /// A simple neighborhood function, working in [0., 1.], that perturbs a solution by adding a small random value to one of its dimensions.
-fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
+fn neighbor(x: &[f64], rng: &mut StdRng) -> Arc<[f64]> {
     let mut new_x = x.to_vec();
     let idx = rng.random_range(0..new_x.len());
     let perturbation: f64 = rng.random_range(-0.1..0.1);
@@ -72,8 +82,8 @@ fn neighbor(x : &[f64], rng: &mut StdRng) -> Arc<[f64]>{
     Arc::from(new_x)
 }
 
-// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem. 
-// It ensures that the sampler can work with any problem P that has a Unit domain. 
+// the basic_bounds macro is used to add basic trait bounds to a sampler for an HPO problem.
+// It ensures that the sampler can work with any problem P that has a Unit domain.
 // The macro expands to the necessary trait bounds for the sampler to be compatible with the HPO framework.
 // The domain can be generic.
 #[basic_bounds(P, Unit)] // <= Constraint: The optimizer works with any problem P within a Unit domain.
@@ -101,12 +111,15 @@ where
                 // Work with Optimizer side solution and retrieve 'x' the raw solution.
                 let x = best.get_sopt().ref_x();
                 let y = best.y().value();
-                println!("Best solution found so far: f({:?}) ={} at iteration {}", x, y, info.iterations);
+                println!(
+                    "Best solution found so far: f({:?}) ={} at iteration {}",
+                    x, y, info.iterations
+                );
                 // Generate a new candidate in the neighborhood of the best solution.
                 // Use 'with_rng' to ensure that the random number generator is properly seeded and used. (e.g. for multi-threaded scenarios)
                 let x = with_rng(|rng| neighbor(x, rng));
                 scp.new_opt(x)
-            },
+            }
             // If there is no best solution yet, sample a random solution from the search space.
             None => with_rng(|rng| scp.sample_pair(rng)),
         };
@@ -126,9 +139,9 @@ where
     // The 'update' method is called after a solution has been evaluated and added to the accumulator.
     // Be carefull update can be called multiple times before the next call to 'sample_info'.
     // For example, in the case of parallel computing.
-    fn update(&mut self,_x: &CompShape<P>,_scp: &P::Scp,_acc: &Accum<P>) {
+    fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
         // The next call to sample_info uses the updated best solution.
     }
 }
 
-fn main() { }
+fn main() {}

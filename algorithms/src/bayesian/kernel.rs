@@ -1,18 +1,20 @@
 use tantale_core::{
-    Bool, Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Problem, Real, Unit, Xy, aliases::{CodElem, Opt, XOpt}, domain::{CategoricalDomain, NumericalDomain, grid::GridBounds}, utils::AsX,
+    Bool, Domain, GridDom, HasVariables, HasX, Int, Mixed, MixedTypeDom, Nat, Problem, Real, Unit,
+    Xy,
+    aliases::{CodElem, Opt, XOpt},
+    domain::{CategoricalDomain, NumericalDomain, grid::GridBounds},
+    utils::AsX,
 };
 use tantale_macros::basic_bounds;
 
 use core::f64;
-use std::fmt::Debug;
 use num::{Num, cast::AsPrimitive};
 use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 use statrs::function::erf;
+use std::fmt::Debug;
 
-use crate::bayesian::{
-    bandwidth::BandwidthType, error::KernelError, weighter::PointWeights,
-};
+use crate::bayesian::{bandwidth::BandwidthType, error::KernelError, weighter::PointWeights};
 
 const SQRT_2PI: f64 = 2.5066282746310002;
 
@@ -50,7 +52,12 @@ pub fn gaussian_icdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f
 /// &= \\frac{1}{2}\\left(\\text{erf}\\!\\left(\\frac{U - x_2}{\\sqrt{2}\\,b}\\right) - \\text{erf}\\!\\left(\\frac{L - x_2}{\\sqrt{2}\\,b}\\right)\\right).
 /// \\end{aligned}
 /// $$
-pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: f64, up: f64) -> f64 {
+pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(
+    x: &T,
+    bandwidth: f64,
+    low: f64,
+    up: f64,
+) -> f64 {
     let x_f = x.as_();
     let denom = f64::consts::SQRT_2 * bandwidth;
     let low_erf = erf::erf((low - x_f) / denom);
@@ -58,21 +65,25 @@ pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(x: &T, bandwidth: f64, low: 
     (up_erf - low_erf) / 2.0
 }
 
-/// A trait for per-dimension kernel functions used in Bayesian optimization. 
+/// A trait for per-dimension kernel functions used in Bayesian optimization.
 /// A kernel function is a measure of similarity between two points in the input space, and is used to build density estimators for each parameter.
-/// 
+///
 /// # See also
 /// - [`GaussianKernel`] for the Gaussian kernel function.
 /// - [`AitchisonAitkenKernel`] for the Aitchison-Aitken kernel function.
 /// - [`MixedKernel`] for the mixed kernel function that combines Gaussian and Aitchison-Aitken kernels.
 /// - [`Kernel`] for object computing the kernel accross all input dimensions.
-pub trait KernelFunc<Dom: Domain>: Clone + Debug{
+pub trait KernelFunc<Dom: Domain>: Clone + Debug {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
     /// for efficient kernel computation for each point within the archive.
     type Context: Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context(x: &Dom::Element, bandwidth: f64, dom: &Dom) -> Result<Self::Context, KernelError>;
+    fn get_context(
+        x: &Dom::Element,
+        bandwidth: f64,
+        dom: &Dom,
+    ) -> Result<Self::Context, KernelError>;
 
     /// Computes the kernel function between two [`SolutionShape`](tantale_core::SolutionShape) instances of `Opt` type `Dom`.
     ///
@@ -84,12 +95,7 @@ pub trait KernelFunc<Dom: Domain>: Clone + Debug{
     ///
     /// # Returns
     /// The kernel value between the two [`Dom::TypeDom`](tantale_core::Domain::TypeDom).
-    fn compute(
-        x1: &Dom::Element,
-        x2: &Dom::Element,
-        context: &Self::Context,
-        dom: &Dom,
-    ) -> f64;
+    fn compute(x1: &Dom::Element, x2: &Dom::Element, context: &Self::Context, dom: &Dom) -> f64;
 
     /// Computes the prior probability for a given point `x` in the domain `dom`.
     fn prior(x: &Dom::Element, dom: &Dom) -> f64;
@@ -138,7 +144,7 @@ pub trait KernelFunc<Dom: Domain>: Clone + Debug{
 pub struct GaussianKernel;
 
 /// The context for the Gaussian kernel, which holds precomputed values needed for efficient kernel computation.
-/// For a given point `x`, the context includes the bandwidth parameter, the left-hand side of the Gaussian kernel function, 
+/// For a given point `x`, the context includes the bandwidth parameter, the left-hand side of the Gaussian kernel function,
 /// the normalization constant, and the cumulative distribution function (CDF) values at the lower and upper bounds of the domain.
 #[derive(Serialize, Deserialize)]
 pub struct GaussianContext {
@@ -158,7 +164,6 @@ pub struct GaussianContext {
 }
 
 impl KernelFunc<Real> for GaussianKernel {
-    
     type Context = GaussianContext;
 
     fn get_context(x: &f64, bandwidth: f64, dom: &Real) -> Result<Self::Context, KernelError> {
@@ -167,15 +172,16 @@ impl KernelFunc<Real> for GaussianKernel {
         let cst = gaussian_interval(x, bandwidth, low, up);
         let p_low = gaussian_cdf(*x, bandwidth, &low);
         let p_up = gaussian_cdf(*x, bandwidth, &up);
-        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
+        Ok(GaussianContext {
+            bandwidth,
+            lhs,
+            cst,
+            p_low,
+            p_up,
+        })
     }
 
-    fn compute(
-        x1: &f64,
-        x2: &f64,
-        context: &Self::Context,
-        _dom: &Real,
-    ) -> f64 {
+    fn compute(x1: &f64, x2: &f64, context: &Self::Context, _dom: &Real) -> f64 {
         context.lhs * (-0.5 * ((x1 - x2) / context.bandwidth).powi(2)).exp() / context.cst
     }
 
@@ -195,12 +201,7 @@ impl KernelFunc<Real> for GaussianKernel {
     /// The sampling is performed using the inverse transform sampling method,
     /// which involves sampling a uniform random variable and applying the inverse CDF
     /// of the truncated Gaussian distribution.
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &f64,
-        context: &Self::Context,
-        dom: &Real,
-    ) -> f64 {
+    fn sample<R: Rng>(rng: &mut R, x: &f64, context: &Self::Context, dom: &Real) -> f64 {
         let (low, up) = dom.get_bounds();
         if (context.p_up - context.p_low).abs() < f64::EPSILON {
             return *x;
@@ -218,15 +219,16 @@ impl KernelFunc<Unit> for GaussianKernel {
         let cst = gaussian_interval(x, bandwidth, 0.0, 1.0);
         let p_low = gaussian_cdf(*x, bandwidth, &0.0);
         let p_up = gaussian_cdf(*x, bandwidth, &1.0);
-        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
+        Ok(GaussianContext {
+            bandwidth,
+            lhs,
+            cst,
+            p_low,
+            p_up,
+        })
     }
 
-    fn compute(
-        x1: &f64,
-        x2: &f64,
-        context: &Self::Context,
-        _dom: &Unit,
-    ) -> f64 {
+    fn compute(x1: &f64, x2: &f64, context: &Self::Context, _dom: &Unit) -> f64 {
         context.lhs * (-0.5 * ((x1 - x2) / context.bandwidth).powi(2)).exp() / context.cst
     }
 
@@ -242,12 +244,7 @@ impl KernelFunc<Unit> for GaussianKernel {
     /// The sampling is performed using the inverse transform sampling method,
     /// which involves sampling a uniform random variable and applying the inverse CDF
     /// of the truncated Gaussian distribution.
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &f64,
-        context: &Self::Context,
-        _dom: &Unit,
-    ) -> f64 {
+    fn sample<R: Rng>(rng: &mut R, x: &f64, context: &Self::Context, _dom: &Unit) -> f64 {
         if (context.p_up - context.p_low).abs() < f64::EPSILON {
             return *x;
         }
@@ -268,15 +265,16 @@ impl KernelFunc<Int> for GaussianKernel {
         let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
         let cst = gaussian_interval(x, bandwidth, low, up);
-        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
+        Ok(GaussianContext {
+            bandwidth,
+            lhs,
+            cst,
+            p_low,
+            p_up,
+        })
     }
 
-    fn compute(
-        x1: &i64,
-        x2: &i64,
-        context: &Self::Context,
-        _dom: &Int,
-    ) -> f64 {
+    fn compute(x1: &i64, x2: &i64, context: &Self::Context, _dom: &Int) -> f64 {
         let x = *x1 as f64;
         let (low, up) = (x - 0.5, x + 0.5);
         let cdf = gaussian_interval(x2, context.bandwidth, low, up);
@@ -300,12 +298,7 @@ impl KernelFunc<Int> for GaussianKernel {
     /// The sampling is performed using the inverse transform sampling method,
     /// which involves sampling a uniform random variable and applying the inverse CDF
     /// of the truncated Gaussian distribution.
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &i64,
-        context: &Self::Context,
-        dom: &Int,
-    ) -> i64 {
+    fn sample<R: Rng>(rng: &mut R, x: &i64, context: &Self::Context, dom: &Int) -> i64 {
         let (low, up) = dom.get_bounds();
         if (context.p_up - context.p_low).abs() < f64::EPSILON {
             return *x;
@@ -319,7 +312,6 @@ impl KernelFunc<Nat> for GaussianKernel {
     type Context = GaussianContext;
 
     fn get_context(x: &u64, bandwidth: f64, dom: &Nat) -> Result<Self::Context, KernelError> {
-
         let lhs = 1. / (bandwidth * SQRT_2PI);
         let (low, up) = dom.get_bounds();
         let low = low as f64 - 0.5;
@@ -328,16 +320,17 @@ impl KernelFunc<Nat> for GaussianKernel {
         let p_low = gaussian_cdf(x.as_(), bandwidth, &low);
         let p_up = gaussian_cdf(x.as_(), bandwidth, &up);
         let cst = gaussian_interval(x, bandwidth, low, up);
-        Ok(GaussianContext { bandwidth, lhs, cst, p_low, p_up })
+        Ok(GaussianContext {
+            bandwidth,
+            lhs,
+            cst,
+            p_low,
+            p_up,
+        })
     }
 
     /// Computes the kernel value between two points in the domain.
-    fn compute(
-        x1: &u64,
-        x2: &u64,
-        context: &Self::Context,
-        _dom: &Nat,
-    ) -> f64 {
+    fn compute(x1: &u64, x2: &u64, context: &Self::Context, _dom: &Nat) -> f64 {
         let x = *x1 as f64;
         let (low, up) = (x - 0.5, x + 0.5);
         let cdf = gaussian_interval(x2, context.bandwidth, low, up);
@@ -361,12 +354,7 @@ impl KernelFunc<Nat> for GaussianKernel {
     /// The sampling is performed using the inverse transform sampling method,
     /// which involves sampling a uniform random variable and applying the inverse CDF
     /// of the truncated Gaussian distribution.
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &u64,
-        context: &Self::Context,
-        dom: &Nat,
-    ) -> u64 {
+    fn sample<R: Rng>(rng: &mut R, x: &u64, context: &Self::Context, dom: &Nat) -> u64 {
         let (low, up) = dom.get_bounds();
         if (context.p_up - context.p_low).abs() < f64::EPSILON {
             return *x;
@@ -412,12 +400,7 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
     }
 
     /// Computes the kernel value between two points in the domain.
-    fn compute(
-        x1: &T,
-        x2: &T,
-        context: &Self::Context,
-        dom: &GridDom<T>,
-    ) -> f64 {
+    fn compute(x1: &T, x2: &T, context: &Self::Context, dom: &GridDom<T>) -> f64 {
         if x1 == x2 {
             1.0 - context.bandwidth
         } else {
@@ -429,12 +412,7 @@ impl<T: GridBounds> KernelFunc<GridDom<T>> for AitchisonAitkenKernel {
         1.0 / (dom.size() as f64)
     }
 
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &T,
-        context: &Self::Context,
-        dom: &GridDom<T>,
-    ) -> T {
+    fn sample<R: Rng>(rng: &mut R, x: &T, context: &Self::Context, dom: &GridDom<T>) -> T {
         let u: f64 = rng.random();
         let threshold = 1.0 - context.bandwidth;
         if u < threshold {
@@ -460,12 +438,7 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
     }
 
     /// Computes the kernel value between two points in the domain.
-    fn compute(
-        x1: &bool,
-        x2: &bool,
-        context: &Self::Context,
-        dom: &Bool,
-    ) -> f64 {
+    fn compute(x1: &bool, x2: &bool, context: &Self::Context, dom: &Bool) -> f64 {
         if x1 == x2 {
             1.0 - context.bandwidth
         } else {
@@ -478,12 +451,7 @@ impl KernelFunc<Bool> for AitchisonAitkenKernel {
     }
 
     /// Samples a new point from the kernel.
-    fn sample<R: Rng>(
-        rng: &mut R,
-        x: &bool,
-        context: &Self::Context,
-        _dom: &Bool,
-    ) -> bool {
+    fn sample<R: Rng>(rng: &mut R, x: &bool, context: &Self::Context, _dom: &Bool) -> bool {
         let u: f64 = rng.random();
         let threshold = 1.0 - context.bandwidth;
         if u < threshold { *x } else { !*x }
@@ -507,45 +475,44 @@ pub enum MixedContext {
 impl KernelFunc<Mixed> for MixedKernel {
     type Context = MixedContext;
 
-    fn get_context(x: &MixedTypeDom, bandwidth: f64, dom: &Mixed) -> Result<Self::Context, KernelError> {
+    fn get_context(
+        x: &MixedTypeDom,
+        bandwidth: f64,
+        dom: &Mixed,
+    ) -> Result<Self::Context, KernelError> {
         match (x, dom) {
-            (MixedTypeDom::Real(x), Mixed::Real(d)) => {
-                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::Unit(x), Mixed::Unit(d)) => {
-                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::Int(x), Mixed::Int(d)) => {
-                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::Nat(x), Mixed::Nat(d)) => {
-                Ok(MixedContext::Gaussian(GaussianKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::Bool(x), Mixed::Bool(d)) => {
-                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::Cat(x), Mixed::Cat(d)) => {
-                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::GridReal(x), Mixed::GridReal(d)) => {
-                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::GridNat(x), Mixed::GridNat(d)) => {
-                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
-            }
-            (MixedTypeDom::GridInt(x), Mixed::GridInt(d)) => {
-                Ok(MixedContext::AitchisonAitken(AitchisonAitkenKernel::get_context(x, bandwidth, d)?))
-            }
+            (MixedTypeDom::Real(x), Mixed::Real(d)) => Ok(MixedContext::Gaussian(
+                GaussianKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::Unit(x), Mixed::Unit(d)) => Ok(MixedContext::Gaussian(
+                GaussianKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::Int(x), Mixed::Int(d)) => Ok(MixedContext::Gaussian(
+                GaussianKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::Nat(x), Mixed::Nat(d)) => Ok(MixedContext::Gaussian(
+                GaussianKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::Bool(x), Mixed::Bool(d)) => Ok(MixedContext::AitchisonAitken(
+                AitchisonAitkenKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::Cat(x), Mixed::Cat(d)) => Ok(MixedContext::AitchisonAitken(
+                AitchisonAitkenKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::GridReal(x), Mixed::GridReal(d)) => Ok(MixedContext::AitchisonAitken(
+                AitchisonAitkenKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::GridNat(x), Mixed::GridNat(d)) => Ok(MixedContext::AitchisonAitken(
+                AitchisonAitkenKernel::get_context(x, bandwidth, d)?,
+            )),
+            (MixedTypeDom::GridInt(x), Mixed::GridInt(d)) => Ok(MixedContext::AitchisonAitken(
+                AitchisonAitkenKernel::get_context(x, bandwidth, d)?,
+            )),
             _ => panic!("Mismatched kernel context and input type"),
         }
     }
 
-    fn compute(
-        x1: &MixedTypeDom,
-        x2: &MixedTypeDom,
-        context: &Self::Context,
-        dom: &Mixed,
-    ) -> f64 {
+    fn compute(x1: &MixedTypeDom, x2: &MixedTypeDom, context: &Self::Context, dom: &Mixed) -> f64 {
         match (x1, x2, context, dom) {
             (
                 MixedTypeDom::Real(x),
@@ -628,51 +595,33 @@ impl KernelFunc<Mixed> for MixedKernel {
         dom: &Mixed,
     ) -> MixedTypeDom {
         match (x, context, dom) {
-            (
-                MixedTypeDom::Real(x),
-                MixedContext::Gaussian(ctx),
-                Mixed::Real(d),
-            ) => MixedTypeDom::Real(GaussianKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::Unit(x),
-                MixedContext::Gaussian(ctx),
-                Mixed::Unit(d),
-            ) => MixedTypeDom::Unit(GaussianKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::Int(x),
-                MixedContext::Gaussian(ctx),
-                Mixed::Int(d),
-            ) => MixedTypeDom::Int(GaussianKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::Nat(x),
-                MixedContext::Gaussian(ctx),
-                Mixed::Nat(d),
-            ) => MixedTypeDom::Nat(GaussianKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::Bool(x),
-                MixedContext::AitchisonAitken(ctx),
-                Mixed::Bool(d),
-            ) => MixedTypeDom::Bool(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::Cat(x),
-                MixedContext::AitchisonAitken(ctx),
-                Mixed::Cat(d),
-            ) => MixedTypeDom::Cat(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::GridReal(x),
-                MixedContext::AitchisonAitken(ctx),
-                Mixed::GridReal(d),
-            ) => MixedTypeDom::GridReal(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::GridNat(x),
-                MixedContext::AitchisonAitken(ctx),
-                Mixed::GridNat(d),
-            ) => MixedTypeDom::GridNat(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
-            (
-                MixedTypeDom::GridInt(x),
-                MixedContext::AitchisonAitken(ctx),
-                Mixed::GridInt(d),
-            ) => MixedTypeDom::GridInt(AitchisonAitkenKernel::sample(rng, x, ctx, d)),
+            (MixedTypeDom::Real(x), MixedContext::Gaussian(ctx), Mixed::Real(d)) => {
+                MixedTypeDom::Real(GaussianKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::Unit(x), MixedContext::Gaussian(ctx), Mixed::Unit(d)) => {
+                MixedTypeDom::Unit(GaussianKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::Int(x), MixedContext::Gaussian(ctx), Mixed::Int(d)) => {
+                MixedTypeDom::Int(GaussianKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::Nat(x), MixedContext::Gaussian(ctx), Mixed::Nat(d)) => {
+                MixedTypeDom::Nat(GaussianKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::Bool(x), MixedContext::AitchisonAitken(ctx), Mixed::Bool(d)) => {
+                MixedTypeDom::Bool(AitchisonAitkenKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::Cat(x), MixedContext::AitchisonAitken(ctx), Mixed::Cat(d)) => {
+                MixedTypeDom::Cat(AitchisonAitkenKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::GridReal(x), MixedContext::AitchisonAitken(ctx), Mixed::GridReal(d)) => {
+                MixedTypeDom::GridReal(AitchisonAitkenKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::GridNat(x), MixedContext::AitchisonAitken(ctx), Mixed::GridNat(d)) => {
+                MixedTypeDom::GridNat(AitchisonAitkenKernel::sample(rng, x, ctx, d))
+            }
+            (MixedTypeDom::GridInt(x), MixedContext::AitchisonAitken(ctx), Mixed::GridInt(d)) => {
+                MixedTypeDom::GridInt(AitchisonAitkenKernel::sample(rng, x, ctx, d))
+            }
             _ => panic!("Mismatched kernel context and input type"),
         }
     }
@@ -684,15 +633,20 @@ impl KernelFunc<Mixed> for MixedKernel {
 /// # See also
 /// - [`Univariate`] for the univariate kernel, which assumes independence between dimensions and computes the product of the kernel values for each dimension.
 /// - [`Multivariate`] for the multivariate kernel, which models the joint distribution of all dimensions.
-#[basic_bounds(P,Dom)]
-pub trait Kernel<P, Dom>: Send + Sync + Clone + Debug + Sized + Serialize + for<'a> Deserialize<'a>
+#[basic_bounds(P, Dom)]
+pub trait Kernel<P, Dom>:
+    Send + Sync + Clone + Debug + Sized + Serialize + for<'a> Deserialize<'a>
 {
     /// The context type for the kernel,
     /// which can hold precomputed values or parameters needed
     /// for efficient kernel computation for each point within the archive.
     type Context: Send + Sync + Serialize + for<'a> Deserialize<'a>;
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &P::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError>;
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &P::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
         &self,
@@ -720,15 +674,14 @@ pub trait Kernel<P, Dom>: Send + Sync + Clone + Debug + Sized + Serialize + for<
 /// K(\\mathbf{s}, \\{\\mathbf{s}\\}_{n=1}^N) = \\prod_{d=1}^{D} \\sum_{n=1}^N w_n K_d(\\mathbf{s}_{d}, \\mathbf{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
 /// $$
 /// where $K_d$ is the kernel function ([`KernelFunc`]) for the $d$-th dimension, and $b_d$ is the bandwidth parameter for that dimension.
-/// 
+///
 /// # See also
 /// - [`Bandwidth`](crate::Bandwidth) for the bandwidth parameter used in the kernel computation.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Univariate;
 
-#[basic_bounds(P,Mixed)]
-impl<P> Kernel<P, Mixed> for Univariate
-{
+#[basic_bounds(P, Mixed)]
+impl<P> Kernel<P, Mixed> for Univariate {
     type Context = Vec<MixedContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -738,8 +691,7 @@ impl<P> Kernel<P, Mixed> for Univariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -750,8 +702,7 @@ impl<P> Kernel<P, Mixed> for Univariate
                     .zip(weights.weights.iter())
                     .zip(context.iter())
                     .map(|((comp, weight), ctx)| {
-                        MixedKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom)
-                            * weight
+                        MixedKernel::compute(x1, &comp.as_ref().ref_x()[d], &ctx[d], dom) * weight
                     })
                     .sum::<f64>()
             })
@@ -766,8 +717,7 @@ impl<P> Kernel<P, Mixed> for Univariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -790,31 +740,34 @@ impl<P> Kernel<P, Mixed> for Univariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        MixedKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| MixedKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Real)]
-impl<P> Kernel<P, Real> for Univariate
-{
+#[basic_bounds(P, Real)]
+impl<P> Kernel<P, Real> for Univariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -824,8 +777,7 @@ impl<P> Kernel<P, Real> for Univariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -852,8 +804,7 @@ impl<P> Kernel<P, Real> for Univariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -875,32 +826,35 @@ impl<P> Kernel<P, Real> for Univariate
             })
             .product()
     }
-    
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Int)]
-impl<P> Kernel<P, Int> for Univariate
-{
+#[basic_bounds(P, Int)]
+impl<P> Kernel<P, Int> for Univariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -910,8 +864,7 @@ impl<P> Kernel<P, Int> for Univariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -938,8 +891,7 @@ impl<P> Kernel<P, Int> for Univariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -962,31 +914,34 @@ impl<P> Kernel<P, Int> for Univariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Nat)]
-impl<P> Kernel<P, Nat> for Univariate
-{
+#[basic_bounds(P, Nat)]
+impl<P> Kernel<P, Nat> for Univariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -996,8 +951,7 @@ impl<P> Kernel<P, Nat> for Univariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1024,8 +978,7 @@ impl<P> Kernel<P, Nat> for Univariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1048,31 +1001,34 @@ impl<P> Kernel<P, Nat> for Univariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Unit)]
-impl<P> Kernel<P, Unit> for Univariate
-{
+#[basic_bounds(P, Unit)]
+impl<P> Kernel<P, Unit> for Univariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1082,8 +1038,7 @@ impl<P> Kernel<P, Unit> for Univariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1110,8 +1065,7 @@ impl<P> Kernel<P, Unit> for Univariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1134,22 +1088,26 @@ impl<P> Kernel<P, Unit> for Univariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
@@ -1170,8 +1128,7 @@ where
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let product: f64 = s
             .iter()
             .zip(scp.iter_opt())
@@ -1198,8 +1155,7 @@ where
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1222,22 +1178,28 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
+                    .map(|(dim, (x, dom))| {
                         AitchisonAitkenKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    })
                     .collect()
             })
             .collect()
@@ -1251,15 +1213,14 @@ where
 /// K(\\mathbf{s}, \\{\\mathbf{s}\\}_{n=1}^N) = \\sum_{n=1}^N w_n \\prod_{d=1}^{D} K_d(\\mathbf{s}_{d}, \\mathbf{s}_{n,d} \\,\\lvert\\, b_d)\\enspace\\text{,}
 /// $$
 /// where $K_d$ is the kernel function ([`KernelFunc`]) for the $d$-th dimension, and $b_d$ is the bandwidth parameter for that dimension.
-/// 
+///
 /// # See also
 /// - [`Bandwidth`](crate::Bandwidth) for the bandwidth parameter used in the kernel computation.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Multivariate;
 
-#[basic_bounds(P,Mixed)]
-impl<P> Kernel<P, Mixed> for Multivariate
-{
+#[basic_bounds(P, Mixed)]
+impl<P> Kernel<P, Mixed> for Multivariate {
     type Context = Vec<MixedContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1269,8 +1230,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1280,9 +1240,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
                     .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        MixedKernel::compute(x1, x2, dctx, dom)
-                    })
+                    .map(|(((x1, x2), dom), dctx)| MixedKernel::compute(x1, x2, dctx, dom))
                     .product::<f64>()
                     * weight
             })
@@ -1297,8 +1255,7 @@ impl<P> Kernel<P, Mixed> for Multivariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1321,31 +1278,34 @@ impl<P> Kernel<P, Mixed> for Multivariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        MixedKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| MixedKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Real)]
-impl<P> Kernel<P, Real> for Multivariate
-{
+#[basic_bounds(P, Real)]
+impl<P> Kernel<P, Real> for Multivariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1355,8 +1315,7 @@ impl<P> Kernel<P, Real> for Multivariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1366,9 +1325,7 @@ impl<P> Kernel<P, Real> for Multivariate
                     .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        GaussianKernel::compute(x1, x2, dctx, dom)
-                    })
+                    .map(|(((x1, x2), dom), dctx)| GaussianKernel::compute(x1, x2, dctx, dom))
                     .product::<f64>()
                     * weight
             })
@@ -1383,8 +1340,7 @@ impl<P> Kernel<P, Real> for Multivariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1407,31 +1363,34 @@ impl<P> Kernel<P, Real> for Multivariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Int)]
-impl<P> Kernel<P, Int> for Multivariate
-{
+#[basic_bounds(P, Int)]
+impl<P> Kernel<P, Int> for Multivariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1441,8 +1400,7 @@ impl<P> Kernel<P, Int> for Multivariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1452,9 +1410,7 @@ impl<P> Kernel<P, Int> for Multivariate
                     .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        GaussianKernel::compute(x1, x2, dctx, dom)
-                    })
+                    .map(|(((x1, x2), dom), dctx)| GaussianKernel::compute(x1, x2, dctx, dom))
                     .product::<f64>()
                     * weight
             })
@@ -1469,8 +1425,7 @@ impl<P> Kernel<P, Int> for Multivariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1493,32 +1448,35 @@ impl<P> Kernel<P, Int> for Multivariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
 
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Nat)]
-impl<P> Kernel<P, Nat> for Multivariate
-{
+#[basic_bounds(P, Nat)]
+impl<P> Kernel<P, Nat> for Multivariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1528,8 +1486,7 @@ impl<P> Kernel<P, Nat> for Multivariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1539,9 +1496,7 @@ impl<P> Kernel<P, Nat> for Multivariate
                     .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        GaussianKernel::compute(x1, x2, dctx, dom)
-                    })
+                    .map(|(((x1, x2), dom), dctx)| GaussianKernel::compute(x1, x2, dctx, dom))
                     .product::<f64>()
                     * weight
             })
@@ -1556,8 +1511,7 @@ impl<P> Kernel<P, Nat> for Multivariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1580,32 +1534,35 @@ impl<P> Kernel<P, Nat> for Multivariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
 
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
     }
 }
 
-#[basic_bounds(P,Unit)]
-impl<P> Kernel<P, Unit> for Multivariate
-{
+#[basic_bounds(P, Unit)]
+impl<P> Kernel<P, Unit> for Multivariate {
     type Context = Vec<GaussianContext>;
 
     fn compute<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>>(
@@ -1615,8 +1572,7 @@ impl<P> Kernel<P, Unit> for Multivariate
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1626,9 +1582,7 @@ impl<P> Kernel<P, Unit> for Multivariate
                     .zip(comp.as_ref().ref_x().iter())
                     .zip(scp.iter_opt())
                     .zip(ctx.iter())
-                    .map(|(((x1, x2), dom), dctx)| {
-                        GaussianKernel::compute(x1, x2, dctx, dom)
-                    })
+                    .map(|(((x1, x2), dom), dctx)| GaussianKernel::compute(x1, x2, dctx, dom))
                     .product::<f64>()
                     * weight
             })
@@ -1643,8 +1597,7 @@ impl<P> Kernel<P, Unit> for Multivariate
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1667,23 +1620,27 @@ impl<P> Kernel<P, Unit> for Multivariate
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
 
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
-                        GaussianKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    .map(|(dim, (x, dom))| GaussianKernel::get_context(x, bw.get(idx, dim), dom))
                     .collect()
             })
             .collect()
@@ -1704,8 +1661,7 @@ where
         context: &[Self::Context],
         weights: &PointWeights,
         scp: &<P as Problem>::Scp,
-    ) -> f64
-    {
+    ) -> f64 {
         let sum: f64 = archive
             .iter()
             .zip(weights.weights.iter())
@@ -1732,8 +1688,7 @@ where
         archive: &[T],
         context: &[Self::Context],
         scp: &<P as Problem>::Scp,
-    ) -> XOpt<P>
-    {
+    ) -> XOpt<P> {
         let dim = scp.size();
         (0..dim)
             .map(|d| {
@@ -1756,23 +1711,29 @@ where
             .product()
     }
 
-    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(archive: &[T], scp: &<P as Problem>::Scp, bw: &Bw) -> Result<Vec<Self::Context>, KernelError> {
+    fn get_context<T: AsRef<Xy<XOpt<P>, CodElem<P>>> + AsX<Opt<P>>, Bw: BandwidthType>(
+        archive: &[T],
+        scp: &<P as Problem>::Scp,
+        bw: &Bw,
+    ) -> Result<Vec<Self::Context>, KernelError> {
         if archive.is_empty() {
-            return Err(KernelError::NotEnoughPoints("Cannot compute context for empty archive"));
+            return Err(KernelError::NotEnoughPoints(
+                "Cannot compute context for empty archive",
+            ));
         }
-        
+
         archive
             .iter()
             .enumerate()
             .map(|(idx, p)| {
-                p.as_ref().ref_x()
+                p.as_ref()
+                    .ref_x()
                     .iter()
                     .zip(scp.iter_opt())
                     .enumerate()
-                    .map(
-                        |(dim, (x, dom))| 
+                    .map(|(dim, (x, dom))| {
                         AitchisonAitkenKernel::get_context(x, bw.get(idx, dim), dom)
-                    )
+                    })
                     .collect()
             })
             .collect()

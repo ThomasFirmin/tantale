@@ -80,7 +80,10 @@
 //!
 
 use crate::{
-    HasId, HasInfo, HasX, Outcome, aliases::TypeCodom, domain::Domain, utils::record::{Recordable, Schema},
+    HasId, HasInfo, HasX, Outcome,
+    aliases::TypeCodom,
+    domain::Domain,
+    utils::record::{Recordable, Schema},
 };
 
 use serde::{Deserialize, Serialize};
@@ -96,7 +99,18 @@ use std::{any::Any, fmt::Debug, sync::Arc};
 ///
 /// The `SolInfo` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait SolInfo: Clone + Debug + Default + Serialize + Send + Sync + 'static + for<'a> Deserialize<'a> + Schema<(), Parts = ()> + Recordable<(), Parts = ()> {
+pub trait SolInfo:
+    Clone
+    + Debug
+    + Default
+    + Serialize
+    + Send
+    + Sync
+    + 'static
+    + for<'a> Deserialize<'a>
+    + Schema<(), Parts = ()>
+    + Recordable<(), Parts = ()>
+{
     /// Returns the first sub-info of type `T` found in this info tree, sharing the underlying [`Arc`].
     fn find_info<T: SolInfo>(self: Arc<Self>) -> Option<Arc<T>> {
         (self as Arc<dyn Any + Send + Sync>).downcast::<T>().ok()
@@ -112,7 +126,7 @@ pub enum Sampled<I: Debug> {
     Reused,
 }
 
-impl<I:Debug> Debug for Sampled<I> {
+impl<I: Debug> Debug for Sampled<I> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Sampled::Fresh(info) => write!(f, "Sampled::Fresh({:?})", info),
@@ -121,7 +135,7 @@ impl<I:Debug> Debug for Sampled<I> {
     }
 }
 
-impl<I:Debug> Clone for Sampled<I> {
+impl<I: Debug> Clone for Sampled<I> {
     fn clone(&self) -> Self {
         match self {
             Sampled::Fresh(info) => Sampled::Fresh(info.clone()),
@@ -130,7 +144,7 @@ impl<I:Debug> Clone for Sampled<I> {
     }
 }
 
-impl<I:Debug> From<I> for Sampled<I> {
+impl<I: Debug> From<I> for Sampled<I> {
     fn from(info: I) -> Self {
         Sampled::Fresh(Arc::new(info))
     }
@@ -173,7 +187,8 @@ impl<I: SolInfo> Sampled<I> {
 /// - [`BaseSol`] - Standard solution implementation
 /// - [`FidelitySol`] - With fidelity support
 /// - [`Computed`] - Wrapper for evaluated solutions
-pub trait Solution: Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
+pub trait Solution:
+    Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
 {
     /// The [domain](Domain) defining the variable types and constraints for this solution.
     type Dom: Domain;
@@ -210,8 +225,7 @@ pub trait Solution: Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Seria
 /// - [`new`](Uncomputed::new) - From explicit values
 /// - [`default`](Uncomputed::default) - Placeholder with zero/default values
 /// - [`default_vec`](Uncomputed::default_vec) - Batch of placeholders
-pub trait Uncomputed: Solution
-{
+pub trait Uncomputed: Solution {
     /// Creates a new uncomputed solution with specified values.
     ///
     /// # Parameters
@@ -273,7 +287,7 @@ pub trait Uncomputed: Solution
 }
 
 pub mod id;
-pub use id::{SolId, ParSId, SId, StepId, StepSId};
+pub use id::{ParSId, SId, SolId, StepId, StepSId};
 
 pub mod partial;
 pub use partial::{BaseSol, Fidelity, FidelitySol};

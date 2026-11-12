@@ -1,7 +1,7 @@
 use super::init_sp::*;
 use tantale::core::{
-    BaseSol, EmptyInfo, HasX, Recordable, Schema, SId, Searchspace, HasVariables, Sp, 
-    utils::{record::SolParts, aliases::LinkOpt}
+    BaseSol, EmptyInfo, HasVariables, HasX, Recordable, SId, Schema, Searchspace, Sp,
+    utils::{aliases::LinkOpt, record::SolParts},
 };
 
 use paste::paste;

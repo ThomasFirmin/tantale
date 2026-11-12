@@ -1,14 +1,10 @@
-use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
 use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
+use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
 use tantale::core::Experiment;
 use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
 use tantale::core::problem::Pb;
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::Runable,
-    stop::Evaluated,
-};
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Evaluated};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{sp_evaluator, sp_evaluator_fid};
@@ -70,8 +66,6 @@ fn test_batch_run() {
     run_reader("tmp_test_batchrun", 100);
 }
 
-
-
 #[test]
 fn test_seqrun() {
     let _clean = Cleaner::new("tmp_test_seqrun");
@@ -95,7 +89,6 @@ fn test_seqrun() {
     let func = sp_evaluator::get_function();
     let pb = Pb::new(sp, func);
 
-
     let config = FolderConfig::new("tmp_test_seqrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
@@ -111,7 +104,6 @@ fn test_seqrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::get_function();
     let pb = Pb::new(sp, func);
-
 
     let config = FolderConfig::new("tmp_test_seqrun");
     let rec = CSVRecorder::new(config.clone());
@@ -150,13 +142,17 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = &exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 8,"Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 8,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 
     exp.run();
@@ -164,17 +160,21 @@ fn test_fid_batch_run() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let pb = Pb::new(sp, obj);
-     
+
     let config = FolderConfig::new("tmp_test_fidbatchrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
+    let exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
     run_reader_eps("tmp_test_fidbatchrun", 500, num_cpus::get() * 4);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 15, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 15,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 }
 
@@ -250,14 +250,19 @@ fn test_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
 
     if let Some(m) = exp.master_mut() {
         let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
         expstop.add(50);
         let expoptimizer = &m.sampler;
-        assert!(expoptimizer.calls >=8, "Number of iteration is wrong. Should be at least 8, but got {}", expoptimizer.calls);
+        assert!(
+            expoptimizer.calls >= 8,
+            "Number of iteration is wrong. Should be at least 8, but got {}",
+            expoptimizer.calls
+        );
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     }
     exp.run();
@@ -271,12 +276,17 @@ fn test_batch_parrun() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
+    let mut exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
         let expstop: &Evaluated = &m.stop;
         let expoptimizer = &m.sampler;
         assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
-        assert!(expoptimizer.calls >=15, "Number of iteration is wrong. Should be at least 15, but got {}", expoptimizer.calls);
+        assert!(
+            expoptimizer.calls >= 15,
+            "Number of iteration is wrong. Should be at least 15, but got {}",
+            expoptimizer.calls
+        );
         assert_eq!(expoptimizer.batch_size, 7, "Batch size is wrong");
     }
 
@@ -297,7 +307,6 @@ fn test_parrun() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-
     let com = ThreadCommunicator::new();
     let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     exp.run();
@@ -307,7 +316,6 @@ fn test_parrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::get_function();
     let pb = Pb::new(sp, func);
-
 
     let config = FolderConfig::new("tmp_test_parrun");
     let rec = CSVRecorder::new(config.clone());
@@ -325,7 +333,6 @@ fn test_parrun() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::get_function();
     let pb = Pb::new(sp, func);
-
 
     let config = FolderConfig::new("tmp_test_parrun");
     let rec = CSVRecorder::new(config.clone());

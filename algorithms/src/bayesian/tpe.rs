@@ -33,20 +33,24 @@
 //!
 use crate::{
     bayesian::{
-        bandwidth::Bandwidth, error::SplitError, 
-        kernel::Kernel, splitter::Splitter, weighter::Weighter
-    }, utils::with_rng
+        bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter,
+        weighter::Weighter,
+    },
+    utils::with_rng,
 };
 use tantale_core::{
-    HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Prunable, SId, Sampled, Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, StepSId, Xy, aliases::{Accum, CodElem, CompShape, Opt, SOpt, Shape, XOpt}, utils::record::{Recordable, Schema},
+    HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Prunable, SId, Sampled,
+    Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, StepSId, Xy,
+    aliases::{Accum, CodElem, CompShape, Opt, SOpt, Shape, XOpt},
+    utils::record::{Recordable, Schema},
 };
 
+use core::panic;
+use log::warn;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_macros::{basic_bounds, fidelity_bounds};
-use core::panic;
 use std::{fmt::Debug, vec};
-use log::warn;
+use tantale_macros::{basic_bounds, fidelity_bounds};
 
 /// A helper macro to shortcut the type signature of [`Tpe`] when loading.
 #[macro_export]
@@ -223,7 +227,7 @@ where
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
     Id: SolId,
     P: Problem<Id = Id>,
-    CodElem<P>: Orderable
+    CodElem<P>: Orderable,
 {
     pub n_init: usize,
     pub n_sample: usize,
@@ -274,16 +278,16 @@ where
     CodElem<P>: Orderable,
 {
     fn clone(&self) -> Self {
-        Self { 
+        Self {
             n_init: self.n_init,
             n_sample: self.n_sample,
-            kernel: self.kernel.clone(), 
-            bandwidth: self.bandwidth.clone(), 
-            weighter: self.weighter.clone(), 
-            splitter: self.splitter.clone(), 
-            point_archive: self.point_archive.clone(), 
+            kernel: self.kernel.clone(),
+            bandwidth: self.bandwidth.clone(),
+            weighter: self.weighter.clone(),
+            splitter: self.splitter.clone(),
+            point_archive: self.point_archive.clone(),
             current_fidelity: self.current_fidelity,
-            current_archive: self.current_archive 
+            current_archive: self.current_archive,
         }
     }
 }
@@ -295,7 +299,7 @@ where
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=Id>,
+    P: Problem<Id = Id>,
     Id: SolId,
     CodElem<P>: Orderable,
 {
@@ -337,10 +341,11 @@ where
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=Id>,
+    P: Problem<Id = Id>,
     Id: SolId,
     CodElem<P>: Orderable,
-{ }
+{
+}
 
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> HasState for Tpe<Kern, Bw, Wght, Splt, P, Id>
@@ -349,7 +354,7 @@ where
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=Id>,
+    P: Problem<Id = Id>,
     Id: SolId,
     CodElem<P>: Orderable,
 {
@@ -375,49 +380,54 @@ where
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=SId>,
+    P: Problem<Id = SId>,
     CodElem<P>: Orderable,
 {
     type Info = TpeSInfo;
 
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let n_init = self.n_init;
         if self.point_archive.is_empty() || self.point_archive[0].1.size() < n_init {
-            Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
+            Some((
+                with_rng(|rng| scp.sample_pair(rng)),
+                TpeSInfo::default().into(),
+            ))
         } else {
             // Split the archive into good and bad, and compute the weights
             let split = self.splitter.split(&self.point_archive[0].1);
             let (good, bad) = match split {
                 Ok((good, bad)) => (good, bad),
-                Err(err) => {
-                    match err {
-                        SplitError::NotEnoughPoints(msg) => {
-                            warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            return Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
-                        },
-                        _ => panic!("Unexpected error: {err:?}"),
+                Err(err) => match err {
+                    SplitError::NotEnoughPoints(msg) => {
+                        warn!(
+                            "Not enough points to split the archive: {msg}. Falling back to random sampling."
+                        );
+                        return Some((
+                            with_rng(|rng| scp.sample_pair(rng)),
+                            TpeSInfo::default().into(),
+                        ));
                     }
-                }
+                    _ => panic!("Unexpected error: {err:?}"),
+                },
             };
-            
+
             // Now bad and good set should not be empty
             let weights = self.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
-            let good_bw =  self.bandwidth.compute(good.as_slice(), scp).unwrap();
+            let good_bw = self.bandwidth.compute(good.as_slice(), scp).unwrap();
             let good_ctx = Kern::get_context(good.as_slice(), scp, &good_bw).unwrap();
-            let bad_bw =  self.bandwidth.compute(bad.as_slice(), scp).unwrap();
+            let bad_bw = self.bandwidth.compute(bad.as_slice(), scp).unwrap();
             let bad_ctx = Kern::get_context(bad.as_slice(), scp, &bad_bw).unwrap();
 
             let (s, acq, gpdf, bpdf) = (0..self.n_sample)
                 .into_par_iter()
                 .map(|_| {
-                    let s = with_rng(|rng| {
-                        self
-                            .kernel
-                            .sample(rng, &good, &good_ctx, scp)
-                    });
+                    let s = with_rng(|rng| self.kernel.sample(rng, &good, &good_ctx, scp));
                     let kernel = &self.kernel;
-                    let good_pdf =
-                        kernel.compute(&s, &good, &good_ctx, &weights.good, scp);
+                    let good_pdf = kernel.compute(&s, &good, &good_ctx, &weights.good, scp);
                     let bad_pdf = kernel.compute(&s, &bad, &bad_ctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
@@ -430,7 +440,7 @@ where
         }
     }
 
-    fn update(&mut self,x: &CompShape<P>,_scp: &<P as Problem>::Scp,_acc: &Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
         let xy = x.get_sopt().xy();
         if self.point_archive.is_empty() {
             self.point_archive.push((0.0, OrderedArchive::new(xy)));
@@ -447,48 +457,57 @@ where
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=StepSId>,
+    P: Problem<Id = StepSId>,
     CodElem<P>: Orderable,
 {
     type Info = TpeSInfo;
 
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        if self.point_archive.is_empty() || self.point_archive[self.current_archive].1.size() < self.n_init {
-            Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()))
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        if self.point_archive.is_empty()
+            || self.point_archive[self.current_archive].1.size() < self.n_init
+        {
+            Some((
+                with_rng(|rng| scp.sample_pair(rng)),
+                TpeSInfo::default().into(),
+            ))
         } else {
             // Split the archive into good and bad, and compute the weights
-            let split = self.splitter.split(&self.point_archive[self.current_archive].1);
+            let split = self
+                .splitter
+                .split(&self.point_archive[self.current_archive].1);
             let (good, bad) = match split {
                 Ok((good, bad)) => (good, bad),
-                Err(err) => {
-                    match err {
-                        SplitError::NotEnoughPoints(msg) => {
-                            warn!("Not enough points to split the archive: {msg}. Falling back to random sampling.");
-                            return Some((with_rng(|rng| scp.sample_pair(rng)), TpeSInfo::default().into()));
-                        },
-                        _ => panic!("Unexpected error: {err:?}"),
+                Err(err) => match err {
+                    SplitError::NotEnoughPoints(msg) => {
+                        warn!(
+                            "Not enough points to split the archive: {msg}. Falling back to random sampling."
+                        );
+                        return Some((
+                            with_rng(|rng| scp.sample_pair(rng)),
+                            TpeSInfo::default().into(),
+                        ));
                     }
-                }
+                    _ => panic!("Unexpected error: {err:?}"),
+                },
             };
 
             // Now bad and good set should not be empty
             let weights = self.weighter.weight(&good, &bad).unwrap(); // Weights for the good and bad points
-            let good_bw =  self.bandwidth.compute(&good, scp).unwrap();
+            let good_bw = self.bandwidth.compute(&good, scp).unwrap();
             let good_ctx = Kern::get_context(&good, scp, &good_bw).unwrap();
-            let bad_bw =  self.bandwidth.compute(&bad, scp).unwrap();
+            let bad_bw = self.bandwidth.compute(&bad, scp).unwrap();
             let bad_ctx = Kern::get_context(&bad, scp, &bad_bw).unwrap();
 
             let (s, acq, gpdf, bpdf) = (0..self.n_sample)
                 .into_par_iter()
                 .map(|_| {
-                    let s = with_rng(|rng| {
-                        self
-                            .kernel
-                            .sample(rng, &good, &good_ctx, scp)
-                    });
+                    let s = with_rng(|rng| self.kernel.sample(rng, &good, &good_ctx, scp));
                     let kernel = &self.kernel;
-                    let good_pdf =
-                        kernel.compute(&s, &good, &good_ctx, &weights.good, scp);
+                    let good_pdf = kernel.compute(&s, &good, &good_ctx, &weights.good, scp);
                     let bad_pdf = kernel.compute(&s, &bad, &bad_ctx, &weights.bad, scp);
                     let acq = acquisition(good_pdf, bad_pdf);
                     (s, acq, good_pdf, bad_pdf)
@@ -501,7 +520,7 @@ where
         }
     }
 
-    fn update(&mut self,x: &CompShape<P>,_scp: &<P as Problem>::Scp,_acc: &Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
         let fidelity = x.fidelity().0;
 
         if fidelity == self.current_fidelity {
@@ -527,9 +546,7 @@ where
                 }
             } else {
                 let xy = x.get_sopt().xy();
-                self
-                    .point_archive
-                    .push((fidelity, OrderedArchive::new(xy)));
+                self.point_archive.push((fidelity, OrderedArchive::new(xy)));
             }
         }
         // Else we ignore as an archive with higher accuracy has already reached the threshold
@@ -543,7 +560,8 @@ where
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
-    P: Problem<Id=Id>,
+    P: Problem<Id = Id>,
     Id: SolId,
     CodElem<P>: Orderable,
-{ }
+{
+}

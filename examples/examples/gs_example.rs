@@ -5,7 +5,7 @@ pub use cleaner::Cleaner;
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
-    use tantale::macros::{Outcome, Schema, Recordable, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
@@ -35,12 +35,11 @@ mod searchspace {
 
 use searchspace::get_problem;
 use tantale::algos::GridSearch;
-use tantale::core::{Experiment, Problem};
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::Runable,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, experiment::Runable,
     stop::Calls,
 };
+use tantale::core::{Experiment, Problem};
 
 fn main() {
     let _clean = Cleaner::new("gs_example");

@@ -3,9 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    EvalStep, Fidelity, Linked, SolId, SolInfo, State, Step, StepId, Uncomputed, Var,
-};
+use crate::{EvalStep, Fidelity, Linked, SolId, SolInfo, State, Step, StepId, Uncomputed, Var};
 use std::{fmt::Debug, sync::Arc};
 
 /// Trait for objects with a unique solution identifier.
@@ -13,8 +11,7 @@ use std::{fmt::Debug, sync::Arc};
 /// [`HasId`] provides access to a solution's unique [`Id`], which remains constant across
 /// domain transformations. Twin solutions (same point in different domains) share the same [`Id`],
 /// enabling tracking and correlation throughout the optimization process.
-pub trait HasId 
-{
+pub trait HasId {
     type Id: SolId;
     /// Returns the solution's unique identifier.
     fn id(&self) -> Self::Id;
@@ -46,9 +43,9 @@ pub trait HasId
 ///
 /// [`HasStepId`] extends [`HasId`] to provide access to a solution's unique identifier that also tracks
 /// how many times that solution has been passed to the function to optimize.
-pub trait HasStepId: HasId 
+pub trait HasStepId: HasId
 where
-    Self::Id: StepId
+    Self::Id: StepId,
 {
     /// Increments the step counter in the solution's identifier.
     fn increment(&mut self);
@@ -64,8 +61,7 @@ where
 ///
 /// [`HasInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may
 /// include iteration numbers, timestamps, or other optimizer-specific information specifically related to the solution.
-pub trait HasInfo
-{
+pub trait HasInfo {
     type Info: SolInfo;
     /// Returns the solution's [`SolInfo`] wrapped in [`Arc`].
     fn sinfo(&self) -> Arc<Self::Info>;
@@ -79,8 +75,7 @@ pub trait HasInfo
 /// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution.
 /// This trait is typically implemented by both [`Uncomputed`] and [`Computed`](crate::Computed) solutions,
 /// allowing retrieval of the underlying raw solution regardless of its computed state.
-pub trait HasX 
-{
+pub trait HasX {
     type X: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
     /// Returns a reference to the raw solution associated with this object.
     fn ref_x(&self) -> &Self::X;
@@ -102,8 +97,7 @@ pub trait HasX
 /// When the [`TypeCodom`](crate::Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
 /// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
 /// [`Computed`](crate::Computed), [`Pair`](crate::Pair), [`Lone`](crate::Lone), are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
-pub trait HasY
-{
+pub trait HasY {
     type Y: Debug + Serialize + for<'a> Deserialize<'a>;
 
     /// Returns the objective function value associated with this solution.
@@ -195,8 +189,7 @@ pub trait HasFidelity {
 ///
 /// [`HasUncomputed`] provides access to the underlying [`Uncomputed`] solution within
 /// wrapper types like [`Computed`](crate::Computed) or [`SolutionShape`](crate::SolutionShape).
-pub trait HasUncomputed
-{
+pub trait HasUncomputed {
     /// The uncomputed solution type contained within.
     type Uncomputed: Uncomputed;
 
@@ -209,7 +202,6 @@ pub trait HasUncomputed
 
 /// Trait for objects containing a slice of [Var]iables.
 pub trait HasVariables: Linked {
-
     /// Returns a slice of [Var]iables associated with this object.
     fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
 
@@ -244,10 +236,8 @@ pub trait HasVariables: Linked {
     fn names(&self) -> Vec<String>;
 }
 
-
 /// Trait for objects that can provide their internal state.
-pub trait HasState 
-{
+pub trait HasState {
     type State: State;
 
     /// Returns a reference to the [`State`] of `Self`.

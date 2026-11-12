@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::bayesian::error::PriorError;
 
-
 /// A Beta prior distribution with parameters `alpha` and `beta`.
 /// The Beta distribution is defined on the interval [0, 1] and is commonly used
 /// as a prior distribution for probabilities in Bayesian statistics.

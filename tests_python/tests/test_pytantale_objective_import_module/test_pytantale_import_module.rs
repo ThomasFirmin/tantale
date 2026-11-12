@@ -1,12 +1,14 @@
 use tantale::core::aliases::{CodElem, Out, XObj};
-use tantale::core::{BaseSol, Codomain, EmptyInfo, FuncWrapper, MixedTypeDom, OneStep, Pb, Problem, SId};
+use tantale::core::{
+    BaseSol, Codomain, EmptyInfo, FuncWrapper, MixedTypeDom, OneStep, Pb, Problem, SId,
+};
 use tantale::python::init_python;
 
-pub fn get_elem<P:Problem>(p: &P, raw: XObj<P>) -> CodElem<P>
+pub fn get_elem<P: Problem>(p: &P, raw: XObj<P>) -> CodElem<P>
 where
-    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>
+    P::Func: FuncWrapper<Context = (), OutShape = Out<P>>,
 {
-    let out = p.get_objective().compute(raw,  ());
+    let out = p.get_objective().compute(raw, ());
     p.get_codomain().get_elem(&out)
 }
 
@@ -14,8 +16,8 @@ where
 fn test_python_module_import() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -27,7 +29,7 @@ fn test_python_module_import() {
         }
     }
 
-    let obj: OneStep<BaseSol<SId,_ , EmptyInfo>,_> = init_python!(
+    let obj: OneStep<BaseSol<SId, _, EmptyInfo>, _> = init_python!(
         OneStep, sp_ms_nosamp,
         "/tests/test_pytantale_objective_import_module/function_import_module.py", "function_import_module", "objective",
         "/tests/test_pytantale_objective_import_module/function_import_module.py", "function_import_module", "MyOutcome",
@@ -48,8 +50,17 @@ fn test_python_module_import() {
 
     let elem = get_elem(&pb, x);
 
-    assert_eq!(elem.value, 85.0, "Expected imported helper to affect objective value");
+    assert_eq!(
+        elem.value, 85.0,
+        "Expected imported helper to affect objective value"
+    );
     assert_eq!(elem.cost, 123.0, "Expected imported helper cost to be used");
-    assert_eq!(elem.samples, 77, "Expected imported helper samples to be used");
-    assert_eq!(elem.spiking, 11, "Expected imported helper spiking to be used");
+    assert_eq!(
+        elem.samples, 77,
+        "Expected imported helper samples to be used"
+    );
+    assert_eq!(
+        elem.spiking, 11,
+        "Expected imported helper spiking to be used"
+    );
 }

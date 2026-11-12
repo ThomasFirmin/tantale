@@ -1,11 +1,9 @@
 use tantale::algos::{RandomSearch, Sha, sha};
-use tantale::core::optimizer::opt::Batched;
-use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 use tantale::core::experiment::PoolMode;
 use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
-use tantale::core::{
-    CSVRecorder, Fidelity, FolderConfig, MessagePack,
-};
+use tantale::core::optimizer::opt::Batched;
+use tantale::core::{CSVRecorder, Fidelity, FolderConfig, MessagePack};
+use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 
 #[path = "./cleaner.rs"]
 pub mod cleaner;
@@ -69,8 +67,8 @@ mod init_func {
         use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
         use tantale::core::{
             Bool, Cat, Int, Nat, Real,
-            objective::Step,
             distribution::{Bernoulli, Uniform},
+            objective::Step,
         };
         use tantale::macros::objective;
 
@@ -180,7 +178,7 @@ fn main() {
     if com.is_master() {
         drop(Cleaner::new("tmp_test_sha_batch_mpirun_persistent"));
     }
-    
+
     ParExperiment::new(pb, opt, stop, rec, check, com)
         .with_pool(PoolMode::Persistent)
         .run();
@@ -193,8 +191,9 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1)
-        .with_pool(PoolMode::Persistent);
+    let mut exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com1)
+            .with_pool(PoolMode::Persistent);
 
     if let Some(m) = exp.master_mut() {
         let expstop = &mut m.stop;
@@ -212,8 +211,9 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2)
-        .with_pool(PoolMode::Persistent);
+    let exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com2)
+            .with_pool(PoolMode::Persistent);
 
     run_reader("tmp_test_sha_batch_mpirun_persistent", 1800);
     if let Some(m) = exp.master() {

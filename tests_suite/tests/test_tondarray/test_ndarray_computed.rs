@@ -1,13 +1,11 @@
 use super::init_cod::*;
 use super::init_sp::{
-    sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real, sp_only_unit,
-    one_step_func_with_out::FuncType,
+    one_step_func_with_out::FuncType, sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int,
+    sp_only_nat, sp_only_real, sp_only_unit,
 };
 use paste::paste;
 use std::sync::Arc;
-use tantale::core::{
-    Sp, Computed, XToNdArray, YToNdArray, searchspace::Searchspace,
-};
+use tantale::core::{Computed, Sp, XToNdArray, YToNdArray, searchspace::Searchspace};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($out : ident | $func : ident ,)+] | $comp : expr ),*) => {

@@ -20,7 +20,10 @@
 //! assert_ne!(a, b);
 //! ```
 
-use crate::{SOL_ID, utils::record::{Recordable, Schema}};
+use crate::{
+    SOL_ID,
+    utils::record::{Recordable, Schema},
+};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -124,16 +127,14 @@ impl SolId for DistSId {
             id,
         }
     }
-
 }
 
 #[cfg(feature = "mpi")]
-impl Schema<()> for DistSId{
+impl Schema<()> for DistSId {
     type Parts = ();
     fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["rank".to_string(), "id".to_string()]
     }
-    
 }
 
 #[cfg(feature = "mpi")]
@@ -263,12 +264,11 @@ impl SolId for SId {
     }
 }
 
-impl Schema<()> for SId{
+impl Schema<()> for SId {
     type Parts = ();
     fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["id".to_string()]
     }
-    
 }
 
 impl Recordable<()> for SId {
@@ -329,15 +329,13 @@ impl SolId for StepSId {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         StepSId { id, id_step: 0 }
     }
-
 }
 
-impl Schema<()> for StepSId{
+impl Schema<()> for StepSId {
     type Parts = ();
     fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         vec!["id".to_string(), "id_step".to_string()]
     }
-    
 }
 
 impl Recordable<()> for StepSId {

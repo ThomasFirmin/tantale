@@ -11,8 +11,8 @@ use crate::run_checker::run_reader;
 pub fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -23,7 +23,7 @@ pub fn test_python_function() {
             d | Bool(Bernoulli(0.5))                      | Real(0.0,1.0, Uniform)                 ;
         }
     }
-    
+
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
         OneStep, sp_ms_nosamp,

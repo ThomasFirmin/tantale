@@ -1,6 +1,6 @@
 use crate::{
-    Bool, Bounded, Domain, Distribution, GridDomDistribution, Mixed, MixedTypeDom,
-    Onto, OntoDom, Unit,
+    Bool, Bounded, Distribution, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
+    Unit,
     domain::{CategoricalDomain, PreDomain, bounded::BoundedBounds},
     errors::OntoError,
     utils::aliases::Elem,
@@ -16,7 +16,15 @@ pub trait GridBounds:
 {
 }
 impl<T> GridBounds for T where
-    T: Send + Sync + PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
+    T: Send
+        + Sync
+        + PartialEq
+        + Clone
+        + Display
+        + Debug
+        + Default
+        + Serialize
+        + for<'a> Deserialize<'a>
 {
 }
 

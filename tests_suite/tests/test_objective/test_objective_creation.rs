@@ -1,7 +1,9 @@
-use tantale::core::{EmptyInfo, HasX, Mixed, MixedTypeDom, Searchspace, Sp, FuncWrapper, 
-    problem::{Pb, Problem, SimpleFn}};
 use super::init_func::*;
 use paste::paste;
+use tantale::core::{
+    EmptyInfo, FuncWrapper, HasX, Mixed, MixedTypeDom, Searchspace, Sp,
+    problem::{Pb, Problem, SimpleFn},
+};
 
 macro_rules! get_test {
     ($($name : ident),+) => {

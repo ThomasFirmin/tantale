@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::{Recordable, Schema};
 use tantale::core::{FuncState, objective::Step};
+use tantale::core::{Recordable, Schema};
 use tantale::macros::{Outcome, Recordable, Schema};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
@@ -562,18 +562,14 @@ pub struct OutEvaluator {
 impl Schema<()> for OutEvaluator {
     type Parts = ();
     fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
-        Vec::from([
-            String::from("obj"),
-        ])
+        Vec::from([String::from("obj")])
     }
 }
 
 impl Recordable<()> for OutEvaluator {
     type Parts = ();
     fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
-        Vec::from([
-            self.obj.to_string(),
-        ])
+        Vec::from([self.obj.to_string()])
     }
 }
 
@@ -594,19 +590,13 @@ pub struct FidOutEvaluator {
 impl Schema<()> for FidOutEvaluator {
     type Parts = ();
     fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
-        Vec::from([
-            String::from("obj"),
-            String::from("fid"),
-        ])
+        Vec::from([String::from("obj"), String::from("fid")])
     }
 }
 impl Recordable<()> for FidOutEvaluator {
     type Parts = ();
     fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
-        Vec::from([
-            self.obj.to_string(),
-            self.fid.to_string(),
-        ])
+        Vec::from([self.obj.to_string(), self.fid.to_string()])
     }
 }
 
@@ -702,8 +692,8 @@ pub mod sp_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -746,7 +736,7 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_grid_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron};
-    use tantale::core::{Cat, Int, Real, objective::Step, distribution::Uniform};
+    use tantale::core::{Cat, Int, Real, distribution::Uniform, objective::Step};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -782,8 +772,8 @@ pub mod sp_ms_nosamp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -835,8 +825,8 @@ pub mod sp_ms_samp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -888,8 +878,8 @@ pub mod sp_ms_samp_right_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -941,8 +931,8 @@ pub mod sp_ms_noright_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -994,8 +984,8 @@ pub mod sp_ms_samp_noright_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -1047,8 +1037,8 @@ pub mod sp_sm_samp_fid {
     use super::{FidOutUnique, FnState, Point, float_plus_float, plus_one_float};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -1098,7 +1088,7 @@ pub mod sp_sm_samp_fid {
 
 pub mod sp_sm_samp_noright_fid {
     use super::{FidOutUnique, FnState, Point, float_plus_float, plus_one_float};
-    use tantale::core::{Real, objective::Step, distribution::Uniform};
+    use tantale::core::{Real, distribution::Uniform, objective::Step};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -1169,8 +1159,8 @@ pub mod sp_evaluator_sh {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -1231,8 +1221,8 @@ pub mod sp_evaluator_hb {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -1342,8 +1332,8 @@ pub mod sp_evaluator_mo_fid {
     use super::{FnState, MoFidOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        objective::Step,
         distribution::{Bernoulli, Uniform},
+        objective::Step,
     };
     use tantale::macros::objective;
 
@@ -1421,8 +1411,6 @@ pub mod sp_evaluator_mo_fid {
     );
 }
 
-
-
 #[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
 pub struct OutSpikeEvaluator {
     #[maximize]
@@ -1434,7 +1422,7 @@ pub struct OutSpikeEvaluator {
 }
 
 pub mod sp_evaluator_spike {
-    use super::{OutSpikeEvaluator, Neuron, int_plus_nat, plus_one_int};
+    use super::{Neuron, OutSpikeEvaluator, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Unit,
         distribution::{Bernoulli, Uniform},
@@ -1509,9 +1497,10 @@ pub struct OutSpikeStepEvaluator {
 
 pub mod sp_evaluator_fid_spike {
     use super::FnState;
-    use super::{OutSpikeStepEvaluator, Neuron, int_plus_nat, plus_one_int};
+    use super::{Neuron, OutSpikeStepEvaluator, int_plus_nat, plus_one_int};
     use tantale::core::{
-        Bool, Cat, Int, Nat, Step, Unit, distribution::{Bernoulli, Uniform},
+        Bool, Cat, Int, Nat, Step, Unit,
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1541,7 +1530,7 @@ pub mod sp_evaluator_fid_spike {
             };
             state.state += 1;
             let evalstate = if [! FIDELITY !] >= 32. {Step::Evaluated} else{Step::Partially(state.state)};
-            
+
             (
                 OutSpikeStepEvaluator{
                     obj: [! j | Unit(Uniform) | !],
@@ -1555,8 +1544,6 @@ pub mod sp_evaluator_fid_spike {
         }
     );
 }
-
-
 
 pub mod sp_real {
     use super::OutEvaluator;

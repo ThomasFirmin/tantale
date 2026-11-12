@@ -16,7 +16,7 @@ pub mod nw_regression;
 pub use nw_regression::{NwRegressor, Predictor};
 
 pub mod bandwidth;
-pub use bandwidth::{Bandwidth, BandwidthType, Optuna, Scott, Hyperopt, CategoricalBw};
+pub use bandwidth::{Bandwidth, BandwidthType, CategoricalBw, Hyperopt, Optuna, Scott};
 
 pub mod error;
 

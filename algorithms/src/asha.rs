@@ -71,9 +71,12 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    HasFidelity, HasInfo, HasState, HasStep, Orderable, Problem, Sampled, Sampler, SolInfo, State, Step,
-    aliases::{Accum, CompShape, Opt, Shape}, optimizer::opt::{Prunable, Pruner},
-    solution::shape::IntoComputedShape, utils::WrappedInfo,
+    HasFidelity, HasInfo, HasState, HasStep, Orderable, Problem, Sampled, Sampler, SolInfo, State,
+    Step,
+    aliases::{Accum, CompShape, Opt, Shape},
+    optimizer::opt::{Prunable, Pruner},
+    solution::shape::IntoComputedShape,
+    utils::WrappedInfo,
 };
 
 use serde::{
@@ -83,7 +86,10 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::utils::{BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets, build_halving_budgets_with_levels};
+use crate::utils::{
+    BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets,
+    build_halving_budgets_with_levels,
+};
 
 /// A helper macro to simplify the type signature of [`Asha`].
 #[macro_export]
@@ -180,7 +186,7 @@ where
     pub current_budget: f64,
 }
 
-impl<P,Smpl> Debug for Asha<Smpl, P>
+impl<P, Smpl> Debug for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
@@ -188,28 +194,28 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Asha")
-        .field("sampler", &self.sampler)
-        .field("budgets", &self.budgets)
-        .field("scaling", &self.scaling)
-        .field("rungs", &self.rungs)
-        .field("current_budget", &self.current_budget)
-        .finish()
+            .field("sampler", &self.sampler)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("current_budget", &self.current_budget)
+            .finish()
     }
 }
 
-impl<P,Smpl> Clone for Asha<Smpl, P>
+impl<P, Smpl> Clone for Asha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn clone(&self) -> Self {
-        Self { 
-            sampler: self.sampler.clone(), 
-            budgets: self.budgets.clone(), 
-            scaling: self.scaling, 
-            rungs: self.rungs.clone(), 
-            current_budget: self.current_budget
+        Self {
+            sampler: self.sampler.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
+            current_budget: self.current_budget,
         }
     }
 }
@@ -219,7 +225,8 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
-{ }
+{
+}
 
 impl<Smpl, P> HasState for Asha<Smpl, P>
 where
@@ -267,7 +274,12 @@ where
     /// - `budget_min <= 0.0`
     /// - `budget_max <= budget_min`
     /// - `scaling < 1.0`
-    pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Result<Self, PrunerError> {
+    pub fn new(
+        sampler: Smpl,
+        budget_min: f64,
+        budget_max: f64,
+        scaling: f64,
+    ) -> Result<Self, PrunerError> {
         let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
         let rungs = (0..budgets.len()).map(|_| Vec::new()).collect();
         let current_budget = budgets[0];
@@ -284,37 +296,34 @@ where
         let (budget_min, budget_max) = self.get_budgets();
         let sampler = self.sampler;
         let scaling = self.scaling;
-        
+
         let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
         let num_brackets = s_max + 1;
         let admissions = vec![0; num_brackets];
-
 
         let mut max_admissions = Vec::with_capacity(num_brackets);
         let mut budgets = Vec::with_capacity(num_brackets);
         let mut rungs = Vec::with_capacity(num_brackets);
 
-        (0..num_brackets).rev().for_each(
-            |s|
-            {
-                let admission = (num_brackets as f64 * scaling.powi(s as i32)/((s + 1) as f64)).ceil() as usize;
-                let bmin = budget_max * scaling.powi(-(s as i32));
-                let bracket_budgets = build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
-                let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
-                max_admissions.push(admission);
-                budgets.push(bracket_budgets);
-                rungs.push(bracket_rungs);
-                
-            }
-        );
+        (0..num_brackets).rev().for_each(|s| {
+            let admission =
+                (num_brackets as f64 * scaling.powi(s as i32) / ((s + 1) as f64)).ceil() as usize;
+            let bmin = budget_max * scaling.powi(-(s as i32));
+            let bracket_budgets =
+                build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
+            let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
+            max_admissions.push(admission);
+            budgets.push(bracket_budgets);
+            rungs.push(bracket_rungs);
+        });
 
-        BrackettedAsha { 
-            sampler, 
-            budgets, 
-            scaling, 
-            rungs, 
-            admissions, 
-            max_admissions, 
+        BrackettedAsha {
+            sampler,
+            budgets,
+            scaling,
+            rungs,
+            admissions,
+            max_admissions,
             num_brackets,
         }
     }
@@ -415,7 +424,11 @@ where
     /// To simplify things, a function state is local to a worker, and is not shared across workers.
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let mut i = self.budgets.len() - 1;
         while i > 0 {
             let k = (self.rungs[i].len() as f64 / self.scaling) as usize;
@@ -429,7 +442,8 @@ where
                 if !promotable.is_empty() {
                     promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
                     promotable[0].promote();
-                    let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
+                    let mut sol: Shape<P> =
+                        IntoComputedShape::extract(promotable[0].result.clone()).0;
                     self.current_budget = self.budgets[i];
                     sol.set_fidelity(self.current_budget);
                     return Some((sol, Sampled::Reused));
@@ -445,17 +459,20 @@ where
         })
     }
 
-    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
         self.sampler.update(x, scp, acc);
         match x.step() {
-            Step::Partially(s)  => {
+            Step::Partially(s) => {
                 let fid = x.fidelity().0;
-                if fid >= self.get_budget_max(){
+                if fid >= self.get_budget_max() {
                     warn!(
                         "
                             Fidelity {} >= budget_max {} for a Partially({}) step.
                             This may indicate a logic error in the objective function.
-                        ", fid, self.get_budget_max(), s
+                        ",
+                        fid,
+                        self.get_budget_max(),
+                        s
                     );
                 }
                 let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
@@ -471,19 +488,21 @@ where
                         self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
                     }
                 }
-            },
-            Step::Evaluated  => {
+            }
+            Step::Evaluated => {
                 let fid = x.fidelity().0;
-                if fid < self.get_budget_max(){
+                if fid < self.get_budget_max() {
                     warn!(
                         "
                             Fidelity {} < budget_max {} for an Evaluated step.
                             This may indicate a logic error in the objective function.
-                        ", fid, self.get_budget_max()
+                        ",
+                        fid,
+                        self.get_budget_max()
                     );
                 }
-            },
-            _ =>(),
+            }
+            _ => (),
         }
     }
 }
@@ -686,16 +705,15 @@ where
     }
 }
 
-
 //------------------//
 //  BrackettedAsha  //
 //------------------//
 
-/// [`BrackettedAsha`] is a variant of the Asynchronous Successive Halving algorithm 
+/// [`BrackettedAsha`] is a variant of the Asynchronous Successive Halving algorithm
 /// that organizes the optimization process into multiple brackets,
-///  each with its own set of budget levels and rungs. 
-/// This allows for more flexible and efficient exploration of the search space, 
-/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets. 
+///  each with its own set of budget levels and rungs.
+/// This allows for more flexible and efficient exploration of the search space,
+/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets.
 pub struct BrackettedAsha<Smpl, P>
 where
     P: Problem,
@@ -718,7 +736,7 @@ where
     pub num_brackets: usize,
 }
 
-impl<P,Smpl> Debug for BrackettedAsha<Smpl, P>
+impl<P, Smpl> Debug for BrackettedAsha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
@@ -726,32 +744,32 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Asha")
-        .field("sampler", &self.sampler)
-        .field("budgets", &self.budgets)
-        .field("scaling", &self.scaling)
-        .field("rungs", &self.rungs)
-        .field("admissions", &self.admissions)
-        .field("max_admissions", &self.max_admissions)
-        .field("num_brackets", &self.num_brackets)
-        .finish()
+            .field("sampler", &self.sampler)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("admissions", &self.admissions)
+            .field("max_admissions", &self.max_admissions)
+            .field("num_brackets", &self.num_brackets)
+            .finish()
     }
 }
 
-impl<P,Smpl> Clone for BrackettedAsha<Smpl, P>
+impl<P, Smpl> Clone for BrackettedAsha<Smpl, P>
 where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
 {
     fn clone(&self) -> Self {
-        Self { 
-            sampler: self.sampler.clone(), 
-            budgets: self.budgets.clone(), 
-            scaling: self.scaling, 
-            rungs: self.rungs.clone(), 
+        Self {
+            sampler: self.sampler.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
             admissions: self.admissions.clone(),
             max_admissions: self.max_admissions.clone(),
-            num_brackets: self.num_brackets
+            num_brackets: self.num_brackets,
         }
     }
 }
@@ -761,7 +779,8 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
-{ }
+{
+}
 
 impl<Smpl, P> HasState for BrackettedAsha<Smpl, P>
 where
@@ -795,7 +814,11 @@ where
 {
     type Info = WrappedInfo<Smpl::Info, BracketInfo>;
 
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         let mut b = 0;
         while b < self.num_brackets {
             let mut i = self.budgets[b].len() - 1;
@@ -803,7 +826,8 @@ where
                 let length = self.rungs[b][i].len();
                 let k = (length as f64 / self.scaling) as usize;
                 if k > 0 {
-                    self.rungs[b][i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
+                    self.rungs[b][i]
+                        .select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
                     let mut promotable = self.rungs[b][i]
                         .iter_mut()
                         .take(k)
@@ -812,7 +836,8 @@ where
                     if !promotable.is_empty() {
                         promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
                         promotable[0].promote();
-                        let mut sol: Shape<P> = IntoComputedShape::extract(promotable[0].result.clone()).0;
+                        let mut sol: Shape<P> =
+                            IntoComputedShape::extract(promotable[0].result.clone()).0;
                         sol.set_fidelity(self.budgets[b][i]);
                         return Some((sol, Sampled::Reused));
                     }
@@ -826,7 +851,11 @@ where
                     sol.set_fidelity(self.budgets[b][0]);
                     let info = match info {
                         Sampled::Fresh(inf) => inf,
-                        Sampled::Reused => sol.sinfo().find_info::<Smpl::Info>().expect("Sampler info not found in solution info").clone(),
+                        Sampled::Reused => sol
+                            .sinfo()
+                            .find_info::<Smpl::Info>()
+                            .expect("Sampler info not found in solution info")
+                            .clone(),
                     };
                     let sinfo = WrappedInfo::new(info, BracketInfo(b).into());
                     (sol, Sampled::Fresh(sinfo.into()))
@@ -835,28 +864,38 @@ where
             b += 1;
         }
         self.admissions = vec![0; self.num_brackets];
-        self.rungs.iter_mut().for_each(|bracket| {bracket.iter_mut().for_each(|rung| {rung.drain(..);})});
+        self.rungs.iter_mut().for_each(|bracket| {
+            bracket.iter_mut().for_each(|rung| {
+                rung.drain(..);
+            })
+        });
         self.sample_info(scp, acc)
     }
 
-    fn update(&mut self, x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
         self.sampler.update(x, scp, acc);
         match x.step() {
-            Step::Partially(s)  => {
+            Step::Partially(s) => {
                 let fid = x.fidelity().0;
-                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
                 let bracket = info.super_info.0;
                 let max_budget = *self.budgets[bracket].last().unwrap();
-                if fid >= max_budget{
+                if fid >= max_budget {
                     warn!(
                         "
                             Fidelity {} >= budget_max {} for a Partially({}) step.
                             This may indicate a logic error in the objective function.
-                        ", fid, max_budget, s
+                        ",
+                        fid, max_budget, s
                     );
                 }
 
-                let idx = self.budgets[bracket].iter().position(|&b| b == x.fidelity().0);
+                let idx = self.budgets[bracket]
+                    .iter()
+                    .position(|&b| b == x.fidelity().0);
                 if let Some(i) = idx {
                     let rung_idx = i + 1;
                     if rung_idx >= self.rungs[bracket].len() {
@@ -869,22 +908,26 @@ where
                         self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));
                     }
                 }
-            },
-            Step::Evaluated  => {
+            }
+            Step::Evaluated => {
                 let fid = x.fidelity().0;
-                let info = x.sinfo().find_info::<WrappedInfo<Smpl::Info, BracketInfo>>().expect("BracketInfo not found in solution info");
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
                 let bracket = info.super_info.0;
                 let max_budget = *self.budgets[bracket].last().unwrap();
-                if fid >= max_budget{
+                if fid >= max_budget {
                     warn!(
                         "
                             Fidelity {} < budget_max {} for an Evaluated step.
                             This may indicate a logic error in the objective function.
-                        ", fid, max_budget
+                        ",
+                        fid, max_budget
                     );
                 }
-            },
-            _ =>(),
+            }
+            _ => (),
         }
     }
 }
@@ -963,7 +1006,15 @@ impl<'de> Visitor<'de> for BrackettedAshaFieldVisitor {
             "num_brackets" => Ok(BrackettedAshaField::NumBrackets),
             _ => Err(de::Error::unknown_field(
                 value,
-                &["sampler", "budgets", "scaling", "rung", "admissions", "max_admissions", "num_brackets"],
+                &[
+                    "sampler",
+                    "budgets",
+                    "scaling",
+                    "rung",
+                    "admissions",
+                    "max_admissions",
+                    "num_brackets",
+                ],
             )),
         }
     }
@@ -1022,7 +1073,6 @@ where
             admissions,
             max_admissions,
             num_brackets,
-
         })
     }
 
@@ -1090,7 +1140,8 @@ where
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
         let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
         let admissions = admissions.ok_or_else(|| de::Error::missing_field("admissions"))?;
-        let max_admissions = max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
+        let max_admissions =
+            max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
         let num_brackets = num_brackets.ok_or_else(|| de::Error::missing_field("num_brackets"))?;
 
         Ok(BrackettedAsha {

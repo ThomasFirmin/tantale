@@ -1,9 +1,13 @@
-
 use std::sync::Arc;
 
 use crate::{
-    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::{
-        Communicator, communicator::{Channel, Envelope, Peers}
+    FuncWrapper, Problem,
+    aliases::Accum,
+    errors::{CommunicatorError, WorkerError},
+    experiment::parallel::parexperiment::MasterWorkerCom,
+    utils::{
+        Communicator,
+        communicator::{Channel, Envelope, Peers},
     },
 };
 use crossbeam::channel::{Receiver, Sender, unbounded};
@@ -15,22 +19,29 @@ pub struct ThreadChannel {
 }
 
 impl Channel for ThreadChannel {
-
     const SHARED_MEM: bool = true;
 
     fn send(&self, msg: Envelope) -> Result<(), CommunicatorError> {
         let sender = &self.sender[msg.to];
-        sender.send(msg).map_err(|_|CommunicatorError::ChannelClosed)?;
+        sender
+            .send(msg)
+            .map_err(|_| CommunicatorError::ChannelClosed)?;
         Ok(())
     }
 
     fn receive(&self) -> Result<Envelope, CommunicatorError> {
-        let content = self.receiver.recv().map_err(|_| CommunicatorError::ChannelClosed)?;
+        let content = self
+            .receiver
+            .recv()
+            .map_err(|_| CommunicatorError::ChannelClosed)?;
         Ok(content)
     }
 
     fn try_receive(&self) -> Result<Option<Envelope>, CommunicatorError> {
-        let content = self.receiver.try_recv().map_err(|_| CommunicatorError::ChannelClosed)?;
+        let content = self
+            .receiver
+            .try_recv()
+            .map_err(|_| CommunicatorError::ChannelClosed)?;
         Ok(Some(content))
     }
 
@@ -42,7 +53,7 @@ impl Channel for ThreadChannel {
 
         Ok(content.from)
     }
-    
+
     fn me(&self) -> usize {
         self.id
     }
@@ -58,7 +69,6 @@ pub struct ThreadCommunicator {
 
 impl ThreadCommunicator {
     pub fn new() -> Self {
-
         let size = num_cpus::get();
 
         // Create one incoming channel per endpoint.
@@ -77,20 +87,23 @@ impl ThreadCommunicator {
         let channels = receivers
             .into_iter()
             .enumerate()
-            .map(|(id, receiver)| {
-                ThreadChannel {
-                    id,
-                    sender: senders.clone(),
-                    receiver,
-                }
+            .map(|(id, receiver)| ThreadChannel {
+                id,
+                sender: senders.clone(),
+                receiver,
             })
             .collect();
 
         let idle = Peers::new(size);
-        Self { channels , me: 0, idle, size }
+        Self {
+            channels,
+            me: 0,
+            idle,
+            size,
+        }
     }
 
-    /// Set the rank of the current thread. 
+    /// Set the rank of the current thread.
     /// This is used to identify the master thread (rank 0) and worker threads (rank > 0).
     pub fn set_me(&mut self, me: usize) {
         self.me = me;
@@ -102,7 +115,6 @@ impl Default for ThreadCommunicator {
         Self::new()
     }
 }
-
 
 impl Communicator for ThreadCommunicator {
     type Channel = ThreadChannel;
@@ -123,7 +135,7 @@ impl Communicator for ThreadCommunicator {
     fn set_idle(&mut self, peer: usize) {
         self.idle.set_idle(peer);
     }
-    
+
     fn set_busy(&mut self, peer: usize) {
         self.idle.set_busy(peer);
     }
@@ -159,7 +171,7 @@ impl MasterWorkerCom for ThreadCommunicator {
     fn master<P, F>(self, f: F) -> Accum<P>
     where
         P: Problem,
-        F: FnOnce(Self) -> Accum<P>
+        F: FnOnce(Self) -> Accum<P>,
     {
         f(self)
     }
@@ -167,7 +179,7 @@ impl MasterWorkerCom for ThreadCommunicator {
     fn worker<R, F>(&mut self, func: F, routine: R) -> Result<Self::Handle, WorkerError>
     where
         R: Fn(Arc<F>, &mut Self::Channel) -> Result<(), WorkerError> + Send + Sync + 'static,
-        F: FuncWrapper + 'static
+        F: FuncWrapper + 'static,
     {
         let mut handles = Vec::new();
         let f = Arc::new(func);
@@ -185,7 +197,7 @@ impl MasterWorkerCom for ThreadCommunicator {
 
         Ok(handles)
     }
-    
+
     fn is_master(&self) -> bool {
         true
     }

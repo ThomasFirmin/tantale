@@ -1,8 +1,13 @@
-
 use serde::{Deserialize, Serialize};
-use std::{any::{Any, TypeId}, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    sync::Arc,
+};
 
-use crate::{SolInfo, utils::record::{Recordable, Schema}};
+use crate::{
+    SolInfo,
+    utils::record::{Recordable, Schema},
+};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(bound = "Info: SolInfo, SuperInfo: SolInfo")]
@@ -61,7 +66,9 @@ where
         if TypeId::of::<Self>() == TypeId::of::<T>() {
             return (self as Arc<dyn Any + Send + Sync>).downcast::<T>().ok();
         }
-        self.inner.clone().find_info::<T>()
+        self.inner
+            .clone()
+            .find_info::<T>()
             .or_else(|| self.super_info.clone().find_info::<T>())
     }
 }

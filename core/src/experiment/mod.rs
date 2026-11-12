@@ -255,10 +255,14 @@
 //! - [`Searchspace`] - Domain definition for optimization variables
 //! - [`Stop`] - Stopping criterion interface
 
-
 use crate::{
-    Problem, aliases::{Accum, Opt}, 
-    checkpointer::Checkpointer, optimizer::Sampler, recorder::Recorder, solution::SolId, stop::Stop,
+    Problem,
+    aliases::{Accum, Opt},
+    checkpointer::Checkpointer,
+    optimizer::Sampler,
+    recorder::Recorder,
+    solution::SolId,
+    stop::Stop,
 };
 
 // BASICS
@@ -272,7 +276,7 @@ pub mod parallel;
 pub use parallel::{ParExperiment, ThreadChannel, ThreadCommunicator};
 
 #[cfg(feature = "mpi")]
-pub use parallel::{MPICommunicator, MPIChannel};
+pub use parallel::{MPIChannel, MPICommunicator};
 
 /// The core trait defining the optimization loop interface.
 ///

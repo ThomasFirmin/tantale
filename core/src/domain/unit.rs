@@ -1,12 +1,15 @@
 use crate::{
-    GridDom, distribution::{BoundedDistribution, Distribution}, domain::{
+    GridDom,
+    distribution::{BoundedDistribution, Distribution},
+    domain::{
         Domain, NumericalDomain, PreDomain,
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         grid::GridBounds,
         mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
-    }, errors::OntoError,
+    },
+    errors::OntoError,
     utils::aliases::Elem,
 };
 

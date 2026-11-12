@@ -5,10 +5,15 @@ use super::init_sp::sp_mixed_to_nodomain::get_searchspace;
 use csv::Reader;
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
-use tantale::core::{
-    BaseSol, Codomain, Computed, EmptyInfo, FolderConfig, HasId, HasVariables, HasX, Mixed, MixedTypeDom, NoDomain, OneStep, Problem, Recordable, Recorder, SId, Schema, Searchspace, SimplePb, Sp, objective::outcome::IdOut, recorder::RecorderTargets, utils::record::{CompParts, SolParts},
-};
 use tantale::core::recorder::CSVRecorder;
+use tantale::core::{
+    BaseSol, Codomain, Computed, EmptyInfo, FolderConfig, HasId, HasVariables, HasX, Mixed,
+    MixedTypeDom, NoDomain, OneStep, Problem, Recordable, Recorder, SId, Schema, Searchspace,
+    SimplePb, Sp,
+    objective::outcome::IdOut,
+    recorder::RecorderTargets,
+    utils::record::{CompParts, SolParts},
+};
 use tantale::macros::{Outcome, Recordable, Schema};
 
 mod infos {
@@ -75,7 +80,10 @@ fn csv_recorder_writes_schema_and_records() {
     <CSVRecorder as Recorder<_, ()>>::init(&mut recorder, &problem, &()).unwrap();
 
     let mut rng = rand::rng();
-    let solution: BaseSol<SId, Mixed, EmptyInfo> = <Sp<Mixed, NoDomain> as Searchspace<OneStep<BaseSol<SId, Mixed, EmptyInfo>, infos::OutExample>>>::sample_obj(problem.get_searchspace(),&mut rng);
+    let solution: BaseSol<SId, Mixed, EmptyInfo> =
+        <Sp<Mixed, NoDomain> as Searchspace<
+            OneStep<BaseSol<SId, Mixed, EmptyInfo>, infos::OutExample>,
+        >>::sample_obj(problem.get_searchspace(), &mut rng);
     let id = solution.id();
     let int_value = match solution.ref_x()[0] {
         MixedTypeDom::Int(value) => value,
@@ -83,7 +91,8 @@ fn csv_recorder_writes_schema_and_records() {
     };
     let output = infos::get_out(id.id, int_value);
     let codomain = problem.get_codomain();
-    let computed: Computed<BaseSol<SId, Mixed, EmptyInfo>, infos::OutExample> = Computed::new(solution.clone(), Arc::new(codomain.get_elem(&output)));
+    let computed: Computed<BaseSol<SId, Mixed, EmptyInfo>, infos::OutExample> =
+        Computed::new(solution.clone(), Arc::new(codomain.get_elem(&output)));
     let vars = problem.get_searchspace().get_vars();
     let contexts = (codomain, &(vars, codomain));
 
@@ -123,8 +132,14 @@ fn csv_recorder_writes_schema_and_records() {
 
     let out_file = recorder_dir.join("out.csv");
     let (out_header, out_rows) = read_csv(&out_file);
-    assert_eq!(out_header, IdOut::<SId, infos::OutExample>::columns(&(), ()));
-    assert_eq!(out_rows, vec![IdOut(computed.ref_id(), &output).record(&(), ())]);
+    assert_eq!(
+        out_header,
+        IdOut::<SId, infos::OutExample>::columns(&(), ())
+    );
+    assert_eq!(
+        out_rows,
+        vec![IdOut(computed.ref_id(), &output).record(&(), ())]
+    );
 
     let info_file = recorder_dir.join("info.csv");
     let (info_header, info_rows) = read_csv(&info_file);

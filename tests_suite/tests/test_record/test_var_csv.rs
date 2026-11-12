@@ -1,5 +1,7 @@
 use super::init_dom::*;
-use tantale::core::{BaseSol, EmptyInfo, Schema, Recordable, SId, Solution, utils::record::SolParts, Uncomputed, Var};
+use tantale::core::{
+    BaseSol, EmptyInfo, Recordable, SId, Schema, Solution, Uncomputed, Var, utils::record::SolParts,
+};
 
 use paste::paste;
 
@@ -31,7 +33,7 @@ macro_rules! get_variable {
 
                 let sample = variable.sample_obj(&mut rng);
                 let s_str = sample.to_string();
-                let meta = <BaseSol::<SId, $ty1, EmptyInfo> as Solution>::MetaData::default(); 
+                let meta = <BaseSol::<SId, $ty1, EmptyInfo> as Solution>::MetaData::default();
                 let solution = BaseSol::<SId, $ty1, EmptyInfo>::new(meta, [sample]);
                 let s_csv = solution.record(&(), parts.clone());
                 assert_eq!(s_csv[0],s_str, "Wrong csv writing for a sample from an Obj var.");

@@ -5,7 +5,7 @@ pub use cleaner::Cleaner;
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-    use tantale::macros::{Outcome, Schema, Recordable, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
@@ -37,11 +37,10 @@ mod searchspace {
 
 use searchspace::get_problem;
 use tantale::algos::BatchRandomSearch;
-use tantale::core::{Experiment, Runable};
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    stop::Calls,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls,
 };
+use tantale::core::{Experiment, Runable};
 
 fn main() {
     let _clean = Cleaner::new("rs_example");

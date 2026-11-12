@@ -1,3 +1,4 @@
+use tantale::core::distribution::{Bernoulli, Uniform};
 pub use tantale::core::domain::Domain;
 pub use tantale::core::domain::bool::Bool;
 pub use tantale::core::domain::bounded::{Bounded, BoundedBounds, Int, Nat, Real};
@@ -5,7 +6,6 @@ pub use tantale::core::domain::grid::{Cat, Grid, GridInt, GridNat, GridReal};
 pub use tantale::core::domain::mixed::{Mixed, MixedTypeDom};
 pub use tantale::core::domain::onto::Onto;
 pub use tantale::core::domain::unit::Unit;
-use tantale::core::distribution::{Bernoulli, Uniform};
 
 pub fn get_domain_real() -> Real {
     Real::new(0.0, 10.0, Uniform)

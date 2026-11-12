@@ -20,7 +20,7 @@
 //!
 
 pub mod random_search;
-pub use random_search::{RSInfo, RandomSearch , BatchRandomSearch};
+pub use random_search::{BatchRandomSearch, RSInfo, RandomSearch};
 
 pub mod sha;
 pub use sha::Sha;
@@ -44,13 +44,13 @@ pub use utils::mo;
 pub mod bayesian;
 #[cfg(feature = "bayes")]
 pub use bayesian::{
+    bandwidth::{Bandwidth, BandwidthType, CategoricalBw, Hyperopt, Optuna, Scott},
     kernel::Univariate,
+    prior::BetaPrior,
     splitter::{LinearSplit, SqrtSplit},
     tpe,
     tpe::Tpe,
     weighter::UniformWeighter,
-    bandwidth::{Bandwidth, BandwidthType, Optuna, Scott, Hyperopt, CategoricalBw},
-    prior::BetaPrior,
 };
 
 #[cfg(feature = "spikes")]

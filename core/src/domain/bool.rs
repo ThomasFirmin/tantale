@@ -1,7 +1,14 @@
 use crate::{
-    Grid, distribution::{BoolDistribution, Distribution}, domain::{
-        CategoricalDomain, Domain, PreDomain, bounded::{Bounded, BoundedBounds}, mixed::{Mixed, MixedTypeDom}, onto::{Onto, OntoDom}, unit::Unit,
-    }, errors::OntoError,
+    Grid,
+    distribution::{BoolDistribution, Distribution},
+    domain::{
+        CategoricalDomain, Domain, PreDomain,
+        bounded::{Bounded, BoundedBounds},
+        mixed::{Mixed, MixedTypeDom},
+        onto::{Onto, OntoDom},
+        unit::Unit,
+    },
+    errors::OntoError,
     utils::aliases::Elem,
 };
 

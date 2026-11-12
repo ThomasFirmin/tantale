@@ -1,13 +1,11 @@
 use tantale::algos::bayesian::bandwidth::Optuna;
-use tantale::algos::{Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe};
+use tantale::algos::{
+    Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe,
+};
 use tantale::core::Experiment;
 use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::Runable,
-    stop::Evaluated,
-};
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Evaluated};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{sp_evaluator, sp_evaluator_real};
@@ -38,12 +36,17 @@ fn test_tpe_seq_run() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -53,16 +56,19 @@ fn test_tpe_seq_run() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let _exp = Experiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun", 100);
 }
-
-
 
 #[test]
 fn test_tpe_seq_run_real() {
@@ -92,7 +98,13 @@ fn test_tpe_seq_run_real() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -106,10 +118,15 @@ fn test_tpe_seq_run_real() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let _exp = Experiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun_real", 100);
 }
-
 
 #[test]
 fn test_tpe_seq_run_sqrt_splitter() {
@@ -136,12 +153,17 @@ fn test_tpe_seq_run_sqrt_splitter() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Optuna, UniformWeighter, SqrtSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, SqrtSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -150,7 +172,6 @@ fn test_tpe_seq_run_sqrt_splitter() {
     exp.run();
 
     let pb = sp_evaluator::get_problem();
-
 
     let config = FolderConfig::new("tmp_test_tpe_seqrun_sqrt");
     let rec = CSVRecorder::new(config.clone());
@@ -185,12 +206,17 @@ fn test_tpe_seq_run_scott() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_scott");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Scott, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Scott, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -200,12 +226,17 @@ fn test_tpe_seq_run_scott() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_scott");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = Experiment::<_, tpe!(Univariate, Scott, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let _exp = Experiment::<
+        _,
+        tpe!(Univariate, Scott, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun_scott", 100);
 }
 
@@ -234,12 +265,17 @@ fn test_tpe_seq_run_hyperopt() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -249,12 +285,17 @@ fn test_tpe_seq_run_hyperopt() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let _exp = Experiment::<
+        _,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun_hyperopt", 100);
 }
 
@@ -283,12 +324,17 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let mut exp = Experiment::<
+        _,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
 
     let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -298,12 +344,17 @@ fn test_tpe_seq_run_hyperopt_consider_endpoints() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seqrun_hyperopt_endpoint");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let _exp = Experiment::<_, tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit), Evaluated, _, _>::load(pb, rec, check);
+    let _exp = Experiment::<
+        _,
+        tpe!(Univariate, Hyperopt, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+    >::load(pb, rec, check);
     run_reader("tmp_test_tpe_seqrun_hyperopt_endpoint", 100);
 }
 
@@ -333,13 +384,19 @@ fn test_tpe_seq_parrun() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seq_parrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _,_>::load(pb, rec, check, com);
+    let mut exp = ParExperiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+        _,
+    >::load(pb, rec, check, com);
     if let Some(m) = exp.master_mut() {
         let expstop: &mut Evaluated = &mut m.stop;
         assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -349,13 +406,19 @@ fn test_tpe_seq_parrun() {
 
     let pb = sp_evaluator::get_problem();
 
-
     let config = FolderConfig::new("tmp_test_tpe_seq_parrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut _exp = ParExperiment::<_, tpe!(Univariate, Optuna, UniformWeighter, LinearSplit), Evaluated, _, _,_>::load(pb, rec, check, com);
+    let mut _exp = ParExperiment::<
+        _,
+        tpe!(Univariate, Optuna, UniformWeighter, LinearSplit),
+        Evaluated,
+        _,
+        _,
+        _,
+    >::load(pb, rec, check, com);
     run_reader("tmp_test_tpe_seq_parrun", 100);
 }
 
@@ -384,7 +447,6 @@ fn test_tpe_seq_parrun() {
 
 //     let pb = sp_evaluator::get_problem();
 
-
 //     let config = FolderConfig::new("tmp_test_tpe_seqthrrun");
 //     let rec = CSVRecorder::new(config.clone());
 //     let check = MessagePack::new(config).unwrap();
@@ -409,7 +471,6 @@ fn test_tpe_seq_parrun() {
 
 //     let pb = sp_evaluator::get_problem();
 
-
 //     let config = FolderConfig::new("tmp_test_tpe_seqthrrun");
 //     let rec = CSVRecorder::new(config.clone());
 //     let check = MessagePack::new(config).unwrap();
@@ -424,7 +485,6 @@ fn test_tpe_seq_parrun() {
 //     );
 //     run_reader_eps("tmp_test_tpe_seqthrrun", 100, num_cpus::get() * 4);
 // }
-
 
 // #[test]
 // fn test_tpe_seqthr_run_real() {

@@ -83,7 +83,7 @@ use std::fmt::{Debug, Display};
 pub trait PreDomain: Debug {}
 
 pub trait Element
-where 
+where
     Self: Sized
         + Send
         + Sync
@@ -93,11 +93,11 @@ where
         + Debug
         + Default
         + Serialize
-        + for<'a> Deserialize<'a>
-{}
+        + for<'a> Deserialize<'a>,
+{
+}
 
-impl<T> Element for T
-where 
+impl<T> Element for T where
     T: Sized
         + Send
         + Sync
@@ -108,7 +108,8 @@ where
         + Default
         + Serialize
         + for<'a> Deserialize<'a>
-{}
+{
+}
 
 /// Core trait defining a domain and its associated value type.
 ///
@@ -284,21 +285,9 @@ pub use onto::{Linked, Onto, OntoDom};
 pub mod codomain;
 pub use codomain::{
     Accumulator, BestAccumulator, Codomain, ConstCodomain, ConstMultiCodomain, Constrained, Cost,
-    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Multi, MultiCodomain, ParetoAccumulator, Single, SingleCodomain,
-    ElemSingleCodomain,
-    ElemCostCodomain,
-    ElemConstCodomain,
-    ElemCostConstCodomain,
-    ElemMultiCodomain,
-    ElemCostMultiCodomain,
-    ElemConstMultiCodomain,
-    ElemCostConstMultiCodomain,
-    Criteria,
-    SingleAccumulator,
-    MultiAccumulator,
-    ElemSingle,
-    ElemMulti,
-    ElemCost,
-    ElemConstrained,
+    CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain, Criteria,
+    ElemConstCodomain, ElemConstMultiCodomain, ElemConstrained, ElemCost, ElemCostCodomain,
+    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMulti,
+    ElemMultiCodomain, ElemSingle, ElemSingleCodomain, Multi, MultiAccumulator, MultiCodomain,
+    ParetoAccumulator, Single, SingleAccumulator, SingleCodomain,
 };

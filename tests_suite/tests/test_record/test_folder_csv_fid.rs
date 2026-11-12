@@ -3,11 +3,17 @@ use super::init_sp::sp_mixed_to_nodomain::get_searchspace;
 use csv::Reader;
 use serde::{Deserialize, Serialize};
 use std::{path::Path, sync::Arc};
-use tantale::core::{
-    Codomain, Computed, EmptyInfo, FidelitySol, FolderConfig, HasFidelity, HasId, HasStep, HasVariables, HasX, Mixed, MixedTypeDom, MultiStep, NoDomain, Problem, Recordable, Recorder, Schema, Searchspace, Sp, Step, StepSId, objective::outcome::IdOut, recorder::RecorderTargets, solution::Fidelity, utils::record::{CompParts, SolParts},
-};
-use tantale::core::recorder::CSVRecorder;
 use tantale::core::FidPb;
+use tantale::core::recorder::CSVRecorder;
+use tantale::core::{
+    Codomain, Computed, EmptyInfo, FidelitySol, FolderConfig, HasFidelity, HasId, HasStep,
+    HasVariables, HasX, Mixed, MixedTypeDom, MultiStep, NoDomain, Problem, Recordable, Recorder,
+    Schema, Searchspace, Sp, Step, StepSId,
+    objective::outcome::IdOut,
+    recorder::RecorderTargets,
+    solution::Fidelity,
+    utils::record::{CompParts, SolParts},
+};
 use tantale::macros::{Outcome, Recordable, Schema};
 
 use crate::{cleaner::Cleaner, init_func::FnState};
@@ -69,7 +75,7 @@ fn read_csv(path: &Path) -> (Vec<String>, Vec<Vec<String>>) {
 
 #[test]
 fn csv_recorder_writes_fidelity_schema_and_records() {
-let _cleaner = Cleaner::new("tmp_test_fid");
+    let _cleaner = Cleaner::new("tmp_test_fid");
     type Sol = FidelitySol<StepSId, Mixed, EmptyInfo>;
     type Func = MultiStep<Sol, infos::FidOutExample, FnState>;
     type Pb = FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>;
@@ -86,8 +92,9 @@ let _cleaner = Cleaner::new("tmp_test_fid");
     <CSVRecorder as Recorder<_, ()>>::init(&mut recorder, &problem, &()).unwrap();
 
     let mut rng = rand::rng();
-    let mut obj: Sol = <Sp<Mixed, NoDomain> as Searchspace<Func>>::sample_obj(problem.get_searchspace(),&mut rng);
-    
+    let mut obj: Sol =
+        <Sp<Mixed, NoDomain> as Searchspace<Func>>::sample_obj(problem.get_searchspace(), &mut rng);
+
     obj.set_fidelity(0.75);
     obj.partially(1);
     let opt = obj.clone();
@@ -98,15 +105,66 @@ let _cleaner = Cleaner::new("tmp_test_fid");
     };
     let output = infos::get_out(id.id, int_value);
     let codomain = problem.get_codomain();
-    let computed: Computed<FidelitySol<StepSId, Mixed, EmptyInfo>, infos::FidOutExample> = Computed::new(obj.clone(), Arc::new(codomain.get_elem(&output)));
+    let computed: Computed<FidelitySol<StepSId, Mixed, EmptyInfo>, infos::FidOutExample> =
+        Computed::new(obj.clone(), Arc::new(codomain.get_elem(&output)));
     let vars = problem.get_searchspace().get_vars();
     let contexts = (codomain, &(vars, codomain));
 
-    <CSVRecorder as Recorder<FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>, ()>>::record(&recorder, &RecorderTargets::XObjective, &obj, (&(), &vars), SolParts::X).unwrap();
-    <CSVRecorder as Recorder<FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>, ()>>::record(&recorder, &RecorderTargets::XOptimizer, &opt, (&(), &vars), SolParts::X).unwrap();
-    <CSVRecorder as Recorder<FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>, ()>>::record(&recorder, &RecorderTargets::Y, &computed, contexts, CompParts::Y).unwrap();
-    <CSVRecorder as Recorder<FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>, ()>>::record(&recorder, &RecorderTargets::Outcome, &IdOut(computed.ref_id(), &output), (&(), &()), ()).unwrap();
-    <CSVRecorder as Recorder<FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>, ()>>::record(&recorder, &RecorderTargets::Metadata,&obj,(&(), &vars),SolParts::Info).unwrap();
+    <CSVRecorder as Recorder<
+        FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>,
+        (),
+    >>::record(
+        &recorder,
+        &RecorderTargets::XObjective,
+        &obj,
+        (&(), &vars),
+        SolParts::X,
+    )
+    .unwrap();
+    <CSVRecorder as Recorder<
+        FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>,
+        (),
+    >>::record(
+        &recorder,
+        &RecorderTargets::XOptimizer,
+        &opt,
+        (&(), &vars),
+        SolParts::X,
+    )
+    .unwrap();
+    <CSVRecorder as Recorder<
+        FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>,
+        (),
+    >>::record(
+        &recorder,
+        &RecorderTargets::Y,
+        &computed,
+        contexts,
+        CompParts::Y,
+    )
+    .unwrap();
+    <CSVRecorder as Recorder<
+        FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>,
+        (),
+    >>::record(
+        &recorder,
+        &RecorderTargets::Outcome,
+        &IdOut(computed.ref_id(), &output),
+        (&(), &()),
+        (),
+    )
+    .unwrap();
+    <CSVRecorder as Recorder<
+        FidPb<EmptyInfo, Sp<Mixed, NoDomain>, infos::FidOutExample, FnState>,
+        (),
+    >>::record(
+        &recorder,
+        &RecorderTargets::Metadata,
+        &obj,
+        (&(), &vars),
+        SolParts::Info,
+    )
+    .unwrap();
 
     let recorder_dir = Path::new("tmp_test_fid").join("recorder");
     let (obj_header, obj_rows) = read_csv(&recorder_dir.join("obj.csv"));
@@ -125,8 +183,14 @@ let _cleaner = Cleaner::new("tmp_test_fid");
     assert_eq!(cod_rows, vec![computed.record(codomain, CompParts::Y)]);
 
     let (out_header, out_rows) = read_csv(&recorder_dir.join("out.csv"));
-    assert_eq!(out_header, IdOut::<StepSId,infos::FidOutExample>::columns(&(), ()));
-    assert_eq!(out_rows, vec![IdOut(computed.ref_id(), &output).record(&(), ())]);
+    assert_eq!(
+        out_header,
+        IdOut::<StepSId, infos::FidOutExample>::columns(&(), ())
+    );
+    assert_eq!(
+        out_rows,
+        vec![IdOut(computed.ref_id(), &output).record(&(), ())]
+    );
 
     let (info_header, info_rows) = read_csv(&recorder_dir.join("info.csv"));
     assert_eq!(info_header, Sol::columns(&vars, SolParts::Info));

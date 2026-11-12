@@ -3,8 +3,9 @@
 //! The `XToNdArray` and `YToNdArray` traits provide methods to convert raw solutions and objective values into [`ndarray::Array2`] format.
 
 use crate::{
-    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, SolId, Lone, Orderable,
-    Outcome, Pair, SolInfo, Solution, StepId, Uncomputed, aliases::TypeCodom, 
+    BaseSol, Computed, Domain, Dominate, FidelitySol, HasX, HasY, Lone, Orderable, Outcome, Pair,
+    SolId, SolInfo, Solution, StepId, Uncomputed,
+    aliases::TypeCodom,
     domain::codomain::{
         ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain,
         ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain,
@@ -20,7 +21,7 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 /// A helper struct to hold the raw solution and the computed codomain value together.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(bound = "Raw: Serialize + for<'a> Deserialize<'a>, Y: Serialize + for<'a> Deserialize<'a>")]
-pub struct Xy<Raw, Y> 
+pub struct Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -29,7 +30,7 @@ where
     pub y: Arc<Y>,
 }
 
-impl <Raw, Y> Xy<Raw, Y> 
+impl<Raw, Y> Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -40,7 +41,7 @@ where
     }
 }
 
-impl<Raw, Y> AsRef<Xy<Raw, Y>> for Xy<Raw, Y> 
+impl<Raw, Y> AsRef<Xy<Raw, Y>> for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -63,7 +64,7 @@ where
     fn clone_x(&self) -> Raw {
         self.x.clone()
     }
-    
+
     fn set_x(&mut self, x: Self::X) {
         self.x = x;
     }
@@ -79,13 +80,13 @@ where
     fn y(&self) -> Arc<Self::Y> {
         self.y.clone()
     }
-    
+
     fn set_y(&mut self, y: Arc<Self::Y>) {
         self.y = y;
     }
 }
 
-impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y> 
+impl<Raw, Y: PartialEq> PartialEq for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -95,13 +96,14 @@ where
     }
 }
 
-impl<Raw, Y: Eq> Eq for Xy<Raw, Y> 
+impl<Raw, Y: Eq> Eq for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
-{}
+{
+}
 
-impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw, Y> 
+impl<Raw, Y: PartialOrd> PartialOrd for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -111,7 +113,7 @@ where
     }
 }
 
-impl<Raw, Y: Ord> Ord for Xy<Raw, Y> 
+impl<Raw, Y: Ord> Ord for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -121,7 +123,7 @@ where
     }
 }
 
-impl<Raw, Y: Orderable> Orderable for Xy<Raw, Y> 
+impl<Raw, Y: Orderable> Orderable for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -131,7 +133,7 @@ where
     }
 }
 
-impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y> 
+impl<Raw, Y: Dominate> Dominate for Xy<Raw, Y>
 where
     Raw: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
     Y: Clone + Debug + Serialize + for<'a> Deserialize<'a>,
@@ -158,12 +160,12 @@ pub trait XToNdArray<Dom: Domain> {
     /// Returns the raw solution data as a 2D array, where each row corresponds to a solution and each column corresponds to a dimension of the solution space.
     fn x_array(&self) -> Array2<Dom::Element>;
 
-    /// Returns the raw solution data as a 2D array of a specified type `T`, 
+    /// Returns the raw solution data as a 2D array of a specified type `T`,
     /// where each row corresponds to a solution and each column corresponds to a dimension of the solution space.
     ///
     /// # Type Parameters
     /// * `T`: The desired type for the elements of the resulting array. It must implement `Copy` and be convertible from `Dom::TypeDom` using the `AsPrimitive` trait.
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
         Dom::Element: AsPrimitive<T>;
@@ -184,11 +186,12 @@ where
     fn x_cols(&self) -> usize {
         self.x.len()
     }
-    
-    fn x_array_type<T>(&self) -> Array2<T> 
+
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Dom::Element: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T>,
+    {
         Array1::from_iter(self.x.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
 }
@@ -206,15 +209,16 @@ where
         self.x.len()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Dom::Element: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T>,
+    {
         Array1::from_iter(self.x.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
 }
 
-impl<S, Out> XToNdArray<S::Dom> for Computed<S,Out> 
+impl<S, Out> XToNdArray<S::Dom> for Computed<S, Out>
 where
     S: Uncomputed + XToNdArray<S::Dom>,
     Out: Outcome,
@@ -227,10 +231,11 @@ where
         self.sol.x_cols()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Elem<S::Dom>: AsPrimitive<T> {
+        Elem<S::Dom>: AsPrimitive<T>,
+    {
         self.sol.x_array_type::<T>()
     }
 }
@@ -248,10 +253,11 @@ where
         (*self).x_cols()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Dom::Element: AsPrimitive<T> {
+        Dom::Element: AsPrimitive<T>,
+    {
         (*self).x_array_type::<T>()
     }
 }
@@ -356,10 +362,10 @@ where
         self[0].as_x().x_cols()
     }
 
-    fn x_array_type<U>(&self) -> Array2<U> 
+    fn x_array_type<U>(&self) -> Array2<U>
     where
         U: Copy + 'static,
-        Dom::Element: AsPrimitive<U>
+        Dom::Element: AsPrimitive<U>,
     {
         let n_rows = self.len();
         let n_col = self[0].as_x().x_cols();
@@ -376,7 +382,7 @@ where
     }
 }
 
-impl <Dom> XToNdArray<Dom> for Arc<[Dom::Element]>
+impl<Dom> XToNdArray<Dom> for Arc<[Dom::Element]>
 where
     Dom: Domain,
 {
@@ -388,10 +394,10 @@ where
         self.len()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Dom::Element: AsPrimitive<T>
+        Dom::Element: AsPrimitive<T>,
     {
         Array1::from_iter(self.iter().map(|x| x.as_())).insert_axis(Axis(0))
     }
@@ -411,10 +417,10 @@ where
         self.x.x_cols()
     }
 
-    fn x_array_type<T>(&self) -> Array2<T> 
+    fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
-        Dom::Element: AsPrimitive<T>
+        Dom::Element: AsPrimitive<T>,
     {
         self.x.x_array_type::<T>()
     }

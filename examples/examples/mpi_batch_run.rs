@@ -1,8 +1,8 @@
 use tantale::algos::{BatchRandomSearch, batchrandomsearch};
 use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 use tantale::core::optimizer::opt::Batched;
-use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 use tantale::core::{CSVRecorder, FolderConfig, MessagePack};
+use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 
 #[path = "./cleaner.rs"]
 pub mod cleaner;
@@ -13,7 +13,7 @@ pub use run_checker::run_reader;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::macros::{Outcome, Schema, Recordable};
+    use tantale::macros::{Outcome, Recordable, Schema};
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
@@ -97,7 +97,7 @@ fn main() {
     if com.is_master() {
         drop(Cleaner::new("tmp_test_rs_batch_mpirun"));
     }
-    
+
     ParExperiment::new(pb, opt, stop, rec, check, com).run();
 
     run_reader("tmp_test_rs_batch_mpirun", 50);
@@ -108,7 +108,8 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
+    let mut exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
 
     if let Some(m) = exp.master_mut() {
         let expstop = &mut m.stop;
@@ -126,7 +127,8 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
+    let exp =
+        ParExperiment::<_, batchrandomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com2);
 
     run_reader("tmp_test_rs_batch_mpirun", 100);
     if let Some(m) = exp.master() {

@@ -1,7 +1,9 @@
 //! Type aliases for convenience in accessing associated types.
 
-use crate::{Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, Outcome, Problem, Solution, SolutionShape, solution::shape::IntoComputedShape};
-
+use crate::{
+    Codomain, Domain, FuncWrapper, HasId, HasInfo, HasX, HasY, Linked, Outcome, Problem, Solution,
+    SolutionShape, solution::shape::IntoComputedShape,
+};
 
 /// Type alias for extracting the value type from a domain.
 ///
@@ -50,7 +52,7 @@ pub type GetY<T> = <T as HasY>::Y;
 // EXECUTION
 // OBJECTIVE FUNCTION
 pub type MetaData<Sol> = <Sol as Solution>::MetaData;
-pub type GetFuncSol<Func,Dom> = <Func as FuncWrapper>::Sol<Dom>;
+pub type GetFuncSol<Func, Dom> = <Func as FuncWrapper>::Sol<Dom>;
 pub type Func<Pb> = <Pb as Problem>::Func;
 pub type GetFuncCtx<Pb> = <Func<Pb> as FuncWrapper>::Context;
 pub type GetFuncOutShape<Pb> = <Func<Pb> as FuncWrapper>::OutShape;

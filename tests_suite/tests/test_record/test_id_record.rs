@@ -1,9 +1,9 @@
 use paste::paste;
-use tantale::core::utils::record::{Recordable, Schema};
 use tantale::core::solution::{
     SolId,
     id::{ParSId, SId},
 };
+use tantale::core::utils::record::{Recordable, Schema};
 
 macro_rules! test_header {
     ($($name:ident, $idty:ident, $expected:expr);*) => {

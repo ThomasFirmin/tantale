@@ -39,8 +39,7 @@ use searchspace::get_problem;
 use tantale::algos::RandomSearch;
 use tantale::core::Experiment;
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::Runable,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, experiment::Runable,
     stop::Calls,
 };
 

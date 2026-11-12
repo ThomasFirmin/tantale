@@ -1,9 +1,9 @@
 use tantale::core::HasX;
+use tantale::core::aliases::Elem;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::{
     BaseSol, Codomain, Computed, HasId, HasInfo, HasY, ParSId, solution::Uncomputed,
 };
-use tantale::core::aliases::Elem;
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ type TestComp<Sol> = Computed<Sol, OutExample>;
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc>, pid: u32)
 where
-    Unc: Uncomputed<Id=ParSId, Dom=Dom, Info=TestSInfo, X = Arc<[Dom::Element]>>,
+    Unc: Uncomputed<Id = ParSId, Dom = Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
     Elem<Dom>: Sync + Send,
     Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,

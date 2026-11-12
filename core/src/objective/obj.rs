@@ -146,7 +146,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BaseSol, Domain, FidOutcome, FidelitySol, HasX, SolId, SolInfo, Solution, StepId, Uncomputed, objective::outcome::{FuncState, Outcome}, solution::partial::Fidelity,
+    BaseSol, Domain, FidOutcome, FidelitySol, HasX, SolId, SolInfo, Solution, StepId, Uncomputed,
+    objective::outcome::{FuncState, Outcome},
+    solution::partial::Fidelity,
 };
 use std::{fmt::Debug, sync::Arc};
 
@@ -163,8 +165,7 @@ type SteppFn<Raw, Out, FnState> = fn(Raw, Fidelity, Option<FnState>) -> (Out, Fn
 ///
 /// The `FuncWrapper` derive macro automatically implements the trait for any struct
 /// satisfying the required trait bounds.
-pub trait FuncWrapper: Send + Sync + Clone
-{
+pub trait FuncWrapper: Send + Sync + Clone {
     type Context;
     type Out: Outcome;
     type OutShape;
@@ -172,9 +173,13 @@ pub trait FuncWrapper: Send + Sync + Clone
     type Id: SolId;
     type Info: SolInfo;
     type MetaData: Clone + Default + Debug + Send + Sync + Serialize + for<'de> Deserialize<'de>;
-    type Sol<Dom:Domain>: Uncomputed<Dom=Dom, Id= Self::Id, Info=Self::Info>; 
+    type Sol<Dom: Domain>: Uncomputed<Dom = Dom, Id = Self::Id, Info = Self::Info>;
     /// Evaluate the objective at a given `x` [`Raw`](crate::Solution::Raw) with a given `context`.
-    fn compute(&self, x: <Self::Sol::<Self::Dom> as HasX>::X , context: Self::Context) -> Self::OutShape;
+    fn compute(
+        &self,
+        x: <Self::Sol<Self::Dom> as HasX>::X,
+        context: Self::Context,
+    ) -> Self::OutShape;
 }
 
 /// Minimal wrapper for a single-shot objective function.
@@ -183,12 +188,11 @@ pub trait FuncWrapper: Send + Sync + Clone
 /// input is typically the searchspace solution representation.
 ///
 /// # Type parameters
-/// - `S`: [`Solution`] type, which provides the [`Raw`](HasX::Raw) input to the objective function. 
+/// - `S`: [`Solution`] type, which provides the [`Raw`](HasX::Raw) input to the objective function.
 /// - `Out`: Output implementing [`Outcome`].
-pub struct OneStep<S:Solution, Out: Outcome>(pub OptimFn<S::X, Out>);
+pub struct OneStep<S: Solution, Out: Outcome>(pub OptimFn<S::X, Out>);
 
-impl<S:Solution, Out: Outcome> OneStep<S, Out>
-{
+impl<S: Solution, Out: Outcome> OneStep<S, Out> {
     /// Creates a new [`Objective`] from a raw function.
     ///
     /// # Parameters
@@ -202,8 +206,7 @@ impl<S:Solution, Out: Outcome> OneStep<S, Out>
     }
 }
 
-impl<S:Solution, Out: Outcome> Clone for OneStep<S, Out>
-{
+impl<S: Solution, Out: Outcome> Clone for OneStep<S, Out> {
     fn clone(&self) -> Self {
         OneStep(self.0)
     }
@@ -223,7 +226,7 @@ where
     type Id = Id;
     type Info = Info;
     type MetaData = <BaseSol<Id, Obj, Info> as Solution>::MetaData;
-    type Sol<Dom:Domain> = BaseSol<Id, Dom, Info>;
+    type Sol<Dom: Domain> = BaseSol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, _context: Self::Context) -> Self::OutShape {
         (self.0)(x)
@@ -276,7 +279,8 @@ where
     }
 }
 
-impl<Id, Obj, Info, Out, FnState> FuncWrapper for MultiStep<FidelitySol<Id, Obj, Info>, Out, FnState>
+impl<Id, Obj, Info, Out, FnState> FuncWrapper
+    for MultiStep<FidelitySol<Id, Obj, Info>, Out, FnState>
 where
     Id: StepId,
     Obj: Domain,
@@ -291,7 +295,7 @@ where
     type Id = Id;
     type Info = Info;
     type MetaData = <FidelitySol<Id, Obj, Info> as Solution>::MetaData;
-    type Sol<Dom:Domain> = FidelitySol<Id, Dom, Info>;
+    type Sol<Dom: Domain> = FidelitySol<Id, Dom, Info>;
 
     fn compute(&self, x: Arc<[Obj::Element]>, context: Self::Context) -> Self::OutShape {
         (self.0)(x, context.0, context.1)

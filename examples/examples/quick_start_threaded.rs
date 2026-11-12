@@ -37,16 +37,15 @@ mod searchspace {
 
 use searchspace::get_problem;
 use tantale::algos::RandomSearch;
-use tantale::core::{ParExperiment, ThreadCommunicator};
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    stop::Calls,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls,
 };
+use tantale::core::{ParExperiment, ThreadCommunicator};
 
 fn main() {
     let _clean = Cleaner::new("threaded_random_search");
 
-    let pb= get_problem();
+    let pb = get_problem();
     let sampler = RandomSearch::new();
 
     let stop = Calls::new(50);

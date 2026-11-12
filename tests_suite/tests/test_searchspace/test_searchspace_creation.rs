@@ -1,13 +1,10 @@
 use paste::paste;
 
-use tantale::core::{
-    HasStep, HasX, Searchspace, Sp, Step,
-    solution::shape::SolutionShape,
-};
+use tantale::core::{HasStep, HasX, Searchspace, Sp, Step, solution::shape::SolutionShape};
 
 use super::init_sp::*;
+use super::init_sp::{multi_step_func, one_step_func};
 use super::init_sp_grid::*;
-use super::init_sp::{one_step_func, multi_step_func};
 
 macro_rules! get_test {
     ($($name : ident),+) => {

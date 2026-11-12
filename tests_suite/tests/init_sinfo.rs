@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use tantale::{core::SolInfo, macros::{Recordable, Schema}};
+use tantale::{
+    core::SolInfo,
+    macros::{Recordable, Schema},
+};
 
 #[derive(Schema, Recordable, Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TestSInfo {

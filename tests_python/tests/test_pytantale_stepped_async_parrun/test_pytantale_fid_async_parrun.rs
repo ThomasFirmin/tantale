@@ -37,14 +37,25 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
     let mut promoted = false;
     let mut reached_max_budget = false;
     for (id, path) in paths {
-        assert!(!path.is_empty(), "Candidate {id} has no recorded evaluations");
-        assert!(path.len() <= budgets.len(), "Candidate {id} exceeded the ASHA budget ladder");
+        assert!(
+            !path.is_empty(),
+            "Candidate {id} has no recorded evaluations"
+        );
+        assert!(
+            path.len() <= budgets.len(),
+            "Candidate {id} exceeded the ASHA budget ladder"
+        );
 
         for (index, (id_step, fidelity)) in path.iter().enumerate() {
-            assert_eq!(*id_step, index + 1, "Candidate {id} has a discontinuous evaluation step");
+            assert_eq!(
+                *id_step,
+                index + 1,
+                "Candidate {id} has a discontinuous evaluation step"
+            );
             let expected_budget = budgets[index];
             assert!(
-                (fidelity - expected_budget).abs() <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
+                (fidelity - expected_budget).abs()
+                    <= f64::EPSILON * expected_budget.abs().max(1.0) * 4.0,
                 "Candidate {id} used fidelity {fidelity} at step {}, expected {expected_budget}",
                 index + 1
             );
@@ -55,7 +66,10 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
     }
 
     assert!(promoted, "No candidate was promoted to a higher fidelity");
-    assert!(reached_max_budget, "No candidate reached the maximum ASHA budget");
+    assert!(
+        reached_max_budget,
+        "No candidate reached the maximum ASHA budget"
+    );
 
     let recorder_dir = std::path::Path::new(path).join("recorder");
     for file in ["obj.csv", "opt.csv", "cod.csv", "out.csv"] {
@@ -73,8 +87,8 @@ fn assert_moasha_fidelity_paths(path: &str, budgets: &[f64]) {
 fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -88,8 +102,8 @@ fn test_python_function() {
 
     let _clean = Cleaner::new("tmp_test_python_fid_parrun");
 
-    let budgets = vec![1.,2.,4.];
-    
+    let budgets = vec![1., 2., 4.];
+
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
         MultiStep, sp_ms_nosamp,
@@ -125,7 +139,10 @@ fn test_python_function() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let mut exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(pb, rec,check, com).with_pool(PoolMode::Persistent);
+    let mut exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(
+        pb, rec, check, com,
+    )
+    .with_pool(PoolMode::Persistent);
 
     match exp.master_mut() {
         Some(m) => {
@@ -139,7 +156,7 @@ fn test_python_function() {
                 expoptimizer.budgets, budgets
             );
             assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
-        },
+        }
         None => panic!("This should be the master process"),
     }
     exp.run();
@@ -151,12 +168,14 @@ fn test_python_function() {
     let check = MessagePack::new(config).unwrap();
 
     let com = ThreadCommunicator::new();
-    let exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(pb, rec,check, com);
+    let exp = ParExperiment::<_, moasha!(RandomSearch, NSGA2Selector), Calls, _, _, _>::load(
+        pb, rec, check, com,
+    );
 
     match exp.master() {
         Some(m) => {
             // 400 = 4 steps * 100 calls  + 6 evals for rungs filling
-            assert_moasha_fidelity_paths("tmp_test_python_fid_parrun", &[1.,2., 4.]);
+            assert_moasha_fidelity_paths("tmp_test_python_fid_parrun", &[1., 2., 4.]);
             let expstop = &m.stop;
             assert_eq!(expstop.0, 100, "Number of calls is wrong");
             let expoptimizer = &m.sampler;
@@ -166,8 +185,7 @@ fn test_python_function() {
                 expoptimizer.budgets, budgets
             );
             assert_eq!(expoptimizer.scaling, 2., "Scaling factor is wrong");
-        },
+        }
         None => panic!("This should be the master process"),
-        
     }
 }

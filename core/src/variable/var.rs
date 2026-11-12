@@ -87,10 +87,12 @@
 //! which handle complex scenarios like [`Mixed`](crate::domain::Mixed) domains.
 
 use crate::{
-    aliases::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt}, domain::{
+    aliases::{LinkObj, LinkOpt, LinkTyObj, LinkTyOpt},
+    domain::{
         Domain, NoDomain, PreDomain,
         onto::{Linked, OntoDom},
-    }, errors::OntoError,
+    },
+    errors::OntoError,
 };
 
 use rand::prelude::Rng;
@@ -640,13 +642,13 @@ pub trait ToName {
     /// # Returns
     ///
     /// A `String` representing the variable's name, including any suffix if present.
-    /// 
+    ///
     /// # Example
-    /// 
+    ///
     /// ```
     /// use tantale::core::variable::ToName;
     /// use tantale::core::{Real, NoDomain, Uniform, variable::Var};
-    /// 
+    ///
     /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
     /// assert_eq!(var.to_name(), "x");
     /// ```
@@ -659,7 +661,6 @@ impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {
             Some(i) => format!("{}_{}", self.name.0, i),
             None => self.name.0.to_string(),
         }
-        
     }
 }
 

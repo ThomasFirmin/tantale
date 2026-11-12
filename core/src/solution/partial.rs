@@ -70,8 +70,7 @@ impl Fidelity {
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Id: SolId, Dom: Domain, Info: SolInfo")]
-pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo>
-{
+pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo> {
     pub id: Id,
     pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
@@ -92,10 +91,9 @@ where
     }
 }
 
-impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info>
-{
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info> {
     type X = Arc<[Dom::Element]>;
-    
+
     /// Return the raw representation for evaluation by the objective.
     fn ref_x(&self) -> &Arc<[Dom::Element]> {
         &self.x
@@ -105,16 +103,15 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info>
     fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
-    
+
     fn set_x(&mut self, x: Self::X) {
         self.x = x;
     }
 }
 
-impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info>
-{
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info> {
     type Id = Id;
-    
+
     fn id(&self) -> Id {
         self.id
     }
@@ -128,20 +125,18 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info>
     }
 }
 
-impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info>
-{
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info> {
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
-    
+
     fn set_info(&mut self, info: Arc<Self::Info>) {
         self.info = info;
     }
 }
 
-impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info>
-{
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info> {
     type Dom = Dom;
     type MetaData = (Id, Arc<Info>);
     fn meta(&self) -> Self::MetaData {
@@ -149,10 +144,9 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info>
     }
 }
 
-impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info>
-{
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info> {
     /// Creates a new [`BaseSol`] from a slice of [`Element`](Domain::Element).
-    /// 
+    ///
     /// # Example
     ///
     /// ```
@@ -196,8 +190,8 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-    
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out>{
+
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out> {
         Computed::new(self, y)
     }
 }
@@ -225,8 +219,7 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
 /// ```
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Id: StepId, Dom: Domain, Info: SolInfo")]
-pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo>
-{
+pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo> {
     pub id: Id,
     pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
@@ -234,8 +227,7 @@ pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo>
     pub fid: Fidelity,
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> Clone for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Clone for FidelitySol<Id, Dom, Info> {
     fn clone(&self) -> Self {
         FidelitySol {
             id: self.id,
@@ -247,8 +239,7 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> Clone for FidelitySol<Id, Dom, Info
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info> {
     type X = Arc<[Dom::Element]>;
 
     /// Return the raw representation for evaluation by the objective.
@@ -260,14 +251,13 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info>
     fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
     }
-    
+
     fn set_x(&mut self, x: Self::X) {
         self.x = x;
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info> {
     type Id = Id;
 
     fn id(&self) -> Id {
@@ -283,8 +273,7 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<Id, Dom, Info> {
     fn increment(&mut self) {
         self.id.increment();
     }
@@ -298,20 +287,18 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<Id, Dom, 
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<Id, Dom, Info> {
     type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
-    
+
     fn set_info(&mut self, info: Arc<Self::Info>) {
         self.info = info;
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<Id, Dom, Info> {
     fn fidelity(&self) -> Fidelity {
         self.fid
     }
@@ -320,8 +307,7 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<Id, Dom
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, Info> {
     /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
         self.step.into()
@@ -363,19 +349,17 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, In
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info>
-{
-    type Dom =  Dom;
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info> {
+    type Dom = Dom;
     type MetaData = (Id, Arc<Info>, EvalStep, Fidelity);
     fn meta(&self) -> Self::MetaData {
         (self.id, self.info.clone(), self.step, self.fid)
     }
 }
 
-impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info>
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info> {
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
-    fn new<T>(meta:Self::MetaData, x: T) -> Self
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>,
     {
@@ -407,8 +391,8 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom,
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-    
-    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out>{
+
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out> {
         Computed::new(self, y)
     }
 }

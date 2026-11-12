@@ -1,28 +1,29 @@
 use std::rc::Rc;
 
 use crate::{
-    FuncWrapper, Problem, aliases::Accum, errors::{CommunicatorError, WorkerError}, experiment::parallel::parexperiment::MasterWorkerCom, utils::communicator::{
-        AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, ErasedMsg, FidMsg, InitMsg, Msg, OutMsg, Peers, StopMsg, XMsg
-    }
+    FuncWrapper, Problem,
+    aliases::Accum,
+    errors::{CommunicatorError, WorkerError},
+    experiment::parallel::parexperiment::MasterWorkerCom,
+    utils::communicator::{
+        AskMsg, Channel, ContainsIds, DiscardMsg, Envelope, ErasedMsg, FidMsg, InitMsg, Msg,
+        OutMsg, Peers, StopMsg, XMsg,
+    },
 };
 
 use bincode::{config, serde::Compat};
 use mpi::{
-    Rank, Tag, traits::{Communicator, Destination, Source},
+    Rank, Tag,
+    traits::{Communicator, Destination, Source},
 };
 
 use crate::{MPI_RANK, MPI_SIZE};
 use mpi::{environment::Universe, topology::SimpleCommunicator};
 
-
-use std::collections::HashMap;
 use serde::de::DeserializeOwned;
+use std::collections::HashMap;
 
-type Decoder = Box<
-    dyn Fn(&[u8]) -> Result<Box<dyn ErasedMsg>, CommunicatorError>
-        + Send
-        + Sync,
->;
+type Decoder = Box<dyn Fn(&[u8]) -> Result<Box<dyn ErasedMsg>, CommunicatorError> + Send + Sync>;
 
 pub struct MessageRegistry {
     pub decoders: HashMap<u32, Decoder>,
@@ -40,10 +41,9 @@ impl MessageRegistry {
         M: DeserializeOwned + ErasedMsg,
     {
         let decoder: Decoder = Box::new(|bytes| {
-            let decoded: (Compat<M>, usize) = bincode::borrow_decode_from_slice(
-                bytes, 
-                config::standard()
-            ).map_err(|e| CommunicatorError::DeserializeError(e.to_string()))?;
+            let decoded: (Compat<M>, usize) =
+                bincode::borrow_decode_from_slice(bytes, config::standard())
+                    .map_err(|e| CommunicatorError::DeserializeError(e.to_string()))?;
             Ok(Box::new(decoded.0.0))
         });
 
@@ -57,7 +57,8 @@ impl MessageRegistry {
         to: usize,
         bytes: &[u8],
     ) -> Result<Envelope, CommunicatorError> {
-        let decoder = self.decoders
+        let decoder = self
+            .decoders
             .get(&tag)
             .ok_or(CommunicatorError::InvalidTag(tag))?;
 
@@ -97,7 +98,7 @@ impl MPIChannel {
     /// Initialize a new [`MPIChannel`], setting up the MPI environment and communicator.
     /// It also sets the global `MPI_RANK` and `MPI_SIZE` once.
     /// Cannot be created twice during the same program execution.
-    pub fn new<P:Problem  +'static>(_pb: &P) -> Self {
+    pub fn new<P: Problem + 'static>(_pb: &P) -> Self {
         let universe = Rc::new(mpi::initialize().unwrap());
         let world = Rc::new(universe.world());
         let size = world.size();
@@ -132,17 +133,18 @@ impl MPIChannel {
 }
 
 impl Channel for MPIChannel {
-
     const SHARED_MEM: bool = false;
 
     fn send(&self, message: Envelope) -> Result<(), CommunicatorError> {
         let tag = message.tag;
         let peer = message.to;
         let content = message.content.encode()?;
-        self.world.process_at_rank(peer as i32).send_with_tag(&content, tag as Tag);
+        self.world
+            .process_at_rank(peer as i32)
+            .send_with_tag(&content, tag as Tag);
         Ok(())
     }
-    
+
     fn receive(&self) -> Result<Envelope, CommunicatorError> {
         let (bytes, status): (Vec<u8>, _) = self.world.any_process().receive_vec();
         let tag = status.tag() as u32;
@@ -165,7 +167,7 @@ impl Channel for MPIChannel {
         let (_, status): (Vec<u8>, _) = self.world.any_process().receive_vec();
         Ok(status.source_rank() as usize)
     }
-    
+
     fn me(&self) -> usize {
         self.rank as usize
     }
@@ -179,11 +181,14 @@ pub struct MPICommunicator {
 }
 
 impl MPICommunicator {
-    pub fn new<P:Problem + 'static>(pb: &P) -> Self {
+    pub fn new<P: Problem + 'static>(pb: &P) -> Self {
         let proc = MPIChannel::new::<P>(pb);
         let size = proc.size as usize;
         let me = proc.rank as usize;
-        let peers = (0..size).filter(|&i| i != me).collect::<Vec<usize>>().into_boxed_slice();
+        let peers = (0..size)
+            .filter(|&i| i != me)
+            .collect::<Vec<usize>>()
+            .into_boxed_slice();
         MPICommunicator {
             proc,
             peers,
@@ -192,9 +197,7 @@ impl MPICommunicator {
     }
 }
 
-
 impl crate::utils::Communicator for MPICommunicator {
-    
     type Channel = MPIChannel;
     const SHARED_MEM: bool = false;
 
@@ -205,7 +208,7 @@ impl crate::utils::Communicator for MPICommunicator {
     fn channel(&self, _peer: usize) -> &MPIChannel {
         &self.proc
     }
-    
+
     fn peers(&self) -> impl Iterator<Item = usize> {
         self.peers.iter().copied()
     }
@@ -213,7 +216,7 @@ impl crate::utils::Communicator for MPICommunicator {
     fn set_idle(&mut self, peer: usize) {
         self.idle.set_idle(peer);
     }
-    
+
     fn set_busy(&mut self, peer: usize) {
         self.idle.set_busy(peer);
     }
@@ -221,7 +224,7 @@ impl crate::utils::Communicator for MPICommunicator {
     fn set_dead(&mut self, peer: usize) {
         self.idle.set_dead(peer);
     }
-    
+
     fn set_alive(&mut self, peer: usize) {
         self.idle.set_alive(peer);
     }
@@ -246,17 +249,20 @@ impl crate::utils::Communicator for MPICommunicator {
 impl MasterWorkerCom for MPICommunicator {
     type Handle = ();
 
-   fn master<P, F>(self, f: F) -> Accum<P>
-   where
-       P: Problem,
-       F: FnOnce(Self) -> Accum<P>
-   {
-         f(self)
-   }
-   
+    fn master<P, F>(self, f: F) -> Accum<P>
+    where
+        P: Problem,
+        F: FnOnce(Self) -> Accum<P>,
+    {
+        f(self)
+    }
+
     fn worker<R, F>(&mut self, func: F, routine: R) -> Result<Self::Handle, WorkerError>
     where
-        R: Fn(std::sync::Arc<F>, &mut Self::Channel) -> Result<(), WorkerError> + Send + Sync + 'static,
+        R: Fn(std::sync::Arc<F>, &mut Self::Channel) -> Result<(), WorkerError>
+            + Send
+            + Sync
+            + 'static,
         F: FuncWrapper + 'static,
     {
         if self.is_master() {
@@ -268,7 +274,7 @@ impl MasterWorkerCom for MPICommunicator {
         log::warn!("Worker process {} exiting with status: {:?}", me, res);
         Ok(())
     }
-    
+
     fn is_master(&self) -> bool {
         self.proc.rank == 0
     }

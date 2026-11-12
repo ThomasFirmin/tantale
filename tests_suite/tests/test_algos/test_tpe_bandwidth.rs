@@ -3,9 +3,13 @@ use num::Float;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
 use tantale::algos::bayesian::bandwidth::{
-    Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw, scott_col,
+    Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw,
+    scott_col,
 };
-use tantale::core::{BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, Solution, Sp, Uncomputed, Unit, Var, Xy};
+use tantale::core::{
+    BaseSol, Bernoulli, Bool, Cat, ElemSingleCodomain, EmptyInfo, HasX, NoDomain, SId, Solution,
+    Sp, Uncomputed, Unit, Var, Xy,
+};
 use tantale::core::{Int, Nat, Real, distribution::Uniform};
 
 use super::init_func::sp_real;
@@ -17,7 +21,7 @@ const EPS: f64 = 1e-10;
 #[test]
 fn test_optuna_bw_real() {
     let dom = Real::new(-5.0, 5.0, Uniform);
-    let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
+    let neg_div_dim_p_four = -1.0 / (3 + 4) as f64;
     let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
@@ -33,13 +37,13 @@ fn test_optuna_bw_real() {
 fn test_optuna_object() {
     let mut bw = Optuna::new(false);
 
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
     let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![2.0, 2.0, 2.0].into_boxed_slice().into();
     let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
     let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
 
@@ -48,27 +52,38 @@ fn test_optuna_object() {
     let xy3 = Xy::new(sol3.clone_x(), ElemSingleCodomain::new(3.0).into());
     let xy = vec![&xy1, &xy2, &xy3];
 
-    let scp = Sp::new(vec![
-            Var::<Real, NoDomain>::new("a",Real::new(-5.0, 5.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-20.0, 20.0, Uniform), NoDomain),
-        ].into_boxed_slice()
+    let scp = Sp::new(
+        vec![
+            Var::<Real, NoDomain>::new("a", Real::new(-5.0, 5.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-20.0, 20.0, Uniform), NoDomain),
+        ]
+        .into_boxed_slice(),
     );
 
-    let bw_vec = <Optuna as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
+    let bw_vec = <Optuna as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(
+        &mut bw,
+        xy.as_slice(),
+        &scp,
+    )
+    .unwrap();
     let bw_expected = vec![
-        10./5. * 3.0.powf(-1./7.),
-        20./5. * 3.0.powf(-1./7.),
-        40./5. * 3.0.powf(-1./7.),
+        10. / 5. * 3.0.powf(-1. / 7.),
+        20. / 5. * 3.0.powf(-1. / 7.),
+        40. / 5. * 3.0.powf(-1. / 7.),
     ];
 
-    assert_eq!(bw_vec, bw_expected, "optuna_bw vector computation failed: {:?} != {:?}", bw_vec, bw_expected);
+    assert_eq!(
+        bw_vec, bw_expected,
+        "optuna_bw vector computation failed: {:?} != {:?}",
+        bw_vec, bw_expected
+    );
 }
 
 #[test]
 fn test_optuna_bw_int() {
     let dom = Int::new(-5, 5, Uniform);
-    let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
+    let neg_div_dim_p_four = -1.0 / (3 + 4) as f64;
     let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
@@ -83,7 +98,7 @@ fn test_optuna_bw_int() {
 #[test]
 fn test_optuna_bw_nat() {
     let dom = Nat::new(0, 10, Uniform);
-    let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
+    let neg_div_dim_p_four = -1.0 / (3 + 4) as f64;
     let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 10.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
@@ -98,7 +113,7 @@ fn test_optuna_bw_nat() {
 #[test]
 fn test_optuna_bw_unit() {
     let dom = Unit::new(Uniform);
-    let neg_div_dim_p_four = -1.0/(3 + 4) as f64;
+    let neg_div_dim_p_four = -1.0 / (3 + 4) as f64;
     let bw = optuna_bw(3.0, neg_div_dim_p_four, &dom, false).unwrap();
     // formula: (up - low)/5 * size^(-1/(dim + 4)) = 1.0/5 * 10^(-1/7)
     let expected = 1.0 / 5.0 * 3.0.powf(-1.0 / 7.0);
@@ -234,13 +249,13 @@ fn test_magic_clip_large_size_uses_100_cap() {
 fn test_hyperopt_object() {
     let mut bw = Hyperopt::new(true, false);
 
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
     let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
     let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![6.0, 6.0, 6.0].into_boxed_slice().into();
     let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
 
@@ -249,23 +264,29 @@ fn test_hyperopt_object() {
     let xy3 = Xy::new(sol3.clone_x(), ElemSingleCodomain::new(3.0).into());
     let xy = vec![&xy1, &xy2, &xy3];
 
-    let scp = Sp::new(vec![
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-        ].into_boxed_slice()
+    let scp = Sp::new(
+        vec![
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+        ]
+        .into_boxed_slice(),
     );
 
-    let bw_array = <Hyperopt as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
-    let bw_expected = vec![
-        11.,
-        3.,
-        4.,
-    ];
-    for col in bw_array.columns(){
+    let bw_array = <Hyperopt as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(
+        &mut bw,
+        xy.as_slice(),
+        &scp,
+    )
+    .unwrap();
+    let bw_expected = vec![11., 3., 4.];
+    for col in bw_array.columns() {
         let vec = col.to_vec();
-        assert_eq!(vec, bw_expected, "Hyperopt vector computation failed: {:?} != {:?}", vec, bw_expected);
-
+        assert_eq!(
+            vec, bw_expected,
+            "Hyperopt vector computation failed: {:?} != {:?}",
+            vec, bw_expected
+        );
     }
 }
 
@@ -321,19 +342,19 @@ fn test_hyperopt_assign_col_clip_applies() {
 fn test_scott_object() {
     let mut bw = Scott::new(false);
 
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x1: Arc<[f64]> = vec![1.0, 1.0, 1.0].into_boxed_slice().into();
     let sol1: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x1);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x2: Arc<[f64]> = vec![2.0, 2.0, 2.0].into_boxed_slice().into();
     let sol2: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x2);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x3: Arc<[f64]> = vec![3.0, 3.0, 3.0].into_boxed_slice().into();
     let sol3: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x3);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x4: Arc<[f64]> = vec![4.0, 4.0, 4.0].into_boxed_slice().into();
     let sol4: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x4);
-    let meta = <BaseSol::<SId, Real, EmptyInfo> as Solution>::MetaData::default();
+    let meta = <BaseSol<SId, Real, EmptyInfo> as Solution>::MetaData::default();
     let x5: Arc<[f64]> = vec![5.0, 5.0, 5.0].into_boxed_slice().into();
     let sol5: BaseSol<SId, Real, EmptyInfo> = BaseSol::new(meta, x5);
 
@@ -344,21 +365,28 @@ fn test_scott_object() {
     let xy5 = Xy::new(sol5.clone_x(), ElemSingleCodomain::new(5.0).into());
     let xy = vec![&xy1, &xy2, &xy3, &xy4, &xy5];
 
-    let scp = Sp::new(vec![
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-            Var::<Real, NoDomain>::new("a",Real::new(-10.0, 10.0, Uniform), NoDomain),
-        ].into_boxed_slice()
+    let scp = Sp::new(
+        vec![
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+            Var::<Real, NoDomain>::new("a", Real::new(-10.0, 10.0, Uniform), NoDomain),
+        ]
+        .into_boxed_slice(),
     );
 
-    let bw_vec = <Scott as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(&mut bw, xy.as_slice(), &scp).unwrap();
-    let bw_expected = vec![
-        1.0854678306814147,
-        1.0854678306814147,
-        1.0854678306814147,
-    ];
+    let bw_vec = <Scott as Bandwidth<sp_real::PbType<EmptyInfo>, Real>>::compute(
+        &mut bw,
+        xy.as_slice(),
+        &scp,
+    )
+    .unwrap();
+    let bw_expected = vec![1.0854678306814147, 1.0854678306814147, 1.0854678306814147];
 
-    assert_eq!(bw_vec, bw_expected, "Scott object vector computation failed: {:?} != {:?}", bw_vec, bw_expected);
+    assert_eq!(
+        bw_vec, bw_expected,
+        "Scott object vector computation failed: {:?} != {:?}",
+        bw_vec, bw_expected
+    );
 }
 
 #[test]
@@ -366,7 +394,7 @@ fn test_scott_assign_col_basic() {
     let dom = Real::new(0.0, 100.0, Uniform);
     let col = [1.0_f64, 2.0, 3.0, 4.0, 5.0];
     let bw = scott_col(&col, &dom, false);
-    
+
     // let arr = Array1::from(col.to_vec());
     // let std = arr.std(0.0);
     // let iqr = 2.0_f64;

@@ -1,7 +1,8 @@
 use tantale::core::{
-    EmptyInfo, HasX, MixedTypeDom, Searchspace, Sp, FuncWrapper, Step,
-    HasFidelity, FidOutcome, SolutionShape,
-    problem::{Pb, Problem, FidFn}};
+    EmptyInfo, FidOutcome, FuncWrapper, HasFidelity, HasX, MixedTypeDom, Searchspace,
+    SolutionShape, Sp, Step,
+    problem::{FidFn, Pb, Problem},
+};
 
 use super::init_func::*;
 use paste::paste;

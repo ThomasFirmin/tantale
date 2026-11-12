@@ -151,7 +151,7 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     use crate::schema_crate_path;
 
     let tantale_crate = schema_crate_path();
-    
+
     let mut attr = Attributes::new();
 
     let input = parse_macro_input!(input as ItemStruct);
@@ -354,9 +354,6 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     .into()
 }
-
-
-
 
 #[cfg(feature = "spikes")]
 pub struct Attributes {
@@ -599,7 +596,12 @@ pub fn proc_outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         );
     }
 
-    let outcome = match (attr.is_multi, attr.is_constrained, attr.cost.is_some(), attr.is_spike) {
+    let outcome = match (
+        attr.is_multi,
+        attr.is_constrained,
+        attr.cost.is_some(),
+        attr.is_spike,
+    ) {
         (false, false, false, false) => {
             let obj = &attr.objectives[0];
             quote! {

@@ -5,7 +5,7 @@ pub use cleaner::Cleaner;
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{Outcome, Schema, Recordable, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
@@ -101,10 +101,7 @@ use tantale::algos::{MoAsha, RandomSearch};
 use tantale::core::{ParExperiment, ThreadCommunicator};
 use tantale::{
     algos::mo::NSGA2Selector,
-    core::{
-        CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-        stop::Calls,
-    },
+    core::{CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls},
 };
 
 fn main() {

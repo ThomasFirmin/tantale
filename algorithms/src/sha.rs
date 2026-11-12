@@ -65,7 +65,11 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use log::warn;
 use tantale_core::{
-    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step, aliases::{Accum, CompShape, Opt, Shape}, optimizer::opt::{Batched, Prunable, Pruner}, solution::shape::IntoComputedShape, utils::ShapeWithInfo,
+    HasFidelity, HasState, HasStep, Orderable, Problem, Sampled, Sampler, State, Step,
+    aliases::{Accum, CompShape, Opt, Shape},
+    optimizer::opt::{Batched, Prunable, Pruner},
+    solution::shape::IntoComputedShape,
+    utils::ShapeWithInfo,
 };
 
 use serde::{
@@ -75,7 +79,10 @@ use serde::{
 };
 use tantale_macros::fidelity_bounds;
 
-use crate::{Hyperband, utils::{PrunerError, build_halving_budgets, refill_apply}};
+use crate::{
+    Hyperband,
+    utils::{PrunerError, build_halving_budgets, refill_apply},
+};
 
 /// A helper macro to simplify the type signature of [`Sha`].
 #[macro_export]
@@ -198,7 +205,7 @@ where
             sampler: self.sampler.clone(),
             batch_size: self.batch_size,
             batch: self.batch.clone(),
-            comp_batch: self.comp_batch.clone(),    
+            comp_batch: self.comp_batch.clone(),
             budgets: self.budgets.clone(),
             current_budget: self.current_budget,
             current_rung_size: self.current_rung_size,
@@ -217,17 +224,17 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Sha")
-        .field("sampler", &self.sampler)
-        .field("batch_size", &self.batch_size)
-        .field("batch", &self.batch)
-        .field("comp_batch", &self.comp_batch)
-        .field("budgets", &self.budgets)
-        .field("current_budget", &self.current_budget)
-        .field("current_rung_size", &self.current_rung_size)
-        .field("budget_idx", &self.budget_idx)
-        .field("scaling", &self.scaling)
-        .field("pending", &self.pending)
-        .finish()
+            .field("sampler", &self.sampler)
+            .field("batch_size", &self.batch_size)
+            .field("batch", &self.batch)
+            .field("comp_batch", &self.comp_batch)
+            .field("budgets", &self.budgets)
+            .field("current_budget", &self.current_budget)
+            .field("current_rung_size", &self.current_rung_size)
+            .field("budget_idx", &self.budget_idx)
+            .field("scaling", &self.scaling)
+            .field("pending", &self.pending)
+            .finish()
     }
 }
 
@@ -269,20 +276,20 @@ where
         let current_rung_size = batch_size;
         let current_budget = budgets[0];
         Ok(Sha {
-                sampler,
-                batch_size,
-                batch: Vec::new(),
-                comp_batch: Vec::new(),
-                budgets,
-                budget_idx: 0,
-                current_budget,
-                current_rung_size,
-                scaling,
-                pending: 0,
-            })
+            sampler,
+            batch_size,
+            batch: Vec::new(),
+            comp_batch: Vec::new(),
+            budgets,
+            budget_idx: 0,
+            current_budget,
+            current_rung_size,
+            scaling,
+            pending: 0,
+        })
     }
 
-    pub fn  bracket_complete(&self) -> bool {
+    pub fn bracket_complete(&self) -> bool {
         self.current_budget == *self.budgets.last().unwrap()
             && self.batch.is_empty()
             && self.comp_batch.len() >= self.current_rung_size
@@ -309,8 +316,8 @@ where
     P: Problem,
     Smpl: Sampler<P, Opt<P>> + Prunable,
     CompShape<P>: Orderable,
-{ }
-
+{
+}
 
 impl<Smpl, P> HasState for Sha<Smpl, P>
 where
@@ -334,7 +341,7 @@ where
 }
 
 #[fidelity_bounds(P, Opt)]
-impl<Smpl, P, Opt> Batched<P,Opt> for Sha<Smpl, P>
+impl<Smpl, P, Opt> Batched<P, Opt> for Sha<Smpl, P>
 where
     Smpl: Sampler<P, Opt> + Prunable,
     CompShape<P>: Orderable,
@@ -344,7 +351,7 @@ where
     }
 
     /// Sets the batch size for the optimizer. This affects how many candidates are sampled in each iteration.
-    /// Resetting the batch size will also reset the current budget and rung size to the initial values, 
+    /// Resetting the batch size will also reset the current budget and rung size to the initial values,
     /// and clear any existing candidates in the batch.
     fn set_batch_size(&mut self, size: usize) {
         self.batch_size = size;
@@ -401,7 +408,9 @@ where
     fn set_scaling(&mut self, scaling: f64) {
         assert!(scaling > 1.0, "Scaling factor must be > 1.0");
         self.scaling = scaling;
-        self.budgets = build_halving_budgets(self.get_budget_min(), self.get_budget_max(), self.scaling).unwrap();
+        self.budgets =
+            build_halving_budgets(self.get_budget_min(), self.get_budget_max(), self.scaling)
+                .unwrap();
         self.current_budget = self.budgets[0];
         self.budget_idx = 0;
         self.batch.clear();
@@ -435,7 +444,11 @@ where
 {
     type Info = Smpl::Info;
 
-    fn sample_info(&mut self, scp: &<P as Problem>::Scp, acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if let Some(sol) = self.batch.pop() {
             match sol.0.step() {
                 Step::Discard | Step::Evaluated => (),
@@ -445,12 +458,15 @@ where
         } else if self.pending > 0 {
             None // Wait for more computed solutions to be available before promoting to the next rung
         } else {
-            self.comp_batch.retain(|comp| matches!(comp.step(), Step::Partially(_)));
+            self.comp_batch
+                .retain(|comp| matches!(comp.step(), Step::Partially(_)));
             if self.comp_batch().is_empty() {
                 self.budget_idx = 0;
                 self.current_budget = self.budgets[0];
                 self.current_rung_size = self.batch_size;
-                while self.batch.len() < self.current_rung_size && let Some(mut sol) = self.sampler.sample_info(scp, acc) {
+                while self.batch.len() < self.current_rung_size
+                    && let Some(mut sol) = self.sampler.sample_info(scp, acc)
+                {
                     sol.0.set_fidelity(self.current_budget);
                     self.batch.push(ShapeWithInfo(sol.0, sol.1));
                 }
@@ -463,18 +479,25 @@ where
                         self.current_rung_size,
                         self.batch.len()
                     );
-                    refill_apply::<P,_,_>(&mut self.batch, scp, self.current_rung_size, 
+                    refill_apply::<P, _, _>(
+                        &mut self.batch,
+                        scp,
+                        self.current_rung_size,
                         |mut sol| {
-                        sol.set_fidelity(self.current_budget);
-                        (sol, Smpl::Info::default())
-                    });
+                            sol.set_fidelity(self.current_budget);
+                            (sol, Smpl::Info::default())
+                        },
+                    );
                 }
                 self.sample_info(scp, acc)
             } else {
                 // Advance to the next fidelity rung.
                 self.budget_idx += 1;
                 self.current_budget = self.budgets[self.budget_idx];
-                self.current_rung_size = ((self.batch_size() as f64 * self.scaling.powi(-(self.budget_idx as i32))).floor() as usize).max(1);
+                self.current_rung_size = ((self.batch_size() as f64
+                    * self.scaling.powi(-(self.budget_idx as i32)))
+                .floor() as usize)
+                    .max(1);
 
                 let comp_len = self.mut_comp_batch().len();
                 let survivors = self.current_rung_size.min(comp_len);
@@ -482,10 +505,10 @@ where
                 let discard_count = comp_len - survivors;
 
                 // Put the worst candidates first and the best candidates last.
-                self.mut_comp_batch().select_nth_unstable_by(
-                    discard_count,
-                    |a, b| Orderable::ord_cmp(a, b).unwrap(),
-                );
+                self.mut_comp_batch()
+                    .select_nth_unstable_by(discard_count, |a, b| {
+                        Orderable::ord_cmp(a, b).unwrap()
+                    });
 
                 let mut promoted = 0;
 
@@ -505,44 +528,50 @@ where
             }
         }
     }
-    
-    fn update(&mut self,x: &CompShape<P>,scp: &<P as Problem>::Scp,acc: &Accum<P>) {
+
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
         self.pending -= 1;
         match x.step() {
-            Step::Partially(s)  => {
+            Step::Partially(s) => {
                 let fid = x.fidelity().0;
-                if fid >= self.get_budget_max(){
+                if fid >= self.get_budget_max() {
                     warn!(
                         "
                             Fidelity {} >= budget_max {} for a Partially({}) step.
                             This may indicate a logic error in the objective function.
-                        ", fid, self.get_budget_max(), s
+                        ",
+                        fid,
+                        self.get_budget_max(),
+                        s
                     );
                 }
                 self.comp_batch.push(x.clone());
                 self.sampler.update(x, scp, acc)
-            },
-            Step::Evaluated  => {
+            }
+            Step::Evaluated => {
                 let fid = x.fidelity().0;
-                if fid < self.get_budget_max(){
+                if fid < self.get_budget_max() {
                     warn!(
                         "
                             Fidelity {} < budget_max {} for an Evaluated step.
                             This may indicate a logic error in the objective function.
-                        ", fid, self.get_budget_max()
+                        ",
+                        fid,
+                        self.get_budget_max()
                     );
                 }
                 self.comp_batch.push(x.clone());
                 self.sampler.update(x, scp, acc)
-            },
+            }
             _ => {
                 warn!(
                     "
                         Received a Step::{:?} for a candidate in Successive Halving.
                         This is unexpected, as only Partially or Evaluated steps should be updated.
-                    ", x.step()
+                    ",
+                    x.step()
                 );
-            },
+            }
         }
     }
 }
@@ -643,7 +672,7 @@ impl<'de> Visitor<'de> for ShaFieldVisitor {
                     "current_rung_size",
                     "budget_idx",
                     "scaling",
-                    "pending"
+                    "pending",
                 ],
             )),
         }
@@ -799,15 +828,17 @@ where
             }
         }
 
-        let  sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
-        let  batch_size = batch_size.ok_or_else(|| de::Error::missing_field("batch_size"))?;
-        let  batch = batch.ok_or_else(|| de::Error::missing_field("batch"))?;
-        let  comp_batch = comp_batch.ok_or_else(|| de::Error::missing_field("comp_batch"))?;
-        let  budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
-        let  current_budget = current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
-        let  current_rung_size = current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
-        let  budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
-        let  scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let batch_size = batch_size.ok_or_else(|| de::Error::missing_field("batch_size"))?;
+        let batch = batch.ok_or_else(|| de::Error::missing_field("batch"))?;
+        let comp_batch = comp_batch.ok_or_else(|| de::Error::missing_field("comp_batch"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let current_budget =
+            current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
+        let current_rung_size =
+            current_rung_size.ok_or_else(|| de::Error::missing_field("current_rung_size"))?;
+        let budget_idx = budget_idx.ok_or_else(|| de::Error::missing_field("budget_idx"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
         let pending = pending.ok_or_else(|| de::Error::missing_field("pending"))?;
 
         Ok(Sha {

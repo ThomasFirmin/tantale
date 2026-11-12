@@ -1,12 +1,12 @@
-use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
 use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
-use tantale::core::{Evaluated, Experiment};
+use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
 use tantale::core::problem::Pb;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{PoolMode, Runable},
     stop::Calls,
 };
+use tantale::core::{Evaluated, Experiment};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::sp_evaluator_fid;
@@ -36,18 +36,22 @@ fn test_fid_batch_run() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let pb = Pb::new(sp, obj);
-    
+
     let config = FolderConfig::new("tmp_test_fidbatchrun");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(batchrandomsearch!()),Evaluated,_,_>::load(pb, rec, check);
+    let mut exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = &mut exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 8,"Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 8,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 
     exp.run();
@@ -60,12 +64,16 @@ fn test_fid_batch_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(batchrandomsearch!()),Evaluated,_,_>::load(pb, rec, check);
+    let exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_fidbatchrun", 500);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = &exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 15, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 15,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 }
 
@@ -97,7 +105,7 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(RandomSearch), Evaluated,_,_>::load(pb, rec, check);
+    let mut exp = Experiment::<_, nopruner!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -113,12 +121,11 @@ fn test_fid_seq_run() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(RandomSearch), Evaluated,_,_>::load(pb, rec, check);
+    let exp = Experiment::<_, nopruner!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_fidseqrun", 500);
-    let expstop= &exp.stop;
+    let expstop = &exp.stop;
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
 }
-
 
 #[test]
 fn test_fid_seq_run_loadpool() {
@@ -148,7 +155,8 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(RandomSearch), Calls,_,_>::load(pb, rec, check).with_pool(PoolMode::Persistent);
+    let mut exp = Experiment::<_, nopruner!(RandomSearch), Calls, _, _>::load(pb, rec, check)
+        .with_pool(PoolMode::Persistent);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
@@ -164,7 +172,8 @@ fn test_fid_seq_run_loadpool() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(RandomSearch),Calls,_,_>::load(pb, rec, check).with_pool(PoolMode::Persistent);
+    let exp = Experiment::<_, nopruner!(RandomSearch), Calls, _, _>::load(pb, rec, check)
+        .with_pool(PoolMode::Persistent);
     run_reader("tmp_test_fidseqrun_loadpool", 500);
     let expstop = &exp.stop;
     assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
@@ -194,18 +203,23 @@ fn test_fid_batch_run_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let obj = sp_evaluator_fid::get_function();
     let pb = Pb::new(sp, obj);
-    
+
     let config = FolderConfig::new("tmp_test_fidbatchrun_loadpool");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = Experiment::<_, nopruner!(batchrandomsearch!()),Calls,_,_>::load(pb, rec, check).with_pool(PoolMode::Persistent);
+    let mut exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Calls, _, _>::load(pb, rec, check)
+            .with_pool(PoolMode::Persistent);
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");
     expstop.1 = 100;
     let expoptimizer = &mut exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 8, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 8,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 
     exp.run();
@@ -218,12 +232,15 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(batchrandomsearch!()),Calls,_,_>::load(pb, rec, check);
+    let exp = Experiment::<_, nopruner!(batchrandomsearch!()), Calls, _, _>::load(pb, rec, check);
     run_reader("tmp_test_fidbatchrun_loadpool", 500);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");
     let expoptimizer = &exp.sampler;
-    assert_eq!(expoptimizer.sampler.calls, 15, "Number of iteration is wrong");
+    assert_eq!(
+        expoptimizer.sampler.calls, 15,
+        "Number of iteration is wrong"
+    );
     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 }
 
@@ -412,8 +429,6 @@ fn test_fid_batch_run_loadpool() {
 //     assert_eq!(expoptimizer.sampler.calls, 76, "Number of iteration is wrong");
 //     assert_eq!(expoptimizer.sampler.batch_size, 7, "Batch size is wrong");
 // }
-
-
 
 // #[test]
 // fn test_fid_thr_seq_run_loadpool() {

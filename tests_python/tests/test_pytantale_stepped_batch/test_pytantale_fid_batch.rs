@@ -1,8 +1,6 @@
 use tantale::algos::{RandomSearch, Sha, sha};
 use tantale::core::optimizer::opt::Batched;
-use tantale::core::{
-    CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, Runable,
-};
+use tantale::core::{CSVRecorder, Evaluated, Experiment, FolderConfig, MessagePack, Pb, Runable};
 use tantale::python::init_python;
 
 use crate::cleaner::Cleaner;
@@ -12,8 +10,8 @@ use crate::run_checker::run_reader;
 fn test_python_function() {
     pub mod searchspace {
         use tantale::core::{
-            domain::{Bool, Cat, Int, Nat, Real},
             distribution::{Bernoulli, Uniform},
+            domain::{Bool, Cat, Int, Nat, Real},
         };
         use tantale::macros::pyhpo;
 
@@ -65,7 +63,6 @@ fn test_python_function() {
     let check = MessagePack::new(config).unwrap();
 
     let mut exp = Experiment::<_, sha!(RandomSearch), Evaluated, _, _>::load(pb, rec, check);
-
 
     let expstop = &mut exp.stop;
     assert_eq!(expstop.0, 50, "Number of calls is wrong");

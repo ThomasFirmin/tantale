@@ -130,9 +130,10 @@
 //! ```
 
 use crate::{
-    FuncWrapper, Solution, Uncomputed, aliases::{GetRaw, GetSObj, GetSOpt}, domain::onto::Linked, solution::{
-        SolutionShape, shape::IntoComputedShape,
-    },
+    FuncWrapper, Solution, Uncomputed,
+    aliases::{GetRaw, GetSObj, GetSOpt},
+    domain::onto::Linked,
+    solution::{SolutionShape, shape::IntoComputedShape},
 };
 
 use rand::prelude::Rng;
@@ -199,27 +200,26 @@ use rand::prelude::Rng;
 /// - [`Linked`] - Trait linking Obj and Opt domains
 /// - [`hpo!`](../../../tantale/macros/macro.hpo.html) - Macro for creating searchspaces
 /// - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining searchspaces and wrap objective functions
-pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
-{
+pub trait Searchspace<F: FuncWrapper<Dom = Self::Obj>>: Linked + Send + Sync {
     /// The paired solution shape containing both Obj and Opt [`twin`](crate::Solution::twin) [`Solution`](crate::Solution) representations.
     type Shape: SolutionShape<
-        ObjSol = F::Sol<Self::Obj>,
-        OptSol = F::Sol<Self::Opt>, 
-        Obj=Self::Obj, 
-        Opt=Self::Opt,
-        Info = F::Info,
-    > + IntoComputedShape;
+            ObjSol = F::Sol<Self::Obj>,
+            OptSol = F::Sol<Self::Opt>,
+            Obj = Self::Obj,
+            Opt = Self::Opt,
+            Info = F::Info,
+        > + IntoComputedShape;
 
     /// Create a new solution from a raw solution in the Obj domain.
     fn new_obj<T: Into<GetRaw<F::Sol<Self::Obj>>>>(&self, x: T) -> Self::Shape {
-        let meta = <F::Sol::<Self::Obj> as Solution>::MetaData::default();
+        let meta = <F::Sol<Self::Obj> as Solution>::MetaData::default();
         let sol = F::Sol::<Self::Obj>::new(meta, x);
         self.onto_opt(sol)
     }
 
     /// Create a new solution from a raw solution in the Opt domain.
     fn new_opt<T: Into<GetRaw<F::Sol<Self::Opt>>>>(&self, x: T) -> Self::Shape {
-        let meta = <F::Sol::<Self::Opt> as Solution>::MetaData::default();
+        let meta = <F::Sol<Self::Opt> as Solution>::MetaData::default();
         let sol = F::Sol::<Self::Opt>::new(meta, x);
         self.onto_obj(sol)
     }
@@ -340,8 +340,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     println!("{:?}", i);
     /// }
     /// ```
-    fn sample_obj<R: Rng>(&self, rng: &mut R) -> GetSObj<Self::Shape>{
-        let meta = <F::Sol::<Self::Obj> as Solution>::MetaData::default();
+    fn sample_obj<R: Rng>(&self, rng: &mut R) -> GetSObj<Self::Shape> {
+        let meta = <F::Sol<Self::Obj> as Solution>::MetaData::default();
         Uncomputed::new(meta, self.sample_raw_obj(rng))
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Obj (objective function) domain.
@@ -419,8 +419,8 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     println!("{}", i);
     /// }
     /// ```
-    fn sample_opt<R: Rng>(&self, rng: &mut R) -> GetSOpt<Self::Shape>{
-        let meta = <F::Sol::<Self::Opt> as Solution>::MetaData::default();
+    fn sample_opt<R: Rng>(&self, rng: &mut R) -> GetSOpt<Self::Shape> {
+        let meta = <F::Sol<Self::Opt> as Solution>::MetaData::default();
         Uncomputed::new(meta, self.sample_raw_opt(rng))
     }
     /// Generates a [`Raw`](crate::Solution::Raw) solution in the Opt (objective function) domain.
@@ -710,7 +710,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_obj<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>>;
+    fn vec_sample_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetSObj<Self::Shape>>;
     /// Generates multiple random raw solutions in the Obj domain.
     ///
     /// Batch version of [`sample_raw_obj`](Searchspace::sample_raw_obj) for efficient generation
@@ -754,7 +754,11 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_raw_obj<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSObj<Self::Shape>>>;
+    fn vec_sample_raw_obj<R: Rng>(
+        &self,
+        rng: &mut R,
+        size: usize,
+    ) -> Vec<GetRaw<GetSObj<Self::Shape>>>;
     /// Generates multiple random solutions in the Opt domain.
     ///
     /// Batch version of [`sample_opt`](Searchspace::sample_opt) for efficient generation
@@ -843,7 +847,11 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_raw_opt<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<GetRaw<GetSOpt<Self::Shape>>>;
+    fn vec_sample_raw_opt<R: Rng>(
+        &self,
+        rng: &mut R,
+        size: usize,
+    ) -> Vec<GetRaw<GetSOpt<Self::Shape>>>;
     /// Generates multiple random [`SolutionShape`] with both Obj and Opt representations.
     ///
     /// Batch version of [`sample_pair`](Searchspace::sample_pair) for efficient generation
@@ -891,7 +899,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     /// }
     /// ```
     ///
-    fn vec_sample_pair<R: Rng>(&self,rng: &mut R,size: usize) -> Vec<Self::Shape>;
+    fn vec_sample_pair<R: Rng>(&self, rng: &mut R, size: usize) -> Vec<Self::Shape>;
 
     /// Generates multiple `Obj` solutions and applies a transformation to each.
     ///
@@ -944,7 +952,7 @@ pub trait Searchspace<F: FuncWrapper<Dom=Self::Obj>>: Linked + Send + Sync
     ///     assert_eq!(sol.fidelity().0, 1.0);
     /// }
     /// ```
-    fn vec_apply_obj<A, R>(&self,f: A,rng: &mut R,size: usize) -> Vec<GetSObj<Self::Shape>>
+    fn vec_apply_obj<A, R>(&self, f: A, rng: &mut R, size: usize) -> Vec<GetSObj<Self::Shape>>
     where
         A: Fn(GetSObj<Self::Shape>) -> GetSObj<Self::Shape> + Send + Sync,
         R: Rng;

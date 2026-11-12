@@ -31,7 +31,10 @@
 //!     ...
 //! ```
 
-use std::{fmt::{self}, format, write};
+use std::{
+    fmt::{self},
+    format, write,
+};
 
 use crate::{
     PY_OUTCOME_CLASS,
@@ -39,7 +42,10 @@ use crate::{
 };
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{Outcome, Step, utils::record::{Recordable, Schema}};
+use tantale_core::{
+    Outcome, Step,
+    utils::record::{Recordable, Schema},
+};
 
 pub trait PyOutWrap: Outcome {
     /// Wraps a Python return value in the appropriate Rust wrapper type.
@@ -129,13 +135,15 @@ pub struct PyOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Python::attach(
-            |py|
-            {
-                let r = self.0.bind(py).repr().map(|r| r.to_string()).unwrap_or_default();
-                write!(f, "PyOutcome({r})")
-            }
-        )
+        Python::attach(|py| {
+            let r = self
+                .0
+                .bind(py)
+                .repr()
+                .map(|r| r.to_string())
+                .unwrap_or_default();
+            write!(f, "PyOutcome({r})")
+        })
     }
 }
 
@@ -164,7 +172,7 @@ impl Schema<()> for PyOutcome {
                 .call_method0("csv_header")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(
-                    |err | 
+                    |err |
                     {
                         err.print(py);
                         panic!("Python outcome class must implement static method csv_header() -> list[str]");
@@ -182,13 +190,12 @@ impl Recordable<()> for PyOutcome {
                 .bind(py)
                 .call_method0("csv_write")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap_or_else(
-                    |err | 
-                    {
-                        err.print(py);
-                        panic!("Python outcome class must implement static method csv_write() -> list[str]");
-                    }
-                )
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method csv_write() -> list[str]"
+                    );
+                })
         })
     }
 }
@@ -282,7 +289,7 @@ impl Schema<()> for PyFidOutcome {
                 .call_method0("csv_header")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(
-                    |err | 
+                    |err |
                     {
                         err.print(py);
                         panic!("Python outcome class must implement static method csv_header() -> list[str]");
@@ -300,13 +307,12 @@ impl Recordable<()> for PyFidOutcome {
                 .bind(py)
                 .call_method0("csv_write")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap_or_else(
-                    |err | 
-                    {
-                        err.print(py);
-                        panic!("Python outcome class must implement static method csv_write() -> list[str]");
-                    }
-                )
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method csv_write() -> list[str]"
+                    );
+                })
         })
     }
 }

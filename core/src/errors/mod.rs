@@ -22,7 +22,6 @@ macro_rules! err_msg {
     };
 }
 
-
 /// Error type for checkpointing operations from a [`Checkpointer`](crate::Checkpointer).
 pub enum CheckpointerError {
     WriteError(String),
@@ -57,7 +56,7 @@ impl ErrMsg for CheckpointerError {
             }
             CheckpointerError::AppendError(err) => {
                 write!(f, "Checkpointer append error: {}", err)
-            },
+            }
         }
     }
 }

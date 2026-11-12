@@ -1,5 +1,5 @@
 use super::init_cod::*;
-use tantale::core::utils::record::{Schema, Recordable};
+use tantale::core::utils::record::{Recordable, Schema};
 
 #[test]
 fn test_elemsingle_schema() {

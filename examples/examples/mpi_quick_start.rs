@@ -5,7 +5,7 @@ pub use cleaner::Cleaner;
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-    use tantale::macros::{Outcome, Schema, Recordable, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutExample {
@@ -38,11 +38,10 @@ mod searchspace {
 use searchspace::get_problem;
 use tantale::algos::RandomSearch;
 use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
-use tantale::core::{MPICommunicator, ParExperiment};
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    stop::Calls,
+    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape, stop::Calls,
 };
+use tantale::core::{MPICommunicator, ParExperiment};
 
 fn main() {
     if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
@@ -57,14 +56,15 @@ fn main() {
     let config = FolderConfig::new("mpi_random_search");
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
-    
+
     let com = MPICommunicator::new(&pb); // <==== Use an MPICommunicator to handle the parallelization of the experiment
     if com.is_master() {
         drop(Cleaner::new("mpi_random_search"));
     }
     let exp = ParExperiment::new(pb, sampler, stop, rec, check, com);
     let accumulator = exp.run();
-    if let Some(acc) = accumulator { // <==== Because workers return None !
+    if let Some(acc) = accumulator {
+        // <==== Because workers return None !
         let best = acc.get().unwrap().get_sobj();
         println!(
             "Best solution found: f({:?}) ={}",

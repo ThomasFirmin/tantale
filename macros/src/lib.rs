@@ -5,42 +5,34 @@
 
 extern crate proc_macro;
 
-mod schema;
-mod recordable;
+mod basic_bounds;
+mod fidelity_bounds;
 mod hpo;
 mod objective;
 mod outcome;
-mod basic_bounds;
-mod fidelity_bounds;
 #[cfg(feature = "py")]
 mod pyhpo;
+mod recordable;
+mod schema;
 
-use proc_macro_crate::{crate_name, FoundCrate};
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::TokenStream;
 use quote::quote;
 pub(crate) fn schema_crate_path() -> TokenStream {
     match crate_name("tantale_core") {
         Ok(FoundCrate::Itself) => quote!(crate),
         Ok(FoundCrate::Name(name)) => {
-            let ident = syn::Ident::new(
-                &name,
-                proc_macro2::Span::call_site(),
-            );
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
             quote!(::#ident)
         }
         Err(_) => match crate_name("tantale") {
             Ok(FoundCrate::Itself) => quote!(crate::core),
             Ok(FoundCrate::Name(name)) => {
-                let ident = syn::Ident::new(
-                    &name,
-                    proc_macro2::Span::call_site(),
-                );
+                let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
                 quote!(::#ident::core)
             }
             Err(_) => {
-                panic!(
-                    "The `tantale` or `tantale_core` crate must be available"
-                );
+                panic!("The `tantale` or `tantale_core` crate must be available");
             }
         },
     }
@@ -98,7 +90,6 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }
 
-
 #[cfg(feature = "spikes")]
 /// The `Outcome` derive macro automates the implementation of result/output types for objective
 /// functions. It derives traits that enable logging, serialization,
@@ -146,12 +137,15 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     pub epoch: Step,  // Tracks evaluation stage
 /// }
 /// ```
-/// 
+///
 /// ## Spiking Neural Network Support
-/// 
+///
 /// - The number of samples within the dataset can be tracked using the `#[samples]` attribute.
 /// - The number of spiking samples can be tracked using the `#[spiking]` attribute.
-#[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step, samples, spiking))]
+#[proc_macro_derive(
+    Outcome,
+    attributes(maximize, minimize, constraint, cost, step, samples, spiking)
+)]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }
@@ -431,7 +425,7 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// ```
 ///
 /// ## Alternative modes
-/// 
+///
 /// ### Grid Search
 ///
 /// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
@@ -450,11 +444,11 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///         d | Grid<Bool(Bernoulli(0.5))>                         | ;
 ///     );
 /// ```
-/// 
+///
 /// ### Log-Scale Optimizer Domain
-/// 
+///
 /// A Bounded domain (Real, Nat, Int) can be defined with a log-scale optimizer domain by adding the `Log` keyword after the objective domain.
-/// 
+///
 /// ```ignore
 /// hpo!(
 ///     learning_rate | Real(1e-4, 1e-2, Uniform) | Log ;
@@ -462,7 +456,7 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     weight_decay  | Real(0.0, 0.01, Uniform)  |     ;
 /// );
 /// ```
-/// 
+///
 /// ## Variable Replication
 ///
 /// Create multiple similar variables using `{count}` syntax:
@@ -486,7 +480,7 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     weight_decay  | Real(0.0, 0.01, Uniform)  | ;
 /// );
 /// ```
-/// 
+///
 /// ### Example 2: Mixed/Heterogeneous Objective Domains
 /// ```ignore
 /// hpo!(
@@ -520,12 +514,18 @@ pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn basic_bounds(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn basic_bounds(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     basic_bounds::basic_bounds(attr, item)
 }
 
 #[proc_macro_attribute]
-pub fn fidelity_bounds(attr: proc_macro::TokenStream, item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn fidelity_bounds(
+    attr: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     fidelity_bounds::fidelity_bounds(attr, item)
 }
 
@@ -620,7 +620,6 @@ pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub fn schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     schema::proc_schema(input)
 }
-
 
 /// The `Recordable` derive macro implements the `Recordable` tait.
 ///

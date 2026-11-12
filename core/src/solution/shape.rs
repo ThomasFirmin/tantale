@@ -20,29 +20,24 @@
 //! ```
 
 use crate::{
-    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY, NoDomain, Outcome, Solution, StepId, 
-    aliases::TypeCodom, domain::{codomain::ElemMulti, onto::Linked}, 
-    objective::Step, solution::Uncomputed, utils::orderable::Orderable,
+    Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY,
+    NoDomain, Outcome, Solution, StepId,
+    aliases::TypeCodom,
+    domain::{codomain::ElemMulti, onto::Linked},
+    objective::Step,
+    solution::Uncomputed,
+    utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-
 /// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
 pub trait SolutionShape:
-    Debug
-    + Send
-    + Sync
-    + Clone
-    + HasId
-    + HasInfo
-    + Linked
-    + Serialize
-    + for<'de> Deserialize<'de>
+    Debug + Send + Sync + Clone + HasId + HasInfo + Linked + Serialize + for<'de> Deserialize<'de>
 {
-    type ObjSol : Solution<Id = Self::Id, Info = Self::Info>;
-    type OptSol : Solution<Id = Self::Id, Info = Self::Info>;
+    type ObjSol: Solution<Id = Self::Id, Info = Self::Info>;
+    type OptSol: Solution<Id = Self::Id, Info = Self::Info>;
 
     /// Get a reference to the objective-side solution.
     fn get_sobj(&self) -> &Self::ObjSol;
@@ -73,15 +68,15 @@ where
     /// The computed type wrapping `Self` with an objective value.
     ///
     /// This type must implement [`HasY`] to provide access to the objective function output.
-    type ComputedShape<Out:Outcome>: SolutionShape<
-        Obj = Self::Obj,
-        Opt = Self::Opt,
-        TrueOpt = Self::TrueOpt,
-        ObjSol = Computed<Self::ObjSol, Out>,
-        OptSol = Computed<Self::OptSol, Out>,
-        Id = Self::Id,
-        Info = Self::Info,
-    > + HasY<Y = TypeCodom<Out>>;
+    type ComputedShape<Out: Outcome>: SolutionShape<
+            Obj = Self::Obj,
+            Opt = Self::Opt,
+            TrueOpt = Self::TrueOpt,
+            ObjSol = Computed<Self::ObjSol, Out>,
+            OptSol = Computed<Self::OptSol, Out>,
+            Id = Self::Id,
+            Info = Self::Info,
+        > + HasY<Y = TypeCodom<Out>>;
 
     /// Converts this uncomputed solution into a computed one with an objective value.
     ///
@@ -97,7 +92,7 @@ where
     /// # Returns
     ///
     /// A computed solution containing both `self` and `y`.
-    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out>;
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out>;
 
     /// Extracts the uncomputed solution and objective value from a computed solution.
     ///
@@ -115,7 +110,7 @@ where
     /// # Returns
     ///
     /// A tuple of `(uncomputed_solution, objective_value)`.
-    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>);
+    fn extract<Out: Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>);
 }
 
 /// A pair made of an objective [`Solution`] and its optimizer twin.
@@ -147,18 +142,18 @@ where
 impl<SA, SB> Pair<SA, SB>
 where
     SA: Solution,
-    SB: Solution<Id = SA::Id, Info = SA::Info>
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
 {
     /// Create a new paired solution from an objective and optimizer solution.
     pub fn new(sol_a: SA, sol_b: SB) -> Self {
-        Self(sol_a,sol_b)
+        Self(sol_a, sol_b)
     }
 }
 
 impl<SA, SB> Clone for Pair<SA, SB>
 where
     SA: Solution + Clone,
-    SB: Solution<Id = SA::Id, Info = SA::Info> + Clone
+    SB: Solution<Id = SA::Id, Info = SA::Info> + Clone,
 {
     fn clone(&self) -> Self {
         let obj = self.get_sobj().clone();
@@ -170,7 +165,7 @@ where
 impl<SA, SB> Linked for Pair<SA, SB>
 where
     SA: Solution,
-    SB: Solution<Id = SA::Id, Info = SA::Info>
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
 {
     type Obj = SA::Dom;
     type Opt = SB::Dom;
@@ -180,7 +175,7 @@ where
 impl<SA, SB> HasId for Pair<SA, SB>
 where
     SA: Solution,
-    SB: Solution<Id = SA::Id, Info = SA::Info>
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
 {
     type Id = SA::Id;
 
@@ -221,18 +216,17 @@ where
 impl<SA, SB> HasInfo for Pair<SA, SB>
 where
     SA: Solution,
-    SB: Solution<Id = SA::Id, Info = SA::Info>
+    SB: Solution<Id = SA::Id, Info = SA::Info>,
 {
     type Info = SA::Info;
     fn sinfo(&self) -> Arc<SA::Info> {
         self.0.sinfo()
     }
-    
+
     fn set_info(&mut self, info: Arc<Self::Info>) {
         self.0.set_info(info.clone());
         self.1.set_info(info);
     }
-    
 }
 
 impl<SA, SB> HasY for Pair<SA, SB>
@@ -244,7 +238,7 @@ where
     fn y(&self) -> Arc<SA::Y> {
         self.0.y()
     }
-    
+
     fn set_y(&mut self, y: Arc<Self::Y>) {
         self.0.set_y(y.clone());
         self.1.set_y(y);
@@ -350,15 +344,15 @@ where
     SA: Uncomputed,
     SB: Uncomputed<Id = SA::Id, Info = SA::Info>,
 {
-    type ComputedShape<Out:Outcome> = Pair<Computed<SA, Out>, Computed<SB, Out>>;
+    type ComputedShape<Out: Outcome> = Pair<Computed<SA, Out>, Computed<SB, Out>>;
 
-    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
         let cobj = Computed::new(self.0, y.clone());
         let copt = Computed::new(self.1, y);
         Pair::new(cobj, copt)
     }
 
-    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+    fn extract<Out: Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let pair = Pair::new(comp.0.sol, comp.1.sol);
         (pair, y)
@@ -377,7 +371,7 @@ where
     }
 }
 
-impl<SA,SB> Eq for Pair<SA, SB>
+impl<SA, SB> Eq for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA: Solution + HasY,
@@ -386,7 +380,7 @@ where
 {
 }
 
-impl<SA,SB> PartialOrd for Pair<SA, SB>
+impl<SA, SB> PartialOrd for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA: Solution + HasY,
@@ -398,7 +392,7 @@ where
     }
 }
 
-impl<SA,SB> Ord for Pair<SA, SB>
+impl<SA, SB> Ord for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA::Y: Ord,
@@ -410,8 +404,7 @@ where
     }
 }
 
-
-impl<SA,SB> Orderable for Pair<SA, SB>
+impl<SA, SB> Orderable for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA::Y: Orderable,
@@ -423,7 +416,7 @@ where
     }
 }
 
-impl<SA,SB> Dominate for Pair<SA, SB>
+impl<SA, SB> Dominate for Pair<SA, SB>
 where
     Self: HasY<Y = SA::Y>,
     SA::Y: ElemMulti,
@@ -473,23 +466,20 @@ where
 #[serde(bound = "S: Solution")]
 pub struct Lone<S: Solution>(S);
 
-impl<S: Solution> Lone<S>
-{
+impl<S: Solution> Lone<S> {
     /// Create a new lone solution wrapper.
     pub fn new(sol: S) -> Self {
         Self(sol)
     }
 }
 
-impl<S: Solution> Linked for Lone<S>
-{
+impl<S: Solution> Linked for Lone<S> {
     type Obj = S::Dom;
     type Opt = S::Dom;
     type TrueOpt = NoDomain;
 }
 
-impl<S: Solution> HasId for Lone<S>
-{
+impl<S: Solution> HasId for Lone<S> {
     type Id = S::Id;
     fn id(&self) -> S::Id {
         self.0.id()
@@ -523,13 +513,13 @@ where
 
 impl<S> HasInfo for Lone<S>
 where
-    S : Solution + HasInfo,
+    S: Solution + HasInfo,
 {
     type Info = S::Info;
     fn sinfo(&self) -> Arc<S::Info> {
         self.0.sinfo()
     }
-    
+
     fn set_info(&mut self, info: Arc<Self::Info>) {
         self.0.set_info(info);
     }
@@ -543,12 +533,10 @@ where
     fn y(&self) -> Arc<Self::Y> {
         self.0.y()
     }
-    
+
     fn set_y(&mut self, y: Arc<Self::Y>) {
         self.0.set_y(y);
     }
-
-    
 }
 
 impl<S> HasStep for Lone<S>
@@ -601,8 +589,7 @@ where
     }
 }
 
-impl<S: Solution> SolutionShape for Lone<S>
-{
+impl<S: Solution> SolutionShape for Lone<S> {
     type ObjSol = S;
     type OptSol = S;
 
@@ -626,19 +613,16 @@ impl<S: Solution> SolutionShape for Lone<S>
     }
 }
 
-impl<S:Uncomputed> UncomputedShape for Lone<S>
-{
-}
+impl<S: Uncomputed> UncomputedShape for Lone<S> {}
 
-impl<S: Uncomputed> IntoComputedShape for Lone<S>
-{
-    type ComputedShape<Out:Outcome> = Lone<Computed<S, Out>>;
-    
-    fn into_computed<Out:Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
+impl<S: Uncomputed> IntoComputedShape for Lone<S> {
+    type ComputedShape<Out: Outcome> = Lone<Computed<S, Out>>;
+
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::ComputedShape<Out> {
         Lone::new(Computed::new(self.0, y))
     }
-    
-    fn extract<Out:Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
+
+    fn extract<Out: Outcome>(comp: Self::ComputedShape<Out>) -> (Self, Arc<TypeCodom<Out>>) {
         let y = comp.0.y;
         let x = comp.0.sol;
         (Lone::new(x), y)

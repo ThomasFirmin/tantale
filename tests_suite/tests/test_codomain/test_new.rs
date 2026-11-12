@@ -1,8 +1,9 @@
 use tantale::core::{
     ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain, ElemCostConstCodomain,
     ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain, ElemSingleCodomain,
-    ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostCodomain, ElemSpikeCostConstCodomain,
-    ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain, ElemSpikeMultiCodomain, ElemSpikeCodomain,
+    ElemSpikeCodomain, ElemSpikeConstCodomain, ElemSpikeConstMultiCodomain, ElemSpikeCostCodomain,
+    ElemSpikeCostConstCodomain, ElemSpikeCostConstMultiCodomain, ElemSpikeCostMultiCodomain,
+    ElemSpikeMultiCodomain,
 };
 
 #[test]
@@ -112,7 +113,10 @@ fn new_elemspikecodomain() {
     let elem = ElemSpikeCodomain::new(1.1, 10, 3);
 
     assert_eq!(elem.value, 1.1, "Wrong value for ElemSpikeCodomain::new.");
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -120,9 +124,15 @@ fn new_elemspikecodomain() {
 fn new_elemspikecostcodomain() {
     let elem = ElemSpikeCostCodomain::new(1.1, 2.2, 10, 3);
 
-    assert_eq!(elem.value, 1.1, "Wrong value for ElemSpikeCostCodomain::new.");
+    assert_eq!(
+        elem.value, 1.1,
+        "Wrong value for ElemSpikeCostCodomain::new."
+    );
     assert_eq!(elem.cost, 2.2, "Wrong cost for ElemSpikeCostCodomain::new.");
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -130,13 +140,19 @@ fn new_elemspikecostcodomain() {
 fn new_elemspikeconstcodomain() {
     let elem = ElemSpikeConstCodomain::new(1.1, vec![3.3, 4.4], 10, 3);
 
-    assert_eq!(elem.value, 1.1, "Wrong value for ElemSpikeConstCodomain::new.");
+    assert_eq!(
+        elem.value, 1.1,
+        "Wrong value for ElemSpikeConstCodomain::new."
+    );
     assert_eq!(
         elem.constraints.as_ref(),
         [3.3, 4.4].as_ref(),
         "Wrong constraints for ElemSpikeConstCodomain::new."
     );
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -148,13 +164,19 @@ fn new_elemspikecostconstcodomain() {
         elem.value, 1.1,
         "Wrong value for ElemSpikeCostConstCodomain::new."
     );
-    assert_eq!(elem.cost, 2.2, "Wrong cost for ElemSpikeCostConstCodomain::new.");
+    assert_eq!(
+        elem.cost, 2.2,
+        "Wrong cost for ElemSpikeCostConstCodomain::new."
+    );
     assert_eq!(
         elem.constraints.as_ref(),
         [3.3, 4.4].as_ref(),
         "Wrong constraints for ElemSpikeCostConstCodomain::new."
     );
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -167,7 +189,10 @@ fn new_elemspikemulticodomain() {
         [1.1, 2.2].as_ref(),
         "Wrong values for ElemSpikeMultiCodomain::new."
     );
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -180,8 +205,14 @@ fn new_elemspikecostmulticodomain() {
         [1.1, 2.2].as_ref(),
         "Wrong values for ElemSpikeCostMultiCodomain::new."
     );
-    assert_eq!(elem.cost, 3.3, "Wrong cost for ElemSpikeCostMultiCodomain::new.");
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.cost, 3.3,
+        "Wrong cost for ElemSpikeCostMultiCodomain::new."
+    );
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -199,7 +230,10 @@ fn new_elemspikeconstmulticodomain() {
         [3.3, 4.4].as_ref(),
         "Wrong constraints for ElemSpikeConstMultiCodomain::new."
     );
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }
 
@@ -221,6 +255,9 @@ fn new_elemspikecostconstmulticodomain() {
         [4.4, 5.5].as_ref(),
         "Wrong constraints for ElemSpikeCostConstMultiCodomain::new."
     );
-    assert_eq!(elem.samples, 10, "Wrong sampling for ElemSpikeCodomain::new.");
+    assert_eq!(
+        elem.samples, 10,
+        "Wrong sampling for ElemSpikeCodomain::new."
+    );
     assert_eq!(elem.spiking, 3, "Wrong spiking for ElemSpikeCodomain::new.");
 }

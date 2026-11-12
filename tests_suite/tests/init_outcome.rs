@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tantale::core::Step;
-use tantale::macros::{Outcome, Schema, Recordable};
+use tantale::macros::{Outcome, Recordable, Schema};
 
 #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct OutExample {

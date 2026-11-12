@@ -14,7 +14,11 @@
 //! * **`init_python!` macro** – the public entry point that users call once in
 //!   `main.rs` to wire a Python function into a Tantale experiment.
 
-use std::{ffi::OsStr, io::Error, path::{Path, PathBuf}};
+use std::{
+    ffi::OsStr,
+    io::Error,
+    path::{Path, PathBuf},
+};
 
 use pyo3::{
     Py, PyAny, PyErr, PyResult, Python,

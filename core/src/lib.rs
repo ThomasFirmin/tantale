@@ -266,7 +266,7 @@ pub struct GlobalParameters {
     pub run_id: usize,
 }
 
-impl State for GlobalParameters { }
+impl State for GlobalParameters {}
 
 impl HasState for GlobalParameters {
     type State = Self;
@@ -306,19 +306,11 @@ pub mod domain;
 pub use domain::{
     Accumulator, BestAccumulator, Bool, Bounded, Cat, Codomain, ConstCodomain, ConstMultiCodomain,
     Constrained, Cost, CostCodomain, CostConstCodomain, CostConstMultiCodomain, CostMultiCodomain,
-    Domain, Grid, GridDom, GridInt, GridNat, GridReal, Int,
-    Linked, Mixed, MixedTypeDom, Multi, MultiCodomain, Nat,
-    NoDomain, Onto, OntoDom, ParetoAccumulator, Real, Single, SingleCodomain,
-    Unit,
-    ElemSingleCodomain,
-    ElemCostCodomain,
-    ElemConstCodomain,
-    ElemCostConstCodomain,
-    ElemMultiCodomain,
-    ElemCostMultiCodomain,
-    ElemConstMultiCodomain,
-    ElemCostConstMultiCodomain,
-    Criteria,
+    Criteria, Domain, ElemConstCodomain, ElemConstMultiCodomain, ElemCostCodomain,
+    ElemCostConstCodomain, ElemCostConstMultiCodomain, ElemCostMultiCodomain, ElemMultiCodomain,
+    ElemSingleCodomain, Grid, GridDom, GridInt, GridNat, GridReal, Int, Linked, Mixed,
+    MixedTypeDom, Multi, MultiCodomain, Nat, NoDomain, Onto, OntoDom, ParetoAccumulator, Real,
+    Single, SingleCodomain, Unit,
 };
 
 pub mod distribution;
@@ -331,8 +323,8 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Computed, Fidelity, FidelitySol, SolId, Lone,
-    Pair, ParSId, SId, SolInfo, Sampled, Solution, SolutionShape, StepId, StepSId, Uncomputed,
+    BaseSol, Computed, Fidelity, FidelitySol, Lone, Pair, ParSId, SId, Sampled, SolId, SolInfo,
+    Solution, SolutionShape, StepId, StepSId, Uncomputed,
 };
 
 pub mod searchspace;
@@ -342,23 +334,21 @@ pub mod errors;
 
 pub mod objective;
 pub use crate::objective::{
-    EvalStep, FidOutcome, FuncWrapper, OneStep, Outcome, Step, MultiStep, outcome::FuncState,
+    EvalStep, FidOutcome, FuncWrapper, MultiStep, OneStep, Outcome, Step, outcome::FuncState,
 };
 
 pub mod optimizer;
-pub use crate::optimizer::{EmptyInfo, Sampler, Pruner, Prunable};
+pub use crate::optimizer::{EmptyInfo, Prunable, Pruner, Sampler};
 
 pub mod stop;
 pub use stop::{Calls, Evaluated, Stop};
 
 pub mod experiment;
 pub use experiment::{
-    Experiment, ParExperiment, PoolMode, Runable,
-    ThreadChannel, ThreadCommunicator
-    
+    Experiment, ParExperiment, PoolMode, Runable, ThreadChannel, ThreadCommunicator,
 };
 #[cfg(feature = "mpi")]
-pub use experiment::{MPICommunicator, MPIChannel};
+pub use experiment::{MPIChannel, MPICommunicator};
 
 pub mod recorder;
 pub use recorder::{CSVRecorder, Recorder};
@@ -368,13 +358,11 @@ pub use checkpointer::{Checkpointer, MessagePack};
 
 pub mod utils;
 pub use utils::{
-    Dominate, DominateView, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
-    HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront, NdArrayDominate,
-    NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, XToNdArray, Xy, YToNdArray, State,
-    HasState, FolderConfig, Recordable, Schema,
-    aliases,
+    Dominate, DominateView, FolderConfig, HasFidelity, HasId, HasInfo, HasState, HasStep,
+    HasStepId, HasUncomputed, HasVariables, HasX, HasY, IntoNonDominatedSorting, IntoParetoFront,
+    NdArrayDominate, NonDominatedSorting, Orderable, OrderedArchive, ParetoFront, Recordable,
+    Schema, State, XToNdArray, Xy, YToNdArray, aliases,
 };
-
 
 #[cfg(feature = "spikes")]
 pub mod spikes;
@@ -382,5 +370,4 @@ pub mod spikes;
 pub use spikes::*;
 
 pub mod problem;
-pub use problem::{Problem, SimplePb, FidPb, Pb};
-
+pub use problem::{FidPb, Pb, Problem, SimplePb};

@@ -1,7 +1,14 @@
 mod test {
-use rand::rngs::ThreadRng;
+    use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale::{core::{HasX, OneStep, Problem, aliases::{Shape, Elem}, problem::Pb}, macros::{Recordable, Schema}};
+    use tantale::{
+        core::{
+            HasX, OneStep, Problem,
+            aliases::{Elem, Shape},
+            problem::Pb,
+        },
+        macros::{Recordable, Schema},
+    };
 
     #[test]
     pub fn main() {
@@ -11,7 +18,7 @@ use rand::rngs::ThreadRng;
             distribution::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
         };
-        use tantale::macros::{hpo, Outcome};
+        use tantale::macros::{Outcome, hpo};
 
         hpo!(
             a | Real(0.0,1.0,Uniform)                          |               ;
@@ -36,8 +43,7 @@ use rand::rngs::ThreadRng;
 
         let pb = Pb::new(sp, func);
 
-        fn get_pair<P: Problem<Info = EmptyInfo>>(p: &P, rng: &mut ThreadRng) -> Shape<P>
-        {
+        fn get_pair<P: Problem<Info = EmptyInfo>>(p: &P, rng: &mut ThreadRng) -> Shape<P> {
             let obj = p.get_searchspace().sample_obj(rng);
             let pair = p.get_searchspace().onto_opt(obj); // Paired solutions have the same ID
             println!(

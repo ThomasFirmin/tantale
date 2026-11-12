@@ -1,15 +1,25 @@
-use std::{collections::HashMap, sync::{Arc, Mutex, atomic::Ordering}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, atomic::Ordering},
+};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BaseSol, Checkpointer, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper, GlobalParameters, 
-    HasFidelity, HasState, HasStep, HasStepId, HasVariables, MultiStep, OneStep, Outcome, Problem, RUN_ID, 
-    Recorder, Runable, SId, SOL_ID, Sampler, Searchspace, SimplePb, SolInfo, SolutionShape, State, StepSId, 
-    Stop, aliases::{Accum, CompShape, LinkObj, LinkOpt, Opt, Out, Shape}, 
-    checkpointer::CheckpointerTargets, errors::WorkerError, experiment::{exputils::{Pool, PoolMode}, 
-    parallel::parutils::{fidelity_master, simple_master, start_fidelity_workers, start_simple_workers}}, 
-    utils::Communicator
+    BaseSol, Checkpointer, FidOutcome, FidPb, FidelitySol, FuncState, FuncWrapper,
+    GlobalParameters, HasFidelity, HasState, HasStep, HasStepId, HasVariables, MultiStep, OneStep,
+    Outcome, Problem, RUN_ID, Recorder, Runable, SId, SOL_ID, Sampler, Searchspace, SimplePb,
+    SolInfo, SolutionShape, State, StepSId, Stop,
+    aliases::{Accum, CompShape, LinkObj, LinkOpt, Opt, Out, Shape},
+    checkpointer::CheckpointerTargets,
+    errors::WorkerError,
+    experiment::{
+        exputils::{Pool, PoolMode},
+        parallel::parutils::{
+            fidelity_master, simple_master, start_fidelity_workers, start_simple_workers,
+        },
+    },
+    utils::Communicator,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,13 +135,12 @@ pub trait WorkerTrait<P: Problem> {
     fn launch(self) -> Result<Self::Handle, WorkerError>;
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Shape<P>: SolutionShape, Out<P>: Outcome")]
-pub struct ParState<P:Problem> {
+pub struct ParState<P: Problem> {
     /// The current solution being evaluated.
     pub currently: Vec<Option<Shape<P>>>,
-    #[serde(skip)] // Skip because 'where' a solution can vary after loading, and we don't want to serialize it. 
+    #[serde(skip)] // Skip because 'where' a solution can vary after loading, and we don't want to serialize it.
     /// Maps each [`SolId`](crate::SolId) to its corresponding worker where the [`FuncState`] is stored.
     pub where_is: HashMap<P::Id, usize>,
     /// A list of [`FuncState`] that are awaiting processing by each worker.
@@ -140,22 +149,26 @@ pub struct ParState<P:Problem> {
     pub awaiting_unknown: Vec<Shape<P>>,
 }
 
-impl<P:Problem> State for ParState<P> { }
+impl<P: Problem> State for ParState<P> {}
 
-impl<P:Problem> ParState<P> {
+impl<P: Problem> ParState<P> {
     pub fn new(size: usize) -> Self {
-        Self { currently: vec![None; size], 
-               where_is: HashMap::new(), 
-               awaiting: vec![Vec::new(); size], 
-               awaiting_unknown: Vec::new() 
-            }
+        Self {
+            currently: vec![None; size],
+            where_is: HashMap::new(),
+            awaiting: vec![Vec::new(); size],
+            awaiting_unknown: Vec::new(),
+        }
     }
 
     pub fn set_currently(&mut self, index: usize, currently: Shape<P>) {
         if index < self.currently.len() {
             self.currently[index] = Some(currently);
         } else {
-            log::warn!("Index {} is out of bounds for currently vector. No update performed.", index);
+            log::warn!(
+                "Index {} is out of bounds for currently vector. No update performed.",
+                index
+            );
         }
     }
 
@@ -168,20 +181,22 @@ impl<P:Problem> ParState<P> {
     pub fn pop_awaiting(&mut self, peer: usize) -> Option<Shape<P>> {
         if let Some(sol) = self.awaiting[peer].pop() {
             Some(sol)
-        } else { self.awaiting_unknown.pop() }
+        } else {
+            self.awaiting_unknown.pop()
+        }
     }
 }
 
-impl<P:Problem> HasState for ParState<P> {
+impl<P: Problem> HasState for ParState<P> {
     type State = Self;
     fn get_state(&self) -> &Self::State {
         self
     }
-    
+
     fn get_mut_state(&mut self) -> &mut Self::State {
         self
     }
-    
+
     fn from_state(state: Self::State) -> Self {
         state
     }
@@ -192,7 +207,7 @@ where
     P: Problem,
     P::Scp: Searchspace<P::Func> + HasVariables,
     C: Checkpointer<P, ()>,
-    Com: MasterWorkerCom
+    Com: MasterWorkerCom,
 {
     /// The [`Problem`] being solved in the experiment.
     pub problem: P,
@@ -209,21 +224,27 @@ where
     pub is_loaded: bool,
 }
 
-impl<P,C,Com> Worker<P, C, Com>
+impl<P, C, Com> Worker<P, C, Com>
 where
     P: Problem,
     P::Scp: Searchspace<P::Func> + HasVariables,
     C: Checkpointer<P, ()>,
-    Com: MasterWorkerCom
+    Com: MasterWorkerCom,
 {
     /// Creates a new `Worker` instance if the current process is not the master.
     /// If it is the master, returns `None`.
-    pub fn new(problem: P, mut checkpointer: Option<C>, pool_mode: PoolMode, com: Com) -> Option<Self> 
-    {
+    pub fn new(
+        problem: P,
+        mut checkpointer: Option<C>,
+        pool_mode: PoolMode,
+        com: Com,
+    ) -> Option<Self> {
         if com.is_master() {
             None
         } else {
-            if let Some(c) = checkpointer.as_mut() { c.set_pfs(true) }
+            if let Some(c) = checkpointer.as_mut() {
+                c.set_pfs(true)
+            }
             let checkpointer = Arc::new(Mutex::new(checkpointer));
             Some(Self {
                 problem,
@@ -236,9 +257,8 @@ where
         }
     }
 
-    fn load(problem: P, checkpointer: C, pool_mode: PoolMode, com: Com) -> Option<Self>
-    {
-        if com.is_master(){
+    fn load(problem: P, checkpointer: C, pool_mode: PoolMode, com: Com) -> Option<Self> {
+        if com.is_master() {
             None
         } else {
             let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
@@ -255,35 +275,32 @@ where
 
     /// Set the Parallel File System (PFS) flag for the worker.
     pub fn with_pfs(self, pfs: bool) -> Self {
-        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() { c.set_pfs(pfs) }
-        Self {
-            pfs,
-            ..self
+        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() {
+            c.set_pfs(pfs)
         }
+        Self { pfs, ..self }
     }
 
-    /// Set the [`PoolMode`] for the worker, 
+    /// Set the [`PoolMode`] for the worker,
     /// determining how function states are managed during the experiment.
     pub fn with_pool_mode(self, pool_mode: PoolMode) -> Self {
-        Self {
-            pool_mode,
-            ..self
-        }
+        Self { pool_mode, ..self }
     }
 }
 
-impl<Scp, Info, Out, C, Com> WorkerTrait<SimplePb<Info, Scp, Out>> for Worker<SimplePb<Info, Scp, Out>, C, Com>
+impl<Scp, Info, Out, C, Com> WorkerTrait<SimplePb<Info, Scp, Out>>
+    for Worker<SimplePb<Info, Scp, Out>, C, Com>
 where
     SimplePb<Info, Scp, Out>: 'static,
     Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>> + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = SId,
-        Info = Info,
-        ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
-        OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    >,
+            Id = SId,
+            Info = Info,
+            ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
+            OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        >,
     Out: Outcome,
     Info: SolInfo,
     C: Checkpointer<SimplePb<Info, Scp, Out>, ()>,
@@ -296,19 +313,23 @@ where
     }
 }
 
-impl<Scp, Info, Out, C, Com, FnState> WorkerTrait<FidPb<Info, Scp, Out, FnState>> for Worker<FidPb<Info, Scp, Out, FnState>, C, Com>
+impl<Scp, Info, Out, C, Com, FnState> WorkerTrait<FidPb<Info, Scp, Out, FnState>>
+    for Worker<FidPb<Info, Scp, Out, FnState>, C, Com>
 where
     FidPb<Info, Scp, Out, FnState>: 'static,
-    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync + 'static,
-    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    C: Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync + 'static,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>>
+        + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = StepSId,
-        Info = Info,
-        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
-        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    > + HasFidelity + HasStep + HasStepId,
+            Id = StepSId,
+            Info = Info,
+            ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+            OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        > + HasFidelity
+        + HasStep
+        + HasStepId,
     CompShape<FidPb<Info, Scp, Out, FnState>>: HasFidelity + HasStep + HasStepId,
     Out: FidOutcome,
     Info: SolInfo,
@@ -320,7 +341,13 @@ where
     fn launch(mut self) -> Result<Self::Handle, WorkerError> {
         let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(self.pool_mode)));
         let pb = Arc::new(self.problem);
-        start_fidelity_workers(pb.clone(), &mut self.com, self.checkpointer, pool, self.is_loaded)
+        start_fidelity_workers(
+            pb.clone(),
+            &mut self.com,
+            self.checkpointer,
+            pool,
+            self.is_loaded,
+        )
     }
 }
 
@@ -332,7 +359,7 @@ where
     S: Stop,
     R: Recorder<P, ()>,
     C: Checkpointer<P, ()>,
-    Com: MasterWorkerCom
+    Com: MasterWorkerCom,
 {
     /// The [`Problem`] being solved in the experiment.
     pub problem: Arc<P>,
@@ -365,21 +392,23 @@ where
     S: Stop,
     R: Recorder<P, ()>,
     C: Checkpointer<P, ()>,
-    Com: MasterWorkerCom
+    Com: MasterWorkerCom,
 {
     pub fn new(
-        problem: P, 
+        problem: P,
         sampler: O,
-        stop: S, 
-        recorder: Option<R>, 
-        mut checkpointer: Option<C>, 
-        com: Com
+        stop: S,
+        recorder: Option<R>,
+        mut checkpointer: Option<C>,
+        com: Com,
     ) -> Option<Self> {
-        if com.is_worker(){
+        if com.is_worker() {
             None
         } else {
             let accumulator = Accum::<P>::default();
-            if let Some(c) = checkpointer.as_mut() { c.set_pfs(true) }
+            if let Some(c) = checkpointer.as_mut() {
+                c.set_pfs(true)
+            }
             let checkpointer = Arc::new(Mutex::new(checkpointer));
             Some(Self {
                 problem: Arc::new(problem),
@@ -397,12 +426,12 @@ where
     }
 
     pub fn load(
-        problem: P, 
-        mut recorder: Option<R>, 
-        mut checkpointer: C, 
-        com: Com
+        problem: P,
+        mut recorder: Option<R>,
+        mut checkpointer: C,
+        com: Com,
     ) -> Result<Self, String> {
-        if com.is_worker(){
+        if com.is_worker() {
             Err("Cannot load experiment state on a worker process.".to_string())
         } else {
             checkpointer.set_pfs(true);
@@ -416,18 +445,24 @@ where
                 );
             }
             checkpointer.before_load(&problem, &()).unwrap();
-    
-            let sampler: O = checkpointer.load(&CheckpointerTargets::Optimizer, &()).unwrap();
+
+            let sampler: O = checkpointer
+                .load(&CheckpointerTargets::Optimizer, &())
+                .unwrap();
             let stop = checkpointer.load(&CheckpointerTargets::Stop, &()).unwrap();
-            let accumulator = checkpointer.load(&CheckpointerTargets::Accumulator, &()).unwrap();
-            let parameters: GlobalParameters = checkpointer.load(&CheckpointerTargets::Config, &()).unwrap();
-            // if the parameters.id is greater than the current SOL_ID, 
-            // we replace SOl_ID by the parameters.id 
+            let accumulator = checkpointer
+                .load(&CheckpointerTargets::Accumulator, &())
+                .unwrap();
+            let parameters: GlobalParameters = checkpointer
+                .load(&CheckpointerTargets::Config, &())
+                .unwrap();
+            // if the parameters.id is greater than the current SOL_ID,
+            // we replace SOl_ID by the parameters.id
             if parameters.sold_id > SOL_ID.load(Ordering::SeqCst) {
                 SOL_ID.store(parameters.sold_id, Ordering::SeqCst);
             }
             RUN_ID.store(parameters.run_id + 1, Ordering::SeqCst);
-            
+
             let checkpointer = Arc::new(Mutex::new(Some(checkpointer)));
             Ok(Master {
                 problem: Arc::new(problem),
@@ -446,42 +481,38 @@ where
 
     /// Set the Parallel File System (PFS) flag for the master process.
     pub fn with_pfs(self, pfs: bool) -> Self {
-        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() { c.set_pfs(pfs) }
-        Self {
-            pfs,
-            ..self
+        if let Some(c) = self.checkpointer.lock().unwrap().as_mut() {
+            c.set_pfs(pfs)
         }
+        Self { pfs, ..self }
     }
 
     pub fn with_pool_mode(self, pool_mode: PoolMode) -> Self {
-        Self {
-            pool_mode,
-            ..self
-        }
+        Self { pool_mode, ..self }
     }
 }
 
 impl<O, S, R, C, Scp, Out, Info, Com> Runable for Master<SimplePb<Info, Scp, Out>, O, S, R, C, Com>
 where
     SimplePb<Info, Scp, Out>: 'static,
-    O:Sampler<SimplePb<Info, Scp, Out>, Scp::Opt, Info = Info>,
-    S:Stop,
-    R:Recorder<SimplePb<Info, Scp, Out>, ()>,
-    C:Checkpointer<SimplePb<Info, Scp, Out>, ()> + Send + Sync,
+    O: Sampler<SimplePb<Info, Scp, Out>, Scp::Opt, Info = Info>,
+    S: Stop,
+    R: Recorder<SimplePb<Info, Scp, Out>, ()>,
+    C: Checkpointer<SimplePb<Info, Scp, Out>, ()> + Send + Sync,
     Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>> + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = SId,
-        Info = Info,
-        ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
-        OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    >,
+            Id = SId,
+            Info = Info,
+            ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
+            OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        >,
     Out: Outcome,
     Info: SolInfo,
     Com: MasterWorkerCom,
 {
-    type Id  = SId;
+    type Id = SId;
     type Context = ();
 
     type Problem = SimplePb<Info, Scp, Out>;
@@ -489,37 +520,35 @@ where
     type Stop = S;
     type Recorder = R;
     type Checkpointer = C;
-    
-    fn run(mut self) -> Accum<Self::Problem> 
-    {   
+
+    fn run(mut self) -> Accum<Self::Problem> {
         let state: ParState<SimplePb<Info, Scp, Out>> = if self.is_loaded {
-            if let Some(rec) = &mut self.recorder{
+            if let Some(rec) = &mut self.recorder {
                 rec.after_load(&self.problem, &()).unwrap();
             }
 
-            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
-                let state = check.load(&CheckpointerTargets::Experiment, &());    
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut() {
+                let state = check.load(&CheckpointerTargets::Experiment, &());
                 check.after_load(&self.problem, &()).unwrap();
                 match state {
                     Ok(e) => e,
                     Err(e) => {
                         log::warn!("Failed to load experiment state: {}.", e);
                         ParState::new(self.com.size())
-                    },
+                    }
                 }
             } else {
                 ParState::new(self.com.size())
             }
         } else {
-            if let Some(rec) = &mut self.recorder{
+            if let Some(rec) = &mut self.recorder {
                 rec.init(&self.problem, &()).unwrap();
             }
-            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut() {
                 check.init(&self.problem, &()).unwrap();
             }
             ParState::new(self.com.size())
         };
-
 
         let problem = self.problem;
         let accumulator = self.accumulator;
@@ -528,47 +557,48 @@ where
         let recorder = self.recorder;
         let checkpointer = self.checkpointer;
 
-        self.com.master::<SimplePb<Info, Scp, Out>,_>(
-            move |com|
+        self.com.master::<SimplePb<Info, Scp, Out>, _>(move |com| {
             simple_master(
-                com, 
-                problem, 
-                accumulator, 
-                sampler, 
-                stop, 
-                recorder, 
-                checkpointer, 
+                com,
+                problem,
+                accumulator,
+                sampler,
+                stop,
+                recorder,
+                checkpointer,
                 state,
             )
-        )
+        })
     }
 }
 
-
-
-impl<O, S, R, C, Scp, Out, Info, Com, FnState> Runable for Master<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
+impl<O, S, R, C, Scp, Out, Info, Com, FnState> Runable
+    for Master<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
 where
     FidPb<Info, Scp, Out, FnState>: 'static,
-    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
-    S:Stop,
-    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
-    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync,
-    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    O: Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S: Stop,
+    R: Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C: Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>>
+        + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = StepSId,
-        Info = Info,
-        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
-        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    > + HasFidelity + HasStep + HasStepId,
+            Id = StepSId,
+            Info = Info,
+            ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+            OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        > + HasFidelity
+        + HasStep
+        + HasStepId,
     CompShape<FidPb<Info, Scp, Out, FnState>>: HasFidelity + HasStep + HasStepId,
     Out: FidOutcome,
     Info: SolInfo,
     FnState: FuncState + Send + Sync,
     Com: MasterWorkerCom,
 {
-    type Id  = StepSId;
+    type Id = StepSId;
     type Context = ();
 
     type Problem = FidPb<Info, Scp, Out, FnState>;
@@ -576,37 +606,35 @@ where
     type Stop = S;
     type Recorder = R;
     type Checkpointer = C;
-    
-    fn run(mut self) -> Accum<Self::Problem> 
-    {   
+
+    fn run(mut self) -> Accum<Self::Problem> {
         let state: ParState<FidPb<Info, Scp, Out, FnState>> = if self.is_loaded {
-            if let Some(rec) = &mut self.recorder{
+            if let Some(rec) = &mut self.recorder {
                 rec.after_load(&self.problem, &()).unwrap();
             }
 
-            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
-                let state = check.load(&CheckpointerTargets::Experiment, &());    
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut() {
+                let state = check.load(&CheckpointerTargets::Experiment, &());
                 check.after_load(&self.problem, &()).unwrap();
                 match state {
                     Ok(e) => e,
                     Err(e) => {
                         log::warn!("Failed to load experiment state: {}.", e);
                         ParState::new(self.com.size())
-                    },
+                    }
                 }
             } else {
                 ParState::new(self.com.size())
             }
         } else {
-            if let Some(rec) = &mut self.recorder{
+            if let Some(rec) = &mut self.recorder {
                 rec.init(&self.problem, &()).unwrap();
             }
-            if let Some(check) = self.checkpointer.lock().unwrap().as_mut(){
+            if let Some(check) = self.checkpointer.lock().unwrap().as_mut() {
                 check.init(&self.problem, &()).unwrap();
             }
             ParState::new(self.com.size())
         };
-
 
         let problem = self.problem;
         let accumulator = self.accumulator;
@@ -615,20 +643,19 @@ where
         let recorder = self.recorder;
         let checkpointer = self.checkpointer;
 
-        self.com.master::<FidPb<Info, Scp, Out, FnState>,_>(
-            move |com|
-            fidelity_master(
-                com, 
-                problem, 
-                accumulator, 
-                sampler, 
-                stop, 
-                recorder, 
-                checkpointer, 
-                state,
-            )
-        )
-        
+        self.com
+            .master::<FidPb<Info, Scp, Out, FnState>, _>(move |com| {
+                fidelity_master(
+                    com,
+                    problem,
+                    accumulator,
+                    sampler,
+                    stop,
+                    recorder,
+                    checkpointer,
+                    state,
+                )
+            })
     }
 }
 
@@ -717,7 +744,7 @@ where
                 Worker::load(problem, checkpointer, PoolMode::InMemory, com)
                     .expect("A worker process must be able to create a Worker."),
             )
-        }; 
+        };
         Self { role }
     }
 
@@ -764,13 +791,13 @@ where
     C: Checkpointer<SimplePb<Info, Scp, Out>, ()> + Send + Sync,
     Scp: Searchspace<OneStep<BaseSol<SId, LinkObj<Scp>, Info>, Out>> + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = SId,
-        Info = Info,
-        ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
-        OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    >,
+            Id = SId,
+            Info = Info,
+            ObjSol = BaseSol<SId, LinkObj<Scp>, Info>,
+            OptSol = BaseSol<SId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        >,
     Out: Outcome,
     Info: SolInfo,
     Com: MasterWorkerCom,
@@ -800,23 +827,26 @@ where
     }
 }
 
-
-impl<O, S, R, C, Scp, Out, Info, Com, FnState> ParExperiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
+impl<O, S, R, C, Scp, Out, Info, Com, FnState>
+    ParExperiment<FidPb<Info, Scp, Out, FnState>, O, S, R, C, Com>
 where
     FidPb<Info, Scp, Out, FnState>: 'static,
-    O:Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
-    S:Stop,
-    R:Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
-    C:Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync + 'static,
-    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>> + HasVariables,
+    O: Sampler<FidPb<Info, Scp, Out, FnState>, Scp::Opt, Info = Info>,
+    S: Stop,
+    R: Recorder<FidPb<Info, Scp, Out, FnState>, ()>,
+    C: Checkpointer<FidPb<Info, Scp, Out, FnState>, ()> + Send + Sync + 'static,
+    Scp: Searchspace<MultiStep<FidelitySol<StepSId, LinkObj<Scp>, Info>, Out, FnState>>
+        + HasVariables,
     Scp::Shape: SolutionShape<
-        Id = StepSId,
-        Info = Info,
-        ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
-        OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
-        Obj = LinkObj<Scp>,
-        Opt = LinkOpt<Scp>,
-    > + HasFidelity + HasStep + HasStepId,
+            Id = StepSId,
+            Info = Info,
+            ObjSol = FidelitySol<StepSId, LinkObj<Scp>, Info>,
+            OptSol = FidelitySol<StepSId, LinkOpt<Scp>, Info>,
+            Obj = LinkObj<Scp>,
+            Opt = LinkOpt<Scp>,
+        > + HasFidelity
+        + HasStep
+        + HasStepId,
     CompShape<FidPb<Info, Scp, Out, FnState>>: HasFidelity + HasStep + HasStepId,
     Out: FidOutcome,
     Info: SolInfo,
@@ -831,12 +861,14 @@ where
             Role::Master(mut master) => {
                 let pool = Arc::new(Mutex::new(Pool::<StepSId, FnState>::new(master.pool_mode)));
                 let handle = start_fidelity_workers(
-                    master.problem.clone(), 
-                    &mut master.com, 
+                    master.problem.clone(),
+                    &mut master.com,
                     master.checkpointer.clone(),
                     pool,
-                    master.is_loaded
-                ).map_err(|e| log::error!("Failed to start workers: {}", e)).ok()?;
+                    master.is_loaded,
+                )
+                .map_err(|e| log::error!("Failed to start workers: {}", e))
+                .ok()?;
                 let accumulator = master.run();
                 if let Err(e) = handle.join() {
                     log::error!("A worker failed: {}", e);

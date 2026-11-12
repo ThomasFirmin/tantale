@@ -73,15 +73,14 @@ impl Default for UniformWeighter {
     }
 }
 
-impl<T> Weighter<T> for UniformWeighter
-{
+impl<T> Weighter<T> for UniformWeighter {
     fn weight(&self, good: &[&T], bad: &[&T]) -> Result<TPEWeights, WeighterError> {
         if good.is_empty() || bad.is_empty() {
             return Err(WeighterError::NotEnoughPoints(
                 "Both good and bad sets must contain at least one point.",
             ));
         }
-        
+
         let n_good = good.len() as f64;
         let n_bad = bad.len() as f64;
 

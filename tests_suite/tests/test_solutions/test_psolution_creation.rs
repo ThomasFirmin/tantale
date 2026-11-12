@@ -1,5 +1,5 @@
-use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::aliases::Elem;
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::{ParSId, Uncomputed};
 use tantale::core::{BaseSol, HasId};
 
@@ -14,7 +14,7 @@ use super::init_sinfo::{TestSInfo, get_sinfo};
 
 fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &Unc, pid: u32)
 where
-    Unc: Uncomputed<Id = ParSId, Dom=Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
+    Unc: Uncomputed<Id = ParSId, Dom = Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
     Elem<Dom>:
         Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a> + Send + Sync,

@@ -30,7 +30,8 @@ fn main() {
     let sp = searchspace::get_searchspace();
     let mut rng: rand::rngs::ThreadRng = rand::rng();
 
-    let sample: BaseSol<SId, ObjType, EmptyInfo> = <Sp<ObjType, OptType> as Searchspace<OneStep<_, OutStruct>>>::sample_obj::<>(&sp, &mut rng);
+    let sample: BaseSol<SId, ObjType, EmptyInfo> =
+        <Sp<ObjType, OptType> as Searchspace<OneStep<_, OutStruct>>>::sample_obj(&sp, &mut rng);
     let id1: SId = sample.id();
     let out = searchspace::example(sample.clone_x());
     println!("ID : {} -- Out {}", id1.id, out.out);

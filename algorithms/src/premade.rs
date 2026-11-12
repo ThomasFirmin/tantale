@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
-use tantale_core::{Domain, HasState, Problem, Prunable, Recordable, Sampled, Sampler, Schema, Searchspace, SolInfo, State, aliases::{Accum, CompShape, Shape, XObj}, optimizer::opt::Batched, utils::ShapeWithInfo};
+use tantale_core::{
+    Domain, HasState, Problem, Prunable, Recordable, Sampled, Sampler, Schema, Searchspace,
+    SolInfo, State,
+    aliases::{Accum, CompShape, Shape, XObj},
+    optimizer::opt::Batched,
+    utils::ShapeWithInfo,
+};
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct PremadeInfo(String);
@@ -10,7 +16,7 @@ impl PremadeInfo {
     }
 }
 
-impl SolInfo for PremadeInfo { }
+impl SolInfo for PremadeInfo {}
 
 impl Schema<()> for PremadeInfo {
     type Parts = ();
@@ -25,7 +31,6 @@ impl Recordable<()> for PremadeInfo {
     fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         vec![self.0.clone()]
     }
-    
 }
 
 /// A sampler that returns a premade list of solutions, in order.
@@ -39,7 +44,11 @@ pub struct Premade<P: Problem> {
 
 impl<P: Problem> Clone for Premade<P> {
     fn clone(&self) -> Self {
-        Self { solutions: self.solutions.clone(), repeat: self.repeat, at_idx: self.at_idx }
+        Self {
+            solutions: self.solutions.clone(),
+            repeat: self.repeat,
+            at_idx: self.at_idx,
+        }
     }
 }
 
@@ -53,9 +62,9 @@ impl<P: Problem> std::fmt::Debug for Premade<P> {
     }
 }
 
-impl<P:Problem> State for Premade<P> { }
+impl<P: Problem> State for Premade<P> {}
 
-impl<P:Problem> HasState for Premade<P> {
+impl<P: Problem> HasState for Premade<P> {
     type State = Self;
 
     fn get_state(&self) -> &Self::State {
@@ -71,17 +80,28 @@ impl<P:Problem> HasState for Premade<P> {
     }
 }
 
-impl<P:Problem> Premade<P> {
+impl<P: Problem> Premade<P> {
     pub fn new<T: Into<XObj<P>>>(solutions: Vec<(T, String)>, repeat: bool) -> Self {
-        let solutions = solutions.into_iter().map(|(x, name)| (x.into(), name)).collect();
-        Self { solutions, repeat, at_idx: 0 }
+        let solutions = solutions
+            .into_iter()
+            .map(|(x, name)| (x.into(), name))
+            .collect();
+        Self {
+            solutions,
+            repeat,
+            at_idx: 0,
+        }
     }
 }
 
-impl<P:Problem, Opt:Domain> Sampler<P, Opt> for Premade<P> {
+impl<P: Problem, Opt: Domain> Sampler<P, Opt> for Premade<P> {
     type Info = PremadeInfo;
-    
-    fn sample_info(&mut self,  scp: &<P as Problem>::Scp,  _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if self.at_idx >= self.solutions.len() {
             if self.repeat {
                 self.at_idx = 0;
@@ -95,21 +115,11 @@ impl<P:Problem, Opt:Domain> Sampler<P, Opt> for Premade<P> {
         let info = PremadeInfo::new(&name);
         Some((sol, Sampled::Fresh(info.into())))
     }
-    
-    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
-        
-    }
+
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }
 
-impl<P:Problem> Prunable for Premade<P>{ }
-
-
-
-
-
-
-
-
+impl<P: Problem> Prunable for Premade<P> {}
 
 /// A sampler that returns a premade list of solutions, in order.
 #[derive(Serialize, Deserialize)]
@@ -117,7 +127,7 @@ impl<P:Problem> Prunable for Premade<P>{ }
 pub struct BatchPremade<P: Problem> {
     pub solutions: Vec<(XObj<P>, String)>,
     pub batch_size: usize,
-    pub batch : Vec<ShapeWithInfo<Shape<P>, PremadeInfo>>,
+    pub batch: Vec<ShapeWithInfo<Shape<P>, PremadeInfo>>,
     pub batch_comp: Vec<CompShape<P>>,
     pub repeat: bool,
     pub at_idx: usize,
@@ -125,8 +135,8 @@ pub struct BatchPremade<P: Problem> {
 
 impl<P: Problem> Clone for BatchPremade<P> {
     fn clone(&self) -> Self {
-        Self { 
-            solutions: self.solutions.clone(), 
+        Self {
+            solutions: self.solutions.clone(),
             batch_size: self.batch_size,
             batch: self.batch.clone(),
             batch_comp: self.batch_comp.clone(),
@@ -149,9 +159,9 @@ impl<P: Problem> std::fmt::Debug for BatchPremade<P> {
     }
 }
 
-impl<P:Problem> State for BatchPremade<P> { }
+impl<P: Problem> State for BatchPremade<P> {}
 
-impl<P:Problem> HasState for BatchPremade<P> {
+impl<P: Problem> HasState for BatchPremade<P> {
     type State = Self;
 
     fn get_state(&self) -> &Self::State {
@@ -167,11 +177,14 @@ impl<P:Problem> HasState for BatchPremade<P> {
     }
 }
 
-impl<P:Problem> BatchPremade<P> {
+impl<P: Problem> BatchPremade<P> {
     pub fn new<T: Into<XObj<P>>>(solutions: Vec<(T, String)>, repeat: bool) -> Self {
-        let solutions: Vec<_> = solutions.into_iter().map(|(x, name)| (x.into(), name)).collect();
+        let solutions: Vec<_> = solutions
+            .into_iter()
+            .map(|(x, name)| (x.into(), name))
+            .collect();
         let batch_size = solutions.len();
-        Self { 
+        Self {
             solutions,
             batch_size,
             batch: Vec::new(),
@@ -182,10 +195,14 @@ impl<P:Problem> BatchPremade<P> {
     }
 }
 
-impl<P:Problem, Opt:Domain> Sampler<P, Opt> for BatchPremade<P> {
+impl<P: Problem, Opt: Domain> Sampler<P, Opt> for BatchPremade<P> {
     type Info = PremadeInfo;
-    
-    fn sample_info(&mut self,  scp: &<P as Problem>::Scp, _acc: &Accum<P>) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
         if self.batch.is_empty() {
             if !self.repeat && self.at_idx >= self.solutions.len() {
                 return None;
@@ -198,27 +215,26 @@ impl<P:Problem, Opt:Domain> Sampler<P, Opt> for BatchPremade<P> {
                 self.batch.push((sol, info).into());
                 self.at_idx += 1;
             }
-            let batch: Vec<_>  = self.solutions[..self.batch_size].iter().map(
-                |(x, name)|
-                {
+            let batch: Vec<_> = self.solutions[..self.batch_size]
+                .iter()
+                .map(|(x, name)| {
                     let sol = scp.new_obj(x.clone());
                     let info = PremadeInfo::new(name);
                     (sol, info).into()
-                }
-            ).rev().collect();
+                })
+                .rev()
+                .collect();
             self.batch = batch;
-            return <Self as Sampler<P,Opt>>::sample_info(self, scp, _acc)
+            return <Self as Sampler<P, Opt>>::sample_info(self, scp, _acc);
         }
         let sol = self.batch.pop().unwrap();
         Some((sol.0, sol.1))
     }
-    
-    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
-        
-    }
+
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }
 
-impl<P:Problem, Opt:Domain> Batched<P, Opt> for BatchPremade<P> {
+impl<P: Problem, Opt: Domain> Batched<P, Opt> for BatchPremade<P> {
     fn batch_size(&self) -> usize {
         self.solutions.len()
     }
@@ -247,4 +263,4 @@ impl<P:Problem, Opt:Domain> Batched<P, Opt> for BatchPremade<P> {
     }
 }
 
-impl<P:Problem> Prunable for BatchPremade<P>{ }
+impl<P: Problem> Prunable for BatchPremade<P> {}

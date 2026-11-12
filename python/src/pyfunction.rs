@@ -25,7 +25,10 @@
 //! resulting typed Tantale objective, ready to be passed to the optimizer.
 
 use std::{
-    fmt::{self, Display}, path::PathBuf, sync::Arc, write
+    fmt::{self, Display},
+    path::PathBuf,
+    sync::Arc,
+    write,
 };
 
 use log::warn;
@@ -86,7 +89,7 @@ impl FuncState for PyFuncState {
         let cls_bytes = std::fs::read(path.join("_tantale_cls.pkl"))?;
         let path_str = path_to_str(&path)?;
         Python::attach(|py| -> std::io::Result<Self> {
-            let cls = match pickle_loads(py, &cls_bytes){
+            let cls = match pickle_loads(py, &cls_bytes) {
                 Ok(res) => res,
                 Err(err) => {
                     err.print(py);
@@ -167,23 +170,18 @@ pub fn py_stepped<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
     let py_state = state.map(|s| s.0);
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");
-        let result = binding.call1(py, (list, fidelity.0, py_state)).unwrap_or_else(
-            |err: PyErr|
-            {
+        let result = binding
+            .call1(py, (list, fidelity.0, py_state))
+            .unwrap_or_else(|err: PyErr| {
                 err.print(py);
                 panic!("Python stepped objective failed");
-            }
-        );
+            });
 
-        let (out, new_state): (Py<PyAny>, Py<PyAny>) = result
-            .extract(py)
-            .unwrap_or_else(
-                |err: PyErr|
-                {
-                    err.print(py);
-                    panic!("Python stepped objective must return a 2-tuple (outcome, state)");
-                }
-            );
+        let (out, new_state): (Py<PyAny>, Py<PyAny>) =
+            result.extract(py).unwrap_or_else(|err: PyErr| {
+                err.print(py);
+                panic!("Python stepped objective must return a 2-tuple (outcome, state)");
+            });
         (Out::wrap(py, out), PyFuncState(new_state))
     })
 }
@@ -216,7 +214,7 @@ impl PyObjective {
     /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
-    pub fn register<E, Out, S>(&self) -> OneStep<S, Out> 
+    pub fn register<E, Out, S>(&self) -> OneStep<S, Out>
     where
         S: Uncomputed<X = Arc<[E]>>,
         Out: PyOutWrap,

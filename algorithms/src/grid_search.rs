@@ -1,17 +1,21 @@
 use tantale_core::{
-    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampled, Sampler, Sp, State, 
-    aliases::{Accum, CompShape, Shape}, domain::{CategoricalDomain, grid::GridBounds}, searchspace::Searchspace,
+    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampled, Sampler, Sp,
+    State,
+    aliases::{Accum, CompShape, Shape},
+    domain::{CategoricalDomain, grid::GridBounds},
+    searchspace::Searchspace,
 };
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tantale_macros::basic_bounds;
 
-
 /// A helper macro to shortcut the type signature of [`GridSearch`] when loading.
 #[macro_export]
 macro_rules! gridsearch {
-    () => {GridSearch};
+    () => {
+        GridSearch
+    };
 }
 
 //------------------//
@@ -56,7 +60,7 @@ macro_rules! gridsearch {
 /// ```
 ///
 /// # Note
-/// 
+///
 /// [`GridSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
 /// any state or history of evaluations.
 /// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
@@ -94,8 +98,12 @@ where
     T: GridBounds,
 {
     type Info = EmptyInfo;
-    
-    fn sample_info(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
         let x: Arc<[_]> = self
             .0
             .iter()
@@ -121,16 +129,19 @@ where
         }
         Some((scp.new_opt(x), EmptyInfo.into()))
     }
-    
-    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) { }
+
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }
 
 #[basic_bounds(P, Grid)]
-impl<P> Sampler<P, Grid> for GridSearch
-{
+impl<P> Sampler<P, Grid> for GridSearch {
     type Info = EmptyInfo;
-    
-    fn sample_info(&mut self,scp: &<P as Problem>::Scp,_acc: &Accum<P>) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
         let x: Arc<[_]> = self
             .0
             .iter()
@@ -156,6 +167,6 @@ impl<P> Sampler<P, Grid> for GridSearch
         }
         Some((scp.new_opt(x), EmptyInfo.into()))
     }
-    
-    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) { }
+
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }

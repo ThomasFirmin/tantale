@@ -6,8 +6,8 @@
 //!
 //! ## Trait Hierarchy
 //!
-//! The CSV recording system is built on [`Recordable`] and [`Schema`] traits, 
-//! which define how to serialize objects into string rows and headers, respectively. 
+//! The CSV recording system is built on [`Recordable`] and [`Schema`] traits,
+//! which define how to serialize objects into string rows and headers, respectively.
 //! The [`Recorder`] trait is implemented for the [`CSVRecorder`] to handle writing these rows to files.
 //!
 //! ## File Layout
@@ -28,11 +28,18 @@
 //! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
 
 use crate::{
-    Computed, FolderConfig, HasVariables, Problem, Var, aliases::{Obj, Out, SObj, SOpt, TrueOpt}, errors::RecorderError, objective::outcome::IdOut, recorder::{Recorder, RecorderTargets}, utils::record::{CompParts, Recordable, Schema, SolParts},
+    Computed, FolderConfig, HasVariables, Problem, Var,
+    aliases::{Obj, Out, SObj, SOpt, TrueOpt},
+    errors::RecorderError,
+    objective::outcome::IdOut,
+    recorder::{Recorder, RecorderTargets},
+    utils::record::{CompParts, Recordable, Schema, SolParts},
 };
 
 use std::{
-    fs::{File, OpenOptions, create_dir_all}, path::{Path, PathBuf}, sync::{Arc, Mutex},
+    fs::{File, OpenOptions, create_dir_all},
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 /// CSV-based recorder implementation for optimization experiments.
@@ -123,23 +130,36 @@ impl CSVRecorder {
     pub fn create(&self, target: &RecorderTargets) -> Result<(), RecorderError> {
         match self.retrieve(target) {
             Some(path) => {
-                File::create_new(path).map_err(|e| RecorderError::FileCreationError(e.to_string()))?;
+                File::create_new(path)
+                    .map_err(|e| RecorderError::FileCreationError(e.to_string()))?;
                 Ok(())
-            },
-            None => Err(RecorderError::FileNotFound(format!("No file configured for target {:?}", target))),
+            }
+            None => Err(RecorderError::FileNotFound(format!(
+                "No file configured for target {:?}",
+                target
+            ))),
         }
     }
 
     /// Open a CSV file for appending, returning a thread-safe writer.
-    pub fn open(&self, target: &RecorderTargets) -> Result<Arc<Mutex<csv::Writer<File>>>, RecorderError> {
+    pub fn open(
+        &self,
+        target: &RecorderTargets,
+    ) -> Result<Arc<Mutex<csv::Writer<File>>>, RecorderError> {
         match self.retrieve(target) {
             Some(path) => {
                 let writer = csv::Writer::from_writer(
-                    OpenOptions::new().append(true).open(path).map_err(|e| RecorderError::FileCreationError(e.to_string()))?
+                    OpenOptions::new()
+                        .append(true)
+                        .open(path)
+                        .map_err(|e| RecorderError::FileCreationError(e.to_string()))?,
                 );
                 Ok(Arc::new(Mutex::new(writer)))
-            },
-            None => Err(RecorderError::FileNotFound(format!("No file configured for target {:?}", target))),
+            }
+            None => Err(RecorderError::FileNotFound(format!(
+                "No file configured for target {:?}",
+                target
+            ))),
         }
     }
 
@@ -151,15 +171,17 @@ impl CSVRecorder {
             RecorderTargets::Y => self.path_codom = None,
             RecorderTargets::Outcome => self.path_out = None,
             RecorderTargets::Metadata => self.path_info = None,
-            RecorderTargets::Other(_) => {},
+            RecorderTargets::Other(_) => {}
         }
     }
 }
 
 fn write_to(writer: Arc<Mutex<csv::Writer<File>>>, row: Vec<String>) -> Result<(), RecorderError> {
     let mut lwrt = writer.lock().unwrap();
-    lwrt.write_record(row).map_err(|e| RecorderError::WriteError(e.to_string()))?;
-    lwrt.flush().map_err(|e| RecorderError::WriteError(e.to_string()))?;
+    lwrt.write_record(row)
+        .map_err(|e| RecorderError::WriteError(e.to_string()))?;
+    lwrt.flush()
+        .map_err(|e| RecorderError::WriteError(e.to_string()))?;
     Ok(())
 }
 
@@ -167,17 +189,26 @@ impl<P> Recorder<P, ()> for CSVRecorder
 where
     P: Problem,
     P::Scp: HasVariables,
-    SObj<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
-    SOpt<P>: for <'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts> + Recordable<(), Parts = SolParts>,
+    SObj<P>: for<'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>
+        + Recordable<(), Parts = SolParts>,
+    SOpt<P>: for<'v> Schema<&'v [Var<Obj<P>, TrueOpt<P>>], Parts = SolParts>
+        + Recordable<(), Parts = SolParts>,
 {
     fn init(&mut self, problem: &P, _context: &()) -> Result<(), RecorderError> {
         let does_exist = self.config.path_rec.try_exists().unwrap();
         if does_exist {
-            Err(RecorderError::FolderCreationError(format!("This folder already exists: {}", self.config.path_rec.display())))
+            Err(RecorderError::FolderCreationError(format!(
+                "This folder already exists: {}",
+                self.config.path_rec.display()
+            )))
         } else if self.config.path.is_file() {
-            Err(RecorderError::FolderCreationError(format!("This path points to a file: {}", self.config.path_rec.display())))
+            Err(RecorderError::FolderCreationError(format!(
+                "This path points to a file: {}",
+                self.config.path_rec.display()
+            )))
         } else {
-            create_dir_all(&self.config.path_rec).map_err(|e| RecorderError::FolderCreationError(e.to_string()))?;
+            create_dir_all(&self.config.path_rec)
+                .map_err(|e| RecorderError::FolderCreationError(e.to_string()))?;
             self.create(&RecorderTargets::XObjective)?;
             self.create(&RecorderTargets::XOptimizer)?;
             self.create(&RecorderTargets::Metadata)?;
@@ -188,7 +219,6 @@ where
             if let Ok(f) = self.open(&RecorderTargets::XObjective) {
                 let header = SObj::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::X);
                 write_to(f, header)?;
-
             }
             // Header of optimizer-side X of solution
             if let Ok(f) = self.open(&RecorderTargets::XOptimizer) {
@@ -197,7 +227,8 @@ where
             }
             // Header of solution metadata (SolInfo)
             if let Ok(f) = self.open(&RecorderTargets::Metadata) {
-                let header = SObj::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::Info);
+                let header =
+                    SObj::<P>::columns(&problem.get_searchspace().get_vars(), SolParts::Info);
                 write_to(f, header)?;
             }
             // Header of the output file (out.csv)
@@ -207,7 +238,10 @@ where
             }
 
             if let Ok(f) = self.open(&RecorderTargets::Y) {
-                let header = Computed::<SObj<P>, Out<P>>::columns(&(problem.get_searchspace().get_vars(), problem.get_codomain()), CompParts::Y);
+                let header = Computed::<SObj<P>, Out<P>>::columns(
+                    &(problem.get_searchspace().get_vars(), problem.get_codomain()),
+                    CompParts::Y,
+                );
                 write_to(f, header)?;
             }
             Result::Ok(())
@@ -215,91 +249,173 @@ where
     }
 
     fn before_load(&mut self, _problem: &P, _context: &()) -> Result<(), RecorderError> {
-        if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+        if self
+            .config
+            .path_rec
+            .try_exists()
+            .map_err(|e| RecorderError::Other(e.to_string()))?
+        {
             if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppobj
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Objective`-side solution recorder file does not exist, {}.",
+                    ppobj.display()
+                )));
             }
 
             if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppopt
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Optimizer`-side solution recorder file does not exist, {}.",
+                    ppopt.display()
+                )));
             }
 
             if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppinfo
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The solution metadata (`Info`) file does not exist, {}.",
+                    ppinfo.display()
+                )));
             }
 
             if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppout
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Output` recorder file does not exist, {}.",
+                    ppout.display()
+                )));
             }
 
-            if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
-                return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
+            if let Some(ppcodom) = &self.path_codom
+                && !ppcodom
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Codomain` recorder file does not exist, {}.",
+                    ppcodom.display()
+                )));
             }
         } else {
-            return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
+            return Err(RecorderError::FileNotFound(format!(
+                "The recorder folder does not exist, {}.",
+                self.config.path_rec.display()
+            )));
         }
         Ok(())
     }
 
     fn after_load(&mut self, _problem: &P, _context: &()) -> Result<(), RecorderError> {
-        if self.config.path_rec.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
+        if self
+            .config
+            .path_rec
+            .try_exists()
+            .map_err(|e| RecorderError::Other(e.to_string()))?
+        {
             if let Some(ppobj) = &self.path_pobj
-                && !ppobj.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppobj
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Objective`-side solution recorder file does not exist, {}.", ppobj.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Objective`-side solution recorder file does not exist, {}.",
+                    ppobj.display()
+                )));
             }
 
             if let Some(ppopt) = &self.path_popt
-                && !ppopt.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppopt
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Optimizer`-side solution recorder file does not exist, {}.", ppopt.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Optimizer`-side solution recorder file does not exist, {}.",
+                    ppopt.display()
+                )));
             }
 
             if let Some(ppinfo) = &self.path_info
-                && !ppinfo.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppinfo
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The solution metadata (`Info`) file does not exist, {}.", ppinfo.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The solution metadata (`Info`) file does not exist, {}.",
+                    ppinfo.display()
+                )));
             }
 
             if let Some(ppout) = &self.path_out
-                && !ppout.try_exists().map_err(|e| RecorderError::Other(e.to_string()))?
+                && !ppout
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
             {
-                return Err(RecorderError::FileNotFound(format!("The `Output` recorder file does not exist, {}.", ppout.display())));
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Output` recorder file does not exist, {}.",
+                    ppout.display()
+                )));
             }
 
-            if let Some(ppcodom) = &self.path_codom && !ppcodom.try_exists().map_err(|e| RecorderError::Other(e.to_string()))? {
-                return Err(RecorderError::FileNotFound(format!("The `Codomain` recorder file does not exist, {}.", ppcodom.display())));
+            if let Some(ppcodom) = &self.path_codom
+                && !ppcodom
+                    .try_exists()
+                    .map_err(|e| RecorderError::Other(e.to_string()))?
+            {
+                return Err(RecorderError::FileNotFound(format!(
+                    "The `Codomain` recorder file does not exist, {}.",
+                    ppcodom.display()
+                )));
             }
         } else {
-            return Err(RecorderError::FileNotFound(format!("The recorder folder does not exist, {}.", self.config.path_rec.display())));
+            return Err(RecorderError::FileNotFound(format!(
+                "The recorder folder does not exist, {}.",
+                self.config.path_rec.display()
+            )));
         }
         Ok(())
     }
 
-    fn record<T, CR, CS>(&self, target: &RecorderTargets, object: &T, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    fn record<T, CR, CS>(
+        &self,
+        target: &RecorderTargets,
+        object: &T,
+        contexts: (&CR, &CS),
+        part: <T as Recordable<CR>>::Parts,
+    ) -> Result<(), RecorderError>
     where
-        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>
+        T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
     {
         if let Ok(f) = self.open(target) {
             let row = object.record(contexts.0, part);
-            return write_to(f, row)
+            return write_to(f, row);
         }
         Ok(())
     }
 
-    fn vec_record<I, T, CR, CS>(&self, target: &RecorderTargets, object: I, contexts: (&CR, &CS), part: <T as Recordable<CR>>::Parts) -> Result<(), RecorderError>
+    fn vec_record<I, T, CR, CS>(
+        &self,
+        target: &RecorderTargets,
+        object: I,
+        contexts: (&CR, &CS),
+        part: <T as Recordable<CR>>::Parts,
+    ) -> Result<(), RecorderError>
     where
         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
-        I: IntoIterator<Item = T>
-    {   
+        I: IntoIterator<Item = T>,
+    {
         if let Ok(f) = self.open(target) {
             object.into_iter().try_for_each(|obj| {
                 let row = obj.record(contexts.0, part.clone());
@@ -414,7 +530,7 @@ where
 //     where
 //         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
 //         I: IntoIterator<Item = T>
-//     {   
+//     {
 //         if let Ok(f) = self.open(target) {
 //             object.into_iter().try_for_each(|obj| {
 //                 let row = obj.record(contexts.0, part.clone());
@@ -530,7 +646,7 @@ where
 //     where
 //         T: Recordable<CR> + Schema<CS, Parts = <T as Recordable<CR>>::Parts>,
 //         I: IntoIterator<Item = T>
-//     {   
+//     {
 //         if let Ok(f) = self.open(target) {
 //             object.into_iter().try_for_each(|obj| {
 //                 let row = obj.record(contexts.0, part.clone());

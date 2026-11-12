@@ -53,8 +53,13 @@
 //! ```
 
 use crate::{
-    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed, HasX, HasY, StepId, Xy, aliases::TypeCodom, domain::codomain::ElemMulti, 
-    objective::{Outcome, Step}, solution::{Solution, Uncomputed}, utils::orderable::Orderable,
+    Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
+    HasX, HasY, StepId, Xy,
+    aliases::TypeCodom,
+    domain::codomain::ElemMulti,
+    objective::{Outcome, Step},
+    solution::{Solution, Uncomputed},
+    utils::orderable::Orderable,
 };
 
 use serde::{Deserialize, Serialize};
@@ -74,14 +79,12 @@ use std::{fmt::Debug, sync::Arc};
 /// [`Objective`](crate::Objective) and then extracting a [`TypeCodom`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "S: Uncomputed, Out: Outcome")]
-pub struct Computed<S: Uncomputed, Out: Outcome>
-{
+pub struct Computed<S: Uncomputed, Out: Outcome> {
     pub sol: S,
     pub y: Arc<TypeCodom<Out>>,
 }
 
-impl<S: Uncomputed, Out: Outcome> Clone for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> Clone for Computed<S, Out> {
     fn clone(&self) -> Self {
         Self {
             sol: self.sol.clone(),
@@ -90,8 +93,7 @@ impl<S: Uncomputed, Out: Outcome> Clone for Computed<S, Out>
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> HasX for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> HasX for Computed<S, Out> {
     type X = S::X;
     fn ref_x(&self) -> &S::X {
         self.sol.ref_x()
@@ -100,15 +102,13 @@ impl<S: Uncomputed, Out: Outcome> HasX for Computed<S, Out>
     fn clone_x(&self) -> S::X {
         self.sol.clone_x()
     }
-    
+
     fn set_x(&mut self, x: Self::X) {
         self.sol.set_x(x);
     }
-    
 }
 
-impl<S: Uncomputed, Out: Outcome> HasId for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> HasId for Computed<S, Out> {
     type Id = S::Id;
 
     /// Return the identifier of the underlying uncomputed solution.
@@ -142,21 +142,19 @@ where
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> HasInfo for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> HasInfo for Computed<S, Out> {
     type Info = S::Info;
     /// Return the [`SolInfo`] associated with the underlying solution.
     fn sinfo(&self) -> Arc<S::Info> {
         self.sol.sinfo()
     }
-    
+
     fn set_info(&mut self, info: Arc<Self::Info>) {
         self.sol.set_info(info);
     }
 }
 
-impl<S: Uncomputed + HasStep, Out: Outcome> HasStep for Computed<S, Out>
-{
+impl<S: Uncomputed + HasStep, Out: Outcome> HasStep for Computed<S, Out> {
     /// Return the current evaluation [`Step`] if the underlying solution supports it.
     fn step(&self) -> Step {
         self.sol.step()
@@ -191,8 +189,7 @@ impl<S: Uncomputed + HasStep, Out: Outcome> HasStep for Computed<S, Out>
     }
 }
 
-impl<S: Uncomputed + HasFidelity, Out: Outcome> HasFidelity for Computed<S, Out>
-{
+impl<S: Uncomputed + HasFidelity, Out: Outcome> HasFidelity for Computed<S, Out> {
     /// Return the [`Fidelity`] of the underlying solution.
     fn fidelity(&self) -> Fidelity {
         self.sol.fidelity()
@@ -204,34 +201,31 @@ impl<S: Uncomputed + HasFidelity, Out: Outcome> HasFidelity for Computed<S, Out>
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> HasY for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> HasY for Computed<S, Out> {
     type Y = TypeCodom<Out>;
     /// Returns the computed [`TypeCodom`](crate::Codomain::TypeCodom) for this solution.
     fn y(&self) -> Arc<TypeCodom<Out>> {
         self.y.clone()
     }
-    
+
     fn set_y(&mut self, y: Arc<Self::Y>) {
         self.y = y;
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> HasUncomputed for Computed<S, Out> {
     type Uncomputed = S;
     /// Returns the underlying [`Uncomputed`] solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed {
         &self.sol
     }
-    
+
     fn set_uncomputed(&mut self, uncomputed: Self::Uncomputed) {
         self.sol = uncomputed;
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> Solution for Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> Solution for Computed<S, Out> {
     type Dom = S::Dom;
     type MetaData = S::MetaData;
 
@@ -249,11 +243,7 @@ where
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> Eq for Computed<S, Out>
-where
-    TypeCodom<Out>: Eq,
-{
-}
+impl<S: Uncomputed, Out: Outcome> Eq for Computed<S, Out> where TypeCodom<Out>: Eq {}
 
 impl<S: Uncomputed, Out: Outcome> PartialOrd for Computed<S, Out>
 where
@@ -303,14 +293,10 @@ where
     }
 }
 
-impl<S: Uncomputed, Out: Outcome> Computed<S, Out>
-{
+impl<S: Uncomputed, Out: Outcome> Computed<S, Out> {
     /// Creates a new [`Computed`] from a [`BaseSol`](crate::solution::BaseSol) and a [`TypeCodom`](crate::Codomain::TypeCodom).
     pub fn new(sol: S, y: Arc<TypeCodom<Out>>) -> Self {
-        Computed {
-            sol,
-            y,
-        }
+        Computed { sol, y }
     }
 
     /// Creates a vec of [`Computed`] from an iterator of [`BaseSol`](crate::solution::BaseSol)s,
@@ -351,7 +337,7 @@ impl<S: Uncomputed, Out: Outcome> Computed<S, Out>
     /// # Returns
     ///
     /// A tuple of `(uncomputed_solution, objective_value)`.
-    pub fn extract(self) -> (S, Arc<TypeCodom<Out>>){
+    pub fn extract(self) -> (S, Arc<TypeCodom<Out>>) {
         (self.sol, self.y)
     }
 }

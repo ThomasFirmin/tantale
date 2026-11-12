@@ -4,8 +4,8 @@ use std::time::Duration;
 use mpi::traits::CommunicatorCollectives;
 use tantale::algos::{RandomSearch, randomsearch};
 use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
-use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 use tantale::core::{CSVRecorder, FolderConfig, MessagePack};
+use tantale::core::{Evaluated, MPICommunicator, ParExperiment};
 
 #[path = "./cleaner.rs"]
 pub mod cleaner;
@@ -16,7 +16,7 @@ pub use run_checker::run_reader;
 
 mod init_func {
     use serde::{Deserialize, Serialize};
-    use tantale::macros::{Outcome, Schema, Recordable};
+    use tantale::macros::{Outcome, Recordable, Schema};
 
     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
     pub struct OutEvaluator {
@@ -100,9 +100,9 @@ fn main() {
     if com.is_master() {
         drop(Cleaner::new("tmp_test_rs_mpirun"));
     }
-    
+
     ParExperiment::new(pb, opt, stop, rec, check, com).run();
-    
+
     run_reader("tmp_test_rs_mpirun", 50);
 
     com1.proc.world.barrier();
@@ -113,7 +113,8 @@ fn main() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
+    let mut exp =
+        ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com1);
 
     if let Some(m) = exp.master_mut() {
         assert_eq!(m.stop.0, 50, "Number of calls is wrong");

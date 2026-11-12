@@ -8,7 +8,7 @@ pub use run_checker::run_reader;
 mod searchspace {
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{Outcome, Schema, Recordable, objective};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
         let idx: usize = rand::random_range(0..15) % 15;
