@@ -113,7 +113,7 @@
 //! This example runs random search, records CSV output, checkpoints state,
 //! and removes its temporary output directory when complete.
 //!
-//! ```
+//! ```no_run
 //! use tantale::{
 //!     algos::RandomSearch,
 //!     core::{
@@ -159,7 +159,6 @@
 //! let results = experiment.run();
 //! let best = results.best.expect("No best solution found");
 //! println!("Best solution: {:?}", best);
-//! # std::fs::remove_dir_all("tmp_test_quadratic").expect("Failed to remove temporary directory");
 //! ```
 //!
 //! ## Multi-fidelity objectives

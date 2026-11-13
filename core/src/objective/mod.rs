@@ -163,7 +163,7 @@ impl PartialEq for Step {
 ///
 /// [`EvalStep`] and [`Step`] convert bidirectionally via the [`From`] trait:
 ///
-/// ```ignore
+/// ```
 /// use tantale_core::objective::{Step, EvalStep};
 ///
 /// // Step to EvalStep
@@ -227,7 +227,8 @@ impl EvalStep {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// # use tantale_core::objective::EvalStep;
     /// let step = EvalStep::pending();
     /// assert_eq!(step, EvalStep(0));
     /// ```
@@ -246,7 +247,8 @@ impl EvalStep {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// # use tantale_core::objective::EvalStep;
     /// let step = EvalStep::partially(5);
     /// assert_eq!(step, EvalStep(5));
     /// ```
@@ -260,7 +262,8 @@ impl EvalStep {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// # use tantale_core::objective::EvalStep;
     /// let step = EvalStep::evaluated();
     /// assert_eq!(step, EvalStep(-1));
     /// ```
@@ -274,7 +277,8 @@ impl EvalStep {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// # use tantale_core::objective::EvalStep;
     /// let step = EvalStep::discard();
     /// assert_eq!(step, EvalStep(-9));
     /// ```
