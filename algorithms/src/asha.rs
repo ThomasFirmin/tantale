@@ -1,12 +1,24 @@
-//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for
-//! multi-fidelity hyperparameter optimization.
+//! # Asynchronous Successive Halving
 //!
-//! # Overview
+//! ASHA maintains result rungs for a sequence of fidelity budgets. When a
+//! worker requests a candidate, it promotes an eligible completed candidate
+//! from a lower rung when available; otherwise it asks the inner sampler for
+//! a new candidate at the minimum budget. Promotion is based on the
+//! single-objective ordering of computed results, and does not wait for every
+//! candidate at a rung to finish.
 //!
-//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
-//! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive
-//! halving strategy of eliminating poor performers at increasing fidelity levels.
+//! [`Asha::new`] takes an inner sampler, minimum budget, maximum budget, and
+//! scaling factor. Budgets must be finite and positive, `budget_max` must be
+//! greater than or equal to `budget_min`, and scaling must be finite and
+//! greater than `1.0`. Invalid budget parameters are returned as
+//! [`PrunerError`].
+//!
+//! [`Asha::into_hyperband`] converts an ASHA instance to the separate
+//! `BrackettedAsha` type for multiple brackets. It does not create the
+//! [`Hyperband`](crate::Hyperband) type, which wraps SHA.
+//!
+//! ASHA requires a multi-fidelity problem, an inner sampler that implements
+//! [`Prunable`], and computed results that implement [`Orderable`].
 //!
 //! # Pseudo-code
 //!
@@ -39,33 +51,10 @@
 //! 24. &emsp; &emsp;&emsp; $R_i \gets R_i \setminus \mathbf{x}_0$ &emsp; *Remove the selected solutions from the rung*
 //! 25. &emsp; &emsp;&emsp; **return** $(\mathbf{x}_0, i)$
 //! ---
+//! 
+//! # Reference
 //!
-//! # Type Parameters
-//!
-//! The algorithm is generic over:
-//! - Output types satisfying [`FidOutcome`] for multi-fidelity support
-//! - [`Searchspace`] over randomly samplable [`Domain`](tantale_core::Domain) generating candidates with [`HasStep`] and [`HasFidelity`] traits
-//!
-//! # Example
-//!
-//! ```ignore
-//! let sampler = RandomSearch::new();
-//! let sh = ASHA::new(
-//!     sampler,         // Samples random points
-//!     budget_min,      // Minimum resource level (e.g., epochs=1)
-//!     budget_max,      // Maximum resource level (e.g., epochs=100)
-//!     scaling,         // Reduction factor (e.g., 2.0 or 3.0)
-//! );
-//! ```
-//!
-//! # Note
-//!
-//! Solutions are not discarded by default.
-//! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-//!
-//! # References
-//!
-//! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
+//! Li et al., [*A System for Massively Parallel Hyperparameter Tuning*](https://arxiv.org/abs/1810.05934).
 
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -113,61 +102,15 @@ macro_rules! bracketted_asha {
     };
 }
 
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934) multi-fidelity optimizer.
-///
-/// A [`Pruner`] implementing the
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
+/// Asynchronous Successive Halving optimizer for multi-fidelity problems.
 ///
 /// # Overview
 ///
-/// [`Asha`] manages the optimization process through on-demand generation of candidates :
-/// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
-/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting the top performers and promoting them to the next level of fidelity, if the rung has enough candidates.
-/// - If not, it continues down the rungs until it finds candidates to promote or defaults to generate a new candidate at the lowest budget level
-///   using a [`Sampler`](tantale_core::Sampler).
+/// ASHA keeps candidate results in fidelity rungs. It returns eligible
+/// candidates for promotion when available, and otherwise delegates new
+/// candidate generation at the lowest budget to its inner sampler. Unlike
+/// [`Sha`](crate::Sha), ASHA does not require a complete batch at each rung.
 ///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +------------------------------+
-///  | Provide a Computed solution? |
-///  +------------------------------+
-///     Yes /     \ No
-///        /       \
-///       v         v
-///  +----------+   +--------------------+
-///  | Add to   |   | Start from highest |
-///  | rung and |-->| budget rung        |
-///  | update   |   +--------------------+
-///  | sampler  |      |
-///  | state    |      |
-///  +----------+      |
-///                    |
-///                    v
-///         +----------------+
-///         | Rung has top-k |  Yes
-///  +----->| candidates?    | --------+
-///  |      +----------------+         |
-///  |             | No                |
-///  |             v                   v
-///  |        +----------+      +-------------+
-///  |        | Move to  |      | Promote     |
-///  |        | next     |      | top configs |
-///  |        | rung     |      | to next     |
-///  |        +----------+      | fidelity    |
-///  |             |            +-------------+
-///  |             v              |
-///  |       +----------+         +-->Return config
-///  |      /            \        |    to worker
-///  |  No /  At lowest   \ Yes +--------------+
-///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random configs|
-///          +----------+       +--------------+  
-/// ```
 pub struct Asha<Smpl, P>
 where
     P: Problem,
@@ -260,20 +203,15 @@ where
     ///
     /// # Parameters
     ///
-    /// * `sampler` - A [`Sampler`] used to sample random configuration.
-    /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
-    ///   fidelity level, typically 1 epoch or similar.
-    /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
-    ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
-    ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
+    /// * `sampler` - Inner sampler used for candidates at the minimum budget.
+    /// * `budget_min` - Finite, positive fidelity of the first rung.
+    /// * `budget_max` - Finite maximum fidelity, greater than or equal to
+    ///   `budget_min`.
+    /// * `scaling` - Finite budget multiplier greater than `1.0`.
     ///
     /// # Errors
     ///
-    /// Returns an error if:
-    /// - `budget_min <= 0.0`
-    /// - `budget_max <= budget_min`
-    /// - `scaling < 1.0`
+    /// Returns an error if the scaling factor or budget range is invalid.
     pub fn new(
         sampler: Smpl,
         budget_min: f64,
@@ -396,26 +334,9 @@ where
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
     ///
-    /// # Note on function states management
-    ///
-    /// Solutions are not discarded by default.
-    /// They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-    /// This allows for asynchronous evaluation without waiting for all candidates to complete before proceeding to the next round.
-    ///
-    /// In Tantale, states are stored internally (in RAM or written in a file via checkpointing),
-    /// until a solution is [`Discarded`](tantale_core::Step::Discard),
-    /// [`Evaluated`](tantale_core::Step::Evaluated) or [`Errored`](crate::Step::Error).
-    ///
-    /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
-    /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
-    /// So when using ASHA a total of:
-    /// - 16 states at rung 0 (budget level 0)
-    /// - 4 states at rung 1 (budget level 1)
-    /// - 1 state at rung 2 (budget level 2)
-    ///   are stored in memory until the next generation step, where they will be promoted or discarded.
-    ///
-    /// So memory management is crucial when using ASHA,
-    /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
+    /// Completed candidates are retained in their rungs until promotion or
+    /// rung cleanup. The amount of retained state depends on candidate
+    /// throughput, rung thresholds, and the number of budget levels.
     ///
     /// In MPI-distributed optimization:
     /// - If there is no Parallel File Sytems, function states and worker states are stored within the worker local memory, and are not shared across workers.

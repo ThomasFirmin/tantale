@@ -34,28 +34,24 @@
 //! 12. &emsp; &emsp; $b \gets \eta \times b$
 //! 13. &emsp; **return best of $(L,\mathbf{y})$**
 //! ---
-//!
+//! 
+//! SHA evaluates a fixed-size batch at each budget level. After the batch is
+//! computed, it ranks the candidates, promotes the best candidates to the next
+//! budget, and discards the rest. The budget sequence starts at `budget_min`,
+//! grows by `scaling`, and includes `budget_max` exactly. After the final
+//! budget rung, the sampler starts a new batch at the minimum budget.
+//! 
 //! # Type Parameters
 //!
-//! The algorithm is generic over:
-//! - Output types satisfying [`FidOutcome`] for multi-fidelity support
-//! - [`Searchspace`] over randomly samplable [`Domain`](tantale_core::Domain) generating candidates with [`HasStep`] and [`HasFidelity`] traits
-//!
-//! # Example
-//!
-//! ```ignore
-//! let sh = SuccessiveHalving::new(
-//!     batch_size,      // Initial batch size
-//!     budget_min,      // Minimum resource level (e.g., epochs=1)
-//!     budget_max,      // Maximum resource level (e.g., epochs=100)
-//!     scaling_factor,  // Reduction factor (e.g., 2.0 or 3.0)
-//! );
-//! ```
+//! The inner sampler proposes candidates for the first rung. SHA requires
+//! comparable computed solutions and a multi-fidelity problem whose outcome
+//! reports step completion and whose function accepts fidelity.
 //!
 //! # Note
 //!
-//! In our case, Successive Halving does not stop when the final rung is evaluated. If so, then it generates a new initial batch and starts a new run.
-//! This allows compatibility with the [`Stop`](tantale_core::Stop) criterion, which can be used to stop the optimization after a certain number of iteration, evaluations, time...
+//! SHA is a sampler/pruner used by a core experiment. The experiment's stop
+//! criterion controls the total run; completing a final rung starts another
+//! batch unless the experiment has stopped.
 //!
 //! # References
 //!
@@ -102,69 +98,16 @@ macro_rules! sha {
 ///
 /// # Overview
 ///
-/// Successive Halving manages the optimization process through iterations:
-/// - In the first step, a batch of candidates is sampled and evaluated at `budget_min` fidelity
-/// - After computation, candidates are ranked and only Top-k best [`Computed`](tantale_core::Computed) solutions are kept, while the others are [`Discarded`](tantale_core::Step::Discard).
-/// - Surviving candidates are re-evaluated at higher fidelity ($\text{budget} \times \eta$)
-/// - This process continues until `budget_max` is reached
-/// - Then the cycle repeats with a fresh batch at `budget_min`
+/// Synchronous Successive Halving optimizer for multi-fidelity evaluations.
 ///
-/// # Workflow
+/// SHA collects a full rung of evaluated candidates before ranking and
+/// promoting candidates. The `sampler` supplies candidates at the first rung;
+/// the `batch_size` is the number of candidates in that initial rung. Later
+/// rung sizes are reduced according to `scaling`. A completed final rung is
+/// followed by a fresh initial rung.
 ///
-/// ```text
-///  Start
-///    |
-///    v
-/// +------------------+
-/// | Sample n configs |  <--- budget = b_min
-/// +------------------+
-///    |
-///    v
-/// +------------------+
-/// | Evaluate batch   |  at fidelity = budget
-/// +------------------+
-///    |
-///    v
-/// +------------------+
-/// | Keep top k       |  k = floor(n / eta)
-/// | Discard rest     |
-/// +------------------+
-///    |
-///    v
-/// +------------------+
-/// | budget *= eta    |
-/// +------------------+
-///     |
-///     v
-///     ^
-///    / \
-///   /   \
-///  /     \   No
-/// / Max?  \ ---> Evaluate survivors at new fidelity
-/// \ budget/       (loop back to "Evaluate batch")
-///  \     /
-///   \   /
-///    \ /
-///     v
-/// Yes |
-///     v
-/// +------------------+
-/// | Restart cycle    |  (loop back to "Sample n configs")
-/// +------------------+
-/// ```
-///
-/// # Type Parameters
-///
-/// This optimizer is generic over:
-/// - **Sampler**: Must implement [`Batched`].
-/// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
-/// - **Function State**: Must implement [`FuncState`] for managing
-///   evaluation state across fidelity levels
-///
-/// # Internal State
-///
-/// - [`ShaState`]: Checkpointable state including budget, scaling factor, and iteration count
+/// The problem's computed solutions must implement [`Orderable`], and the
+/// sampler must implement [`Prunable`].
 pub struct Sha<Smpl, P>
 where
     P: Problem,
@@ -187,7 +130,8 @@ where
     pub current_rung_size: usize,
     /// Index of the current budget in the `budgets` vector.
     pub budget_idx: usize,
-    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage. Must be $\geq 1.0$.
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    /// It must be finite and greater than `1.0`.
     pub scaling: f64,
     /// Count of pending candidates that have been sampled but not yet evaluated.
     ///  This is used to track the number of candidates in the current batch that are awaiting evaluation.
@@ -249,22 +193,17 @@ where
     ///
     /// # Parameters
     ///
-    /// * `sampler` - A [`BatchSampler`] used to sample random configuration.
-    ///   This is stored in the state to allow resampling after each halving cycle.
-    /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
-    ///   fidelity level, typically 1 epoch or similar.
-    /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
-    ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $> 1.0$.
-    ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
+    /// * `sampler` - Sampler used to create candidates for the first rung.
+    /// * `budget_min` - Finite, positive fidelity of the first rung.
+    /// * `budget_max` - Finite maximum fidelity, greater than or equal to
+    ///   `budget_min`.
+    /// * `scaling` - Finite budget multiplier greater than `1.0`.
+    /// * `batch_size` - Number of candidates in the initial rung.
     ///
     /// # Errors
     ///
-    /// Returns an error if:
-    /// - `scaling <= 1.0`
-    /// - `budget_min <= 0.0`
-    /// - `budget_max <= budget_min`
-    /// - `batch` is too small relative to the number of halving rounds needed
+    /// Returns an error when the scaling factor or budget range is invalid.
+    /// The batch size is not validated.
     pub fn new(
         sampler: Smpl,
         budget_min: f64,
@@ -289,6 +228,9 @@ where
         })
     }
 
+    /// Returns `true` if the current rung is complete, 
+    /// meaning that the current budget has reached the maximum budget, 
+    /// the batch is empty, and the number of computed candidates is at least equal to the current rung size.
     pub fn bracket_complete(&self) -> bool {
         self.current_budget == *self.budgets.last().unwrap()
             && self.batch.is_empty()
@@ -296,6 +238,7 @@ where
             && self.pending == 0
     }
 
+    /// Converts the current SHA instance into a [`Hyperband`] instance, which manages multiple brackets of Successive Halving.
     pub fn into_hyperband(mut self) -> Hyperband<Smpl, P> {
         let (budget_min, budget_max) = self.get_budgets();
         let scaling = self.get_scaling();

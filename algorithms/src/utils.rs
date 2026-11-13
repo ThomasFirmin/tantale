@@ -267,9 +267,11 @@ thread_local! {
 /// # Example
 ///
 /// ```rust
-/// use tantale::algorithms::utils::with_rng;
+/// use rand::RngExt;
+/// use tantale_algos::utils::with_rng;
 ///
-/// let random_value = with_rng(|rng| rng.gen::<f64>());
+/// let random_value = with_rng(|rng| rng.random::<f64>());
+/// assert!((0.0..1.0).contains(&random_value));
 /// ```
 pub fn with_rng<F, T>(f: F) -> T
 where

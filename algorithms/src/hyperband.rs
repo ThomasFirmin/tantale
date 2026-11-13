@@ -1,18 +1,26 @@
-//! [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
+//! # Hyperband
 //!
-//! # Overview
+//! This module implements the batch, SHA-based Hyperband variant. It divides
+//! the fidelity range into bracket configurations and runs those brackets
+//! through an inner [`Sha`] optimizer. The brackets vary the
+//! starting fidelity and initial batch size to balance broad low-fidelity
+//! exploration with smaller high-fidelity searches.
 //!
-//! Hyperband is a bandit-based algorithm that manages multiple brackets of successive halving runs
-//! in parallel. It efficiently allocates a fixed computational budget across brackets to discover
-//! high-performing configurations. Each bracket progressively increases fidelity while eliminating
-//! poorly-performing candidates through successive halving.
+//! Create it from SHA with [`Sha::into_hyperband`](crate::Sha::into_hyperband).
+//! That method derives the bracket count and initial configuration from the
+//! SHA budget range and scaling factor. The public [`Hyperband::new`] constructor
+//! accepts those derived values explicitly and should generally not be needed.
+//!
+//! ASHA and MO-ASHA provide their own `into_hyperband` conversions to
+//! `BrackettedAsha` and `BrackettedMoAsha`. Those are distinct bracketed
+//! optimizers; this module's [`Hyperband`] contains SHA.
 //!
 //! # Pseudo-code
 //!
 //! **Hyperband**
 //! ---
 //! **Inputs**
-//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`BudgetPruner`] (e.g., SHA or ASHA)*
+//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`Pruner`] (e.g., SHA or ASHA)*
 //! 2. &emsp; $b_{\min}$ &emsp;&emsp; *Minimum budget*
 //! 3. &emsp; $b_{\max}$ &emsp;&emsp; *Maximum budget*
 //! 4. &emsp; $\eta$ &emsp;&emsp; *Scaling factor (from inner optimizer)*
@@ -28,56 +36,10 @@
 //! 14. &emsp;
 //! 15. &emsp; **return best configuration across all brackets**
 //! ---
+//! 
+//! # Reference
 //!
-//! # Type Parameters
-//!
-//! The algorithm is generic over:
-//! - **Inner Optimizer**: Must satisfy both [`Optimizer`] and [`BudgetPruner`]
-//!   traits. Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
-//! - **Output Type**: Must satisfy [`FidOutcome`] for multi-fidelity support
-//! - **Searchspace**: Must generate [`SolutionShape`](SolutionShape) with [`HasFidelity`] and [`HasStep`]
-//! - **Solution Info**: Must satisfy [`SolInfo`] constraint for the inner optimizer
-//!
-//! # Example
-//!
-//! ```ignore
-//! // Create inner optimizer (e.g., SHA)
-//! let sampler = RandomSearch::new();
-//! let sha = Sha::new(
-//!     sampler,
-//!     batch_size,
-//!     budget_min,
-//!     budget_max,
-//!     scaling,
-//! );
-//!
-//! // Wrap in Hyperband to run multiple brackets
-//! let hyperband = Hyperband::new(sha);
-//! ```
-//!
-//! # Bracket Management
-//!
-//! Each bracket is executed sequentially, with the inner optimizer managing successive halving
-//! within each bracket. For [`BatchOptimizer`] inner optimizers (like SHA), brackets run one after another. For
-//! [`SingleOptimizer`] (like ASHA) when the inner [`BudgetPruner`] reaches its budget limit,
-//! the internal solutions are drained and [`Discarded`](Step::Discard), incoming solution from
-//! previous brackets might be included within the next bracket if their fidelity level correspond to new fidelity
-//! level of the next bracket.
-//!
-//! # Notes
-//!
-//! - Unlike single-bracket algorithms (SHA), Hyperband automatically discovers good initial batch sizes
-//! - The algorithm resets the inner optimizer for each bracket to maintain independence
-//! - The inner optimizer's state is preserved across checkpoints as part of the [`HyperbandState`]
-//! - For batch optimizers (like SHA), brackets execute sequentially; for sequential optimizers
-//!   (like ASHA), the implementation determines parallelization strategy
-//!
-//! The parallelization strategy is the one briefly described in [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
-//!
-//! # References
-//!
-//! Hyperband is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1603.06560).
-//! See also the work on Successive Halving by [Li et al. (2020)](https://arxiv.org/pdf/1810.05934).
+//! Li et al., [*Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization*](https://arxiv.org/abs/1603.06560).
 
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -96,14 +58,11 @@ use tantale_macros::fidelity_bounds;
 use crate::Sha;
 use crate::utils::BracketInfo;
 
-/// A helper macro to simplify the type signature of [`Hyperband`].
-/// You can write:
+/// A helper macro for the `Hyperband<InnerSampler, Problem>` type.
+/// 
+/// # Example
 /// ```ignore
-/// let exp = load!(mono, hyperband!(asha!(RandomSearch)), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
-/// or even:
-/// ```ignore
-/// let exp = load!(mono, hyperband!(asha!(tpe!(Univariate, UniformWeighter, LinearSplit))), Evaluated, (sp, cod), obj, (rec, check));
+/// hyperband!(RandomSearch) // expands to Hyperband<RandomSearch, _>
 /// ```
 #[macro_export]
 macro_rules! hyperband {
@@ -112,90 +71,11 @@ macro_rules! hyperband {
     };
 }
 
-/// Hyperband multi-fidelity optimizer.
+/// SHA-based Hyperband optimizer for multi-fidelity problems.
 ///
-/// A wrapper optimizer that manages multiple brackets of an inner [`BudgetPruner`] (typically SHA or ASHA).
-/// Hyperband automatically determines bracket configurations and executes them sequentially,
-/// efficiently distributing a fixed budget across exploration and exploitation.
-///
-/// The information about maximum and minimum budget
-/// are extracted from the inner optimizer.
-///
-/// # Workflow
-///
-/// ```text
-///  Start Hyperband
-///       |
-///       v
-///  +--------------------+
-///  | Compute s_max      |  s_max = floor(log_eta(b_max/b_min))
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | For s = s_max to 0 |  Loop through brackets
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Configure bracket: |
-///  | b_min_s = b_min *  |
-///  |     eta^(s_max-s)  |
-///  | b_max_s = b_max    |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Set inner optimizer|
-///  | budgets            |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Run inner          |
-///  | optimizer          |  (SHA or ASHA)
-///  | for bracket s      |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Drain pending      |
-///  | solutions from     |
-///  | inner optimizer    |
-///  +--------------------+
-///        |
-///        v
-///       / \
-///      /   \
-///     /     \   No
-///    /  All  \ ---> Move to next bracket
-///    \ done? /         (loop back)
-///     \     /
-///      \   /
-///       \ /
-///        | Yes
-///        v
-///  +--------------------+
-///  | Return best across |
-///  | all brackets       |
-///  +--------------------+
-///
-/// Bracket characteristics:
-///   s=s_max: many configs, low fidelity   (exploration)
-///   s=0:     few configs, high fidelity  (exploitation)
-/// ```
-///
-/// # Type Parameters
-///
-/// - `Optim` - The inner optimizer (must implement both [`Optimizer`] and [`BudgetPruner`])
-/// - `Out` - Output type satisfying [`FidOutcome`]
-/// - `Scp` - Searchspace type
-/// - `SInfo` - Solution info type for the inner optimizer
-///
-/// # See Also
-///
-/// - [`Sha`](crate::Sha) - Successive Halving (batch optimizer)
-/// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
+/// The inner SHA optimizer is reconfigured for successive brackets. Prefer
+/// [`Sha::into_hyperband`](crate::Sha::into_hyperband), which calculates the
+/// bracket parameters from the SHA budgets and scaling factor.
 #[fidelity_bounds(P)]
 pub struct Hyperband<Smpl, P>
 where

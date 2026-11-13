@@ -29,7 +29,7 @@ macro_rules! batchrandomsearch {
     () => {BatchRandomSearch<_>};
 }
 
-/// Metadata for a Random Search optimization step, associated to each [`Batch`].
+/// Metadata recording the call count associated with a random-search sample.
 #[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 pub struct RSInfo(pub usize);
 
@@ -51,45 +51,15 @@ impl SolInfo for RSInfo {}
 //--- SEQUENTIAL ---//
 //------------------//
 
-/// Random Search sampler implementation.
-/// This algorithm radomly samples solutions on-demand
-/// from the [`Searchspace`] (using [`sample_pair`](Searchspace::sample_pair)) at each iteration, without any internal state or memory of past evaluations.
+/// Random sampler that draws a candidate from the problem search space each
+/// time a new sample is requested. It does not rank or filter candidates based
+/// on past objective values.
 ///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +--------------------+
-///  | Prior solution     |
-///  | provided?          |
-///  +--------------------+
-///     Yes /         | No
-///        /          |
-///       v           |
-///  +----------+     |
-///  | Check    |     +----------------+
-///  | status   |                      |
-///  +----------+                      |
-///       |                            |
-///       v                            v
-///    +---------+           +-------------------+
-///   / Partially \          | Sample new random |  
-///  /   stepped?  \  No --> | solution from     |
-///  \             /         | searchspace       |
-///   \   Yes     /           +-------------------+  
-///    +---------+                     |      
-///        |                           |
-///        v                           v
-///  Return same solution      Return the solution
-///  (continue evaluation)
-/// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RandomSearch(pub usize);
 
 impl RandomSearch {
-    /// Creates a new instance of the Sequential [`RandomSearch`] optimizer with an initial state.
+    /// Creates a random sampler with its call counter set to zero.
     pub fn new() -> Self {
         RandomSearch(0)
     }
@@ -140,6 +110,12 @@ impl Prunable for RandomSearch {}
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "ShapeWithInfo<Shape<P>, RSInfo>: Serialize + for<'a> Deserialize<'a>")]
+/// Random sampler that stores candidates in batches.
+///
+/// A batch is generated when the pending batch is empty. The batch is cleared
+/// after its candidates have been requested, and the next request samples
+/// another batch. `batch_size` controls the number of candidates generated at
+/// a time.
 pub struct BatchRandomSearch<P: Problem> {
     pub calls: usize,
     pub batch_size: usize,
@@ -170,6 +146,9 @@ impl<P: Problem> Debug for BatchRandomSearch<P> {
 }
 
 impl<P: Problem> BatchRandomSearch<P> {
+    /// Creates a batched random sampler.
+    ///
+    /// The batch size is not validated; a size of zero yields no samples.
     pub fn new(batch_size: usize) -> Self {
         BatchRandomSearch {
             calls: 0,

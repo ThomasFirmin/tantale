@@ -97,7 +97,7 @@ impl<Smpl: Sampler<P, Opt<P>>, P: Problem> HasState for NoPruner<Smpl, P> {
 
 #[fidelity_bounds(P)]
 impl<Smpl: Sampler<P, Opt<P>>, P: Problem> NoPruner<Smpl, P> {
-    /// Creates a new [`NoPruner`] with the given [`Sampler`](tantale_core::Sampler) and optional vector of [`f64`] for fidelities.
+    /// Creates a new [`NoPruner`] with the given [`Sampler`] and optional vector of [`f64`] for fidelities.
     pub fn new(sampler: Smpl, fidelities: Option<Vec<f64>>) -> Self {
         NoPruner {
             sampler,

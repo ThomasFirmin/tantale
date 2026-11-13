@@ -1,23 +1,24 @@
-//! The multi-objective version of [`Asynchronous Successive Halving`](crate::Asha) algorithm for multi-objective and multi-fidelity hyperparameter optimization.
+//! # Multi-objective Asynchronous Successive Halving
 //!
-//! # Overview
+//! MO-ASHA extends ASHA to multiple objectives. It stores completed solutions
+//! in fidelity rungs and uses [`CandidateSelector`]
+//! to choose candidates for promotion. The computed solution type must
+//! implement [`Dominate`]. The bundled
+//! [`NSGA2Selector`](crate::mo::NSGA2Selector) ranks non-dominated fronts and
+//! uses crowding distance when it must select only part of a front.
 //!
-//! The objective of MO-ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
-//! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving
-//! strategy of eliminating poor performers at increasing fidelity levels.
+//! [`MoAsha::new`] takes an inner sampler, selector, minimum budget, maximum
+//! budget, and scaling factor. Budget parameters follow the same constraints
+//! as [`Asha`](crate::Asha): budgets are finite and positive, the maximum is
+//! greater than or equal to the minimum, and scaling is finite and greater
+//! than `1.0`.
 //!
-//! [`Computed`](tantale_core::Computed) solutions implements the [`Dominate`] trait,
-//! allowing [non-dominating sorting](tantale_core::NonDominatedSorting).
+//! [`MoAsha::into_hyperband`] returns `BrackettedMoAsha`, a separate
+//! multi-bracket type.
 //!
-//! # Note
+//! # Reference
 //!
-//! Solutions are not discarded by default.
-//! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-//!
-//! # References
-//!
-//! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
+//! Schmucker et al., [*Multi-objective Asynchronous Successive Halving*](https://arxiv.org/abs/2106.12639).
 
 use log::warn;
 use tantale_core::{
@@ -45,14 +46,11 @@ use crate::{
     },
 };
 
-/// A helper macro to simplify the type signature of [`MoAsha`].
-/// You can write:
-/// ```rust,ignore
-/// let exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
-/// or even:
-/// ```rust,ignore
-/// let exp = load!(mono, moasha!(tpe!(Univariate, UniformWeighter, LinearSplit), NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
+/// A helper macro for the `MoAsha<Sampler, Selector, Problem>` type.
+/// 
+/// # Example
+/// ```ignore
+/// moasha!(RandomSearch, NSGA2Selector) // expands to MoAsha<RandomSearch, NSGA2Selector, _>
 /// ```
 #[macro_export]
 macro_rules! moasha {
@@ -64,82 +62,37 @@ macro_rules! moasha {
     };
 }
 
-/// A helper macro to simplify the type signature of [`BrackettedMoAsha`].
+/// A helper macro to simplify the type signature of [`BrackettedMoAsha`].*
+/// 
+/// # Example
+/// ```ignore
+/// bracketted_moasha!(RandomSearch, NSGA2Selector) // expands to BrackettedMoAsha<RandomSearch, NSGA2Selector, _>
+/// ```
 #[macro_export]
 macro_rules! bracketted_moasha {
-    ($sampler : ident) => {
-        BrackettedMoAsha<$sampler, _>
+    ($sampler : ident, $selector : ident) => {
+        BrackettedMoAsha<$sampler, $selector, _>
     };
-    ($sampler : ty) => {
-        BrackettedMoAsha<$sampler, _>
+    ($sampler : ty, $selector: ident) => {
+        BrackettedMoAsha<$sampler, $selector, _>
     };
 }
 
-/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
-///
-/// A [`SingleOptimizer`] implementing the
-/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639)  algorithm for multi-fidelity evaluations.
+/// Multi-objective asynchronous Successive Halving optimizer.
 ///
 /// # Overview
 ///
-/// [`MoAsha`] manages the optimization process through on-demand generation of candidates :
-/// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
-/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting pareto-optimal candidates with a [`CandidateSelector`], if the rung has enough candidates.
-/// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
+/// MO-ASHA uses its candidate selector to promote completed candidates from
+/// lower fidelity rungs when possible. If no candidate is eligible, its inner
+/// sampler proposes a new candidate at the minimum budget. Selection can be
+/// customized with any [`CandidateSelector`].
 ///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +------------------------------+
-///  | Provide a Computed solution? |
-///  +------------------------------+
-///     Yes /     \ No
-///        /       \
-///       v         v
-///  +--------+   +---------------------+
-///  | Add to |   | Start from highest  |
-///  | rung   |-->| budget rung         |
-///  +--------+   +---------------------+
-///                    |
-///                    v
-///         +-------------+
-///         | Rung has k  |  Yes
-///  +----->| candidates? | --------+
-///  |      +-------------+         |
-///  |             | No             |
-///  |             v                v
-///  |        +----------+     +---------------+
-///  |        | Move to  |     | Select        |
-///  |        | next     |     | configs with  |
-///  |        | rung     |     | a candidate   |
-///  |        +----------+     | selector      |
-///  |             |           +---------------+
-///  |             v              |
-///  |       +----------+         +-->Return configs
-///  |      /            \        |    to worker
-///  |  No /  At lowest   \ Yes +--------------+
-///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random configs|
-///          +----------+       +--------------+  
-/// ```
 ///
 /// # Type Parameters
 ///
-/// This optimizer is generic over:
-/// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion.
-/// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
-/// - **Function State**: Must implement [`FuncState`] for managing
-///   evaluation state across fidelity levels
-/// - [`Stepped`](tantale_core::Stepped) functions
-///
-/// # Internal State
-///
-/// - [`MoAsha`]: Checkpointable state including budget, scaling factor, and iteration count
+/// The problem must support multi-fidelity evaluation, expose multiple
+/// objectives, and use computed solutions that implement
+/// [`Dominate`]. The inner sampler must implement [`Prunable`].
 pub struct MoAsha<Smpl, Selector, P>
 where
     P: Problem,
@@ -242,23 +195,17 @@ where
     ///
     /// # Parameters
     ///
-    /// * `sampler` - A [`SingleSampler`] used to sample random configuration.
-    /// * `selector` - The candidate selection strategy used for promoting candidates between rungs.
-    ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based
-    ///   on their performance and diversity.
-    /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
-    ///   fidelity level, typically 1 epoch or similar.
-    /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
-    ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
-    ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
+    /// * `sampler` - Inner sampler used for candidates at the minimum budget.
+    /// * `selector` - Strategy for selecting multi-objective candidates for
+    ///   promotion.
+    /// * `budget_min` - Finite, positive fidelity of the first rung.
+    /// * `budget_max` - Finite maximum fidelity, greater than or equal to
+    ///   `budget_min`.
+    /// * `scaling` - Finite budget multiplier greater than `1.0`.
     ///
     /// # Errors
     ///
-    /// Returns an error if:
-    /// - `budget_min <= 0.0`
-    /// - `budget_max <= budget_min`
-    /// - `scaling < 1.0`
+    /// Returns an error if the scaling factor or budget range is invalid.
     pub fn new(
         sampler: Smpl,
         selector: Selector,
@@ -334,9 +281,7 @@ where
     }
 }
 
-/// Implementation of the [`Optimizer`] trait for Successive Halving.
-///
-/// Defines the state management and codomain configuration for Successive Halving.
+/// Implements the core [`Sampler`] interface for MO-ASHA.
 #[fidelity_bounds(P, Opt)]
 impl<Smpl, Selector, P, Opt> Sampler<P, Opt> for MoAsha<Smpl, Selector, P>
 where
@@ -358,26 +303,9 @@ where
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
     ///
-    /// # Note on function states management
-    ///
-    /// Solutions are not discarded by default.
-    /// They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-    /// This allows for asynchronous evaluation without waiting for all candidates to complete before proceeding to the next round.
-    ///
-    /// In Tantale, states are stored internally (in RAM or written in a file via checkpointing),
-    /// until a solution is [`Discarded`](tantale_core::Step::Discard),
-    /// [`Evaluated`](tantale_core::Step::Evaluated) or [`Errored`](tantale_core::Step::Error).
-    ///
-    /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
-    /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
-    /// So when using MO-ASHA a total of:
-    /// - 16 states at rung 0 (budget level 0)
-    /// - 4 states at rung 1 (budget level 1)
-    /// - 1 state at rung 2 (budget level 2)
-    ///   are stored in memory until the next generation step, where they will be promoted or discarded.
-    ///
-    /// So memory management is crucial when using MO-ASHA,
-    /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
+    /// Completed candidates are retained in their rungs until promotion or
+    /// rung cleanup. The amount of retained state depends on candidate
+    /// throughput, rung thresholds, and the number of budget levels.
     ///
     /// In MPI-distributed optimization:
     /// - If there is no Parallel File Sytems, function states and worker states are stored within the worker local memory, and are not shared across workers.

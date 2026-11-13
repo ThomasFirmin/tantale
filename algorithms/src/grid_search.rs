@@ -22,53 +22,27 @@ macro_rules! gridsearch {
 //--- SEQUENTIAL ---//
 //------------------//
 
-/// Grid Search sampler implementation.
-/// This sampler samples solutions on-demand according to a predefined grid
-/// from a [`Searchspace`] made of [`Grid`] at each iteration.
+/// Grid sampler for a search space whose optimizer domains are finite
+/// [`Grid`] values. It enumerates the Cartesian product in a deterministic
+/// order, with the last variable changing fastest.
 ///
-/// Points are generated sequentially on demand, accord to a Cartesian product of the [`Grid`] of each variable.
-///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +--------------------+
-///  | Prior solution     |
-///  | provided?          |
-///  +--------------------+
-///     Yes /         | No
-///        /          |
-///       v           |
-///  +----------+     |
-///  | Check    |     +----------------+
-///  | status   |                      |
-///  +----------+                      |
-///       |                            |
-///       v                            v
-///    +---------+           +-------------------+
-///   / Partially \          | Get the next      |  
-///  /   stepped?  \  No --> | solution from     |
-///  \             /         | the grid          |
-///   \   Yes     /          +-------------------+  
-///    +---------+                     |      
-///        |                           |
-///        v                           v
-///  Return same solution      Return the solution
-///  (continue evaluation)
-/// ```
 ///
 /// # Note
 ///
-/// [`GridSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
-/// any state or history of evaluations.
-/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
+/// `GridSearch` does not use evaluation results to filter candidates. Its
+/// index wraps after the final grid point, so it starts enumerating from the
+/// beginning again rather than reporting exhaustion. Use a stopping criterion
+/// to bound an experiment. A partially evaluated candidate is resumed by the
+/// experiment's sampler/pruner protocol.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GridSearch(pub Vec<usize>, pub usize);
 
 impl GridSearch {
-    /// Creates a new instance of the Sequential [`GridSearch`] optimizer with an initial state.
+    /// Creates a grid sampler with its per-variable indices initialized to
+    /// zero.
+    ///
+    /// The search space must use the `Grid` optimizer domain for every
+    /// variable, as required by the [`Sampler`] implementation.
     pub fn new(searchspace: &Sp<Grid, NoDomain>) -> Self {
         let size = searchspace.var.len();
         GridSearch(vec![0; size], 0)
