@@ -1,24 +1,11 @@
 //! Solution shapes linking twins.
 //!
 //! A [`SolutionShape`] links two solutions with potentially different underlying domains or
-//! types. The two solutions are [`twin`](crate::solution::Solution::twin)s and share the same [`Id`], letting users
+//! types. The two solutions represent the same candidate and share the same
+//! [`SolId`](crate::solution::SolId), letting users
 //! manipulate a single object without separating objective- and optimizer-side representations.
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{BaseSol, EmptyInfo, HasId, Id, Pair, Real, SId, SolutionShape, Unit, Uncomputed};
-//! use std::sync::Arc;
-//!
-//! let info = Arc::new(EmptyInfo {});
-//! let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-//! let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.8]), info);
-//! let pair = Pair::new(obj, opt);
-//!
-//! assert_eq!(pair.get_sobj().id(), pair.id());
-//! assert_eq!(pair.get_sopt().id(), pair.id());
-//! assert_eq!(pair.get_sobj().id(), pair.get_sopt().id());
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::{
     Computed, Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasY,
     NoDomain, Outcome, Solution, StepId,
@@ -32,7 +19,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
-/// Trait linking objective- and optimizer-side solutions with a shared [`Id`].
+/// Trait linking objective- and optimizer-side solutions with a shared [`SolId`](crate::solution::SolId).
 pub trait SolutionShape:
     Debug + Send + Sync + Clone + HasId + HasInfo + Linked + Serialize + for<'de> Deserialize<'de>
 {
@@ -53,6 +40,7 @@ pub trait SolutionShape:
     fn extract_sopt(self) -> Self::OptSol;
 }
 
+/// Marker trait for solution shapes whose objective and optimizer solutions are both [`Uncomputed`].
 pub trait UncomputedShape: SolutionShape
 where
     Self::ObjSol: Uncomputed,
@@ -60,6 +48,7 @@ where
 {
 }
 
+/// Trait for converting an [`UncomputedShape`] into a one with an objective value, with both solutions wrapped in [`Computed`].
 pub trait IntoComputedShape: UncomputedShape
 where
     Self::ObjSol: Uncomputed,
@@ -82,8 +71,8 @@ where
     ///
     /// # Type Parameters
     ///
-    /// * `Cod` - The [`crate::Codomain`] defining the output structure
-    /// * `Out` - The outcome type from the objective function
+    /// * `Cod` - The [`Codomain`](crate::Codomain) defining the output structure
+    /// * `Out` - The [`Outcome`] type from the objective function
     ///
     /// # Parameters
     ///
@@ -115,20 +104,7 @@ where
 
 /// A pair made of an objective [`Solution`] and its optimizer twin.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{SolutionShape, Uncomputed, BaseSol, EmptyInfo, HasId, Pair, Real, Id, SId, Unit};
-/// use std::sync::Arc;
-///
-/// let info = Arc::new(EmptyInfo {});
-/// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-/// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info);
-/// let pair = Pair::new(obj, opt);
-///
-/// assert_eq!(pair.get_sobj().id(), pair.id());
-/// assert_eq!(pair.get_sopt().id(), pair.id());
-/// assert_eq!(pair.get_sobj().id(), pair.get_sopt().id());
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "SA: Serialize, SB: Serialize",
@@ -276,11 +252,6 @@ where
     fn evaluated(&mut self) {
         self.0.evaluated();
         self.1.evaluated();
-    }
-
-    fn error(&mut self) {
-        self.0.error();
-        self.1.error();
     }
 
     fn set_raw_step(&mut self, value: EvalStep) {
@@ -447,21 +418,11 @@ where
 /// A single [`Solution`].
 ///
 /// This is used for objective-only searchspaces.
-/// When the right-hand sides of the following declarations `[! name | ... | ... !]` in [`hpo!`](../../../tantale/macros/macro.hpo.html) or
-/// [`objective!`](../../../tantale/macros/macro.objective.html) are empty, the created solutions are wrapped in a [`Lone`] instead of a [`Pair`].
+/// When the right-hand sides of the following declarations `[! name | ... | ... !]` in [`hpo!`](../../../doc/tantale_macros/macro.hpo.html) or
+/// [`objective!`](../../../doc/tantale_macros/macro.objective.html) are empty, the created solutions are wrapped in a [`Lone`] instead of a [`Pair`].
 /// This prevent unecessary computations and cloning.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Uncomputed, BaseSol, EmptyInfo, HasId, Id, SolutionShape, Lone, Real, SId};
-/// use std::sync::Arc;
-///
-/// let info = Arc::new(EmptyInfo {});
-/// let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.2]), info);
-/// let lone = Lone::new(obj);
-///
-/// assert_eq!(lone.id(), lone.get_sobj().id());
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(bound = "S: Solution")]
 pub struct Lone<S: Solution>(S);
@@ -566,11 +527,7 @@ where
     fn evaluated(&mut self) {
         self.0.evaluated();
     }
-
-    fn error(&mut self) {
-        self.0.error();
-    }
-
+    
     fn set_raw_step(&mut self, value: EvalStep) {
         self.0.set_raw_step(value);
     }

@@ -1,31 +1,10 @@
-//! CSV recording utilities and recorder implementation.
+//! CSV persistence for solution inputs and evaluation results.
 //!
-//! This module defines the traits required to serialize solutions, codomain
-//! values, optimizer metadata, and outcomes into CSV files, plus the
-//! [`CSVRecorder`] that writes them to disk.
-//!
-//! ## Trait Hierarchy
-//!
-//! The CSV recording system is built on [`Recordable`] and [`Schema`] traits,
-//! which define how to serialize objects into string rows and headers, respectively.
-//! The [`Recorder`] trait is implemented for the [`CSVRecorder`] to handle writing these rows to files.
-//!
-//! ## File Layout
-//!
-//! By default, CSV files are created under the recorder folder (see
-//! [`FolderConfig`]). Each row is linked by the solution
-//! [`Id`].
-//!
-//! ```text
-//! recorder/
-//!   obj.csv  - Objective-side inputs
-//!   opt.csv  - Optimizer-side inputs
-//!   cod.csv  - Codomain values (always created)
-//!   info.csv - SolInfo and OptInfo metadata
-//!   out.csv  - Raw Outcome values
-//! ```
-//!
-//! In MPI mode, recorder folders are suffixed with the rank (e.g., `recorder_rank0`).
+//! [`CSVRecorder`] writes selected record targets to files under a
+//! [`FolderConfig`]'s recorder path. The codomain output is recorded by the
+//! experiment, while objective inputs, optimizer inputs, metadata, and raw
+//! outcomes are controlled by the recorder configuration. See the crate-level
+//! documentation for setup and usage examples.
 
 use crate::{
     Computed, FolderConfig, HasVariables, Problem, Var,
@@ -44,40 +23,23 @@ use std::{
 
 /// CSV-based recorder implementation for optimization experiments.
 ///
-/// The [`CSVRecorder`] saves computed solutions and their outcomes as CSV files.
-/// The codomain (cod.csv) is always saved; other files are optional.
-///
-/// # Configuration
-///
-/// Create a recorder using [`CSVRecorder::new`] with a [`FolderConfig`]
-/// and boolean flags for each optional file:
-///
-/// * `obj` - If `true`, saves objective-side inputs (obj.csv)
-/// * `opt` - If `true`, saves optimizer-side representations (opt.csv)
-/// * `info` - If `true`, saves metadata (info.csv)
-/// * `out` - If `true`, saves raw outcomes (out.csv)
+/// The [`CSVRecorder`] writes solution inputs and evaluation results to
+/// separate CSV files under a [`FolderConfig`]. Use [`deactivate`](CSVRecorder::deactivate)
+/// to disable a target.
 ///
 /// # File Structure
 ///
-/// All CSV files are linked by the solution [`Id`]:
+/// Rows for a candidate are associated through its solution identifier.
 ///
-/// ```text
-/// <config.path>/
-///   recorder/
-///     obj.csv   - Objective-side inputs
-///     opt.csv   - Optimizer-side representations
-///     cod.csv   - Codomain values (always created)
-///     info.csv  - SolInfo and OptInfo metadata
-///     out.csv   - Raw Outcome values
-/// ```
-///
-/// In MPI mode, folders are suffixed: `recorder_rank0/`, `recorder_rank1/`, etc.
+/// - `obj.csv`: objective-facing inputs
+/// - `opt.csv`: optimizer-facing representations
+/// - `cod.csv`: codomain values
+/// - `info.csv`: solution metadata
+/// - `out.csv`: raw outcomes
 ///
 /// # See Also
 ///
-/// - [`NoSaver`](crate::NoSaver) - No-op recorder for experiments without persistence
-/// - [`SeqRecorder`] - Trait for sequential recorders
-/// - [`BatchRecorder`] - Trait for batch recorders
+/// - [`Recorder`] - Recording interface
 pub struct CSVRecorder {
     pub config: FolderConfig,
     path_pobj: Option<PathBuf>,
@@ -88,7 +50,7 @@ pub struct CSVRecorder {
 }
 
 impl CSVRecorder {
-    /// Create a new CSV recorder with optional file outputs.
+    /// Create a CSV recorder with paths for each record target.
     ///
     /// # Parameters
     ///
@@ -96,7 +58,7 @@ impl CSVRecorder {
     ///
     /// # Returns
     ///
-    /// `Some(CSVRecorder)` with file paths configured.
+    /// Returns `Some(CSVRecorder)` with file paths configured.
     pub fn new(config: FolderConfig) -> Option<Self> {
         let path_pobj = Some(config.path_rec.join(Path::new("obj.csv")));
         let path_popt = Some(config.path_rec.join(Path::new("opt.csv")));

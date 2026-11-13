@@ -1,7 +1,7 @@
 //! The [`Codomain`] describes which elements from the [`Outcome`]
-//! should be used within the [`Optimizer`](crate::Optimizer).
+//! should be used by an optimization algorithm.
 //!
-//! For example, it can extract a [`Single`] ($y$) from the [`Outcome`] in order to minimize, $f(x)=y$.
+//! For example, it can extract a [`Single`] ($y$) from the [`Outcome`] in order to maximize, $f(x)=y$.
 //!
 //! Moreover, a [`Codomain`] can express more complex behaviors, like [`Constrained`],
 //! [`Multi`]-objective, or [`Cost`]-aware optimization.
@@ -9,7 +9,7 @@
 //! associated to a [`Codomain`]. These values are extracted from the [`Outcome`] by using
 //! closures named [`Criteria`], a type alias for `fn(&Out)->f64`.
 //!
-//! #Comparing elements from a [`Codomain`]
+//! # Comparing elements from a [`Codomain`]
 //!
 //! We consider two cases:
 //! - [`Single`] objective: the comparison is straightforward, since each element is a single `f64` value. The higher the better.
@@ -18,77 +18,18 @@
 //!   the constraint violation is used as a priority: any element with strictly lower total constraint violation
 //!   is better than the other, regardless of `y` and `cost`.
 //!   Among elements with the same total violation, the previous comparison applies.
-//!
-//! # Example
-//!
-//! The following examples uses a specific `struct` as an [`Outcome`] of an hypothetical function.
-//!
-//! ```
-//! // An example of a multi-objective, constrained and cost codomain.
-//! use tantale::core::{Outcome, Codomain};
-//! use tantale::macros::Outcome;
-//! use serde::{Serialize,Deserialize};
-//!
-//! // Define a specific struct as the output of the function
-//! #[derive(Outcome, Debug, Serialize, Deserialize)]
-//! pub struct  OutExample{
-//!     #[maximize]
-//!     pub mul1 : f64,
-//!     #[minimize]
-//!     pub mul2 : f64,
-//!     #[minimize]
-//!     pub mul3 : f64,
-//!     #[maximize]
-//!     pub mul4 : f64,
-//!     #[cost]
-//!     pub cost5 : f64,
-//!     #[constraint]
-//!     pub con6 : f64,
-//!     #[constraint]
-//!     pub con7 : f64,
-//!     #[constraint]
-//!     pub con8 : f64,
-//!     pub more : f64,
-//!     pub info : f64,
-//! }
-//!
-//! let outcome = OutExample{
-//!         mul1: 1.0,
-//!         mul2: 2.0,
-//!         mul3: 3.0,
-//!         mul4: 4.0,
-//!         cost5: 5.0,
-//!         con6: 6.0,
-//!         con7: 7.0,
-//!         con8: 8.0,
-//!         more: 9.0,
-//!         info: 10.0,
-//!     };
-//!
-//! let codom = OutExample::codomain();
-//!
-//! let elem = codom.get_elem(&outcome);
-//!
-//! assert_eq!(elem.value.len(),4);
-//! assert_eq!(elem.value[0]       ,  1.0);
-//! assert_eq!(elem.value[1]       , -2.0);
-//! assert_eq!(elem.value[2]       , -3.0);
-//! assert_eq!(elem.value[3]       ,  4.0);
-//!
-//! assert_eq!(elem.cost       , 5.0);
-//!
-//! assert_eq!(elem.constraints.len(),3);
-//! assert_eq!(elem.constraints[0] , 6.0);
-//! assert_eq!(elem.constraints[1] , 7.0);
-//! assert_eq!(elem.constraints[2] , 8.0);
-//! ```
+//! - [`Multi`] objective: the comparison is more complex, since each element is a vector of `f64` values.
+//!   The comparison is based on Pareto dominance: an element `A` dominates another element `B` if `A` is at least as good as `B` 
+//!   in all objectives and strictly better in at least one objective. For [`Constrained`] [`Multi`] objectives, the total constraint violation 
+//!   is used as a priority. And, for [`Cost`] [`Multi`] objectives, the cost is used as a tiebreaker among elements 
+//!   with the same total constraint violation and Pareto dominance.
 //!
 //! # Notes
 //!
 //!   * For now, all extracted elements from the [`Outcome`] should be [`f64`].
 //!   * To extract elements from an [`Outcome`], most of the [`Codomain`] uses
 //!     a user defined function called [`Criteria`].
-//!   * By definition, in Tantale an [`Optimizer`](crate::Optimizer) maximimizes the [`Objective`](crate::Objective).
+//!   * Tantale normalizes objective values so optimization algorithms maximize them.
 //!
 
 use std::{cmp::Ordering, fmt::Debug};
@@ -103,11 +44,11 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-/// A criteria defines a function taking the [`Outcome`] of the evaluation from the [`Objective`](crate::Objective) function, and returning
+/// A criteria defines a function taking the [`Outcome`] of an objective function evaluation and returning
 /// one of its `f64` further used within a [`Codomain`].
 pub type Criteria<Out> = fn(&Out) -> f64;
 
-/// This trait defines what a [`Codomain`] is, i.e. what the [`Optimizer`](crate::Optimizer) should optimize.
+/// This trait defines what a [`Codomain`] is, i.e. which values an optimization algorithm should optimize.
 /// It has an associated type [`TypeCodom`](Codomain::TypeCodom), defining what an element from the [`Codomain`] is.
 pub trait Codomain<Out: Outcome>: Send + Sync + Debug + Sized {
     /// The type of elements extracted from the [`Outcome`] by this [`Codomain`].
@@ -145,6 +86,7 @@ pub trait Accumulator<C>: Debug + Default + HasState
 where
     C: SolutionShape + HasY,
 {
+    /// Accumulates a new computed solution into the accumulator.
     fn accumulate(&mut self, computed: &C);
 }
 
@@ -184,7 +126,7 @@ pub trait ElemMulti: Dominate {
 /// Defines a black-box constrained [`Codomain`].
 /// Black-box constraints are constraints that are not known a priori, but are only
 /// revealed through the evaluation of the objective function.
-/// The [`Optimizer`](crate::Optimizer) defines how to handle these constraints, by defining
+/// The optimization algorithm defines how to handle these constraints, by defining
 /// when a constraint is satisfied or not.
 pub trait Constrained<Out: Outcome>: Codomain<Out>
 where

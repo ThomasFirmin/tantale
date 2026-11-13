@@ -54,6 +54,9 @@ impl<P: Problem> HasState for ExpState<P> {
     }
 }
 
+/// A basic experiment runner that implements the [`Runable`] trait.
+/// This runner executes a single-threaded optimization loop, coordinating problem sampling,
+/// evaluation, result accumulation, optional recording and checkpointing, and stop-criterion checks.
 pub struct Experiment<P, O, S, R, C>
 where
     P: Problem,
@@ -73,7 +76,7 @@ where
     pub recorder: Option<R>,
     /// The [`Checkpointer`] used to save and load experiment state.
     pub checkpointer: Option<C>,
-    /// The [`Accumulator`] that collects best evaluated solutions and their outcomes.
+    /// The [`Accumulator`] that collects evaluated solutions and their outcomes.
     pub accumulator: Accum<P>,
     /// The [`PoolMode`] used for managing function states during the experiment.
     pub pool_mode: PoolMode,

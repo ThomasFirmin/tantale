@@ -1,30 +1,10 @@
-//! # Recorder
+//! Recording interfaces for experiment results.
 //!
-//! This module defines the recording layer for optimization experiments.
-//! A [`Recorder`] saves the different [`Solutions`](crate::Solution), [`Outcomes`](crate::objective::Outcome),
-//! metadata from [`OptInfo`](crate::OptInfo) and [`SolInfo`](crate::SolInfo),
-//! and [`Codomain`](crate::Codomain) elements.
-//!
-//! ## Overview
-//!
-//! Tantale provides concrete recorders such as [`CSVRecorder`] as well as a no-op recorder
-//! [`NoSaver`] for experiments where persistence is not required.
-//!
-//! ## Recorder Traits
-//!
-//! [`Recorder`] is the base trait for all recorders.
-//! It defines the interface for initializing storage, recording results, and handling resumption from saved states.
-//!
-//! ## Usage
-//!
-//! Here a [`CSVRecorder`] is used with a [`FolderConfig`](crate::FolderConfig).
-//! ```ignore
-//! // Scenario 1: Starting a new optimization
-//! let mut recorder = CSVRecorder::new(config)?;
-//! recorder.init(); // Done inside the Runable
-//! // ... optimization loop with periodic checkpointing ...
-//! recorder.save(&computed_solution, &(solution_id, outcome), &searchspace, &codomain, Some(info));
-//! ```
+//! [`Recorder`] defines initialization and record/vec-record operations.
+//! [`CSVRecorder`] is the file-based implementation provided by this module.
+//! Recorder targets select whether a call writes objective inputs, optimizer
+//! inputs, codomain values, outcomes, or metadata. See the crate-level
+//! documentation for recorder setup and usage examples.
 
 use crate::{
     Problem,
@@ -35,27 +15,29 @@ use crate::{
 pub mod csv;
 pub use csv::CSVRecorder;
 
+/// Marker enum for selecting which data to record in an experiment.
+/// This enum is used to specify the target of recording operations in an experiment.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RecorderTargets {
+    /// The [raw](crate::HasX::X) representation of the solution, as used by the objective function.
     XObjective,
+    /// The [raw](crate::HasX::X) representation of the solution, as used by the optimizer.
     XOptimizer,
+    /// The [`TypeCodom`](crate::Codomain::TypeCodom) part of the solution.
     Y,
+    /// The [`Outcome`](crate::Outcome) associated to a solution..
     Outcome,
+    /// The [`Metadata`](crate::Solution::MetaData) associated to a solution.
     Metadata,
+    /// A custom string-based target for recording other types of data.
     Other(String),
 }
 
-/// Marker trait for recorder implementations used by the experiment runner to save evaluation results.
+/// Interface for persisting experiment records.
 ///
-/// A [`Recorder`] is invoked by the experiment runner to persist evaluation results. It receives
-/// computed solutions and outcomes as they are produced by the optimization loop. Implementations
-/// can store results in files (e.g., CSV), databases, or other storage backends.
-///
-/// This is a base trait that all recorders must implement. The actual recording functionality
-/// is provided by specialized traits like [`SeqRecorder`] and [`BatchRecorder`].
-///
-/// # See Also
-/// - [`CSVRecorder`] - A concrete implementation that saves results to CSV files.
+/// Experiment runners call this trait to initialize storage and record data.
+/// [`CSVRecorder`] is the built-in implementation.
+/// The `Context` type parameter allows passing additional information to the recorder, such as experiment configuration or metadata.
 pub trait Recorder<P: Problem, Context> {
     /// Initialize recorder storage for a new experiment.
     ///
@@ -72,6 +54,8 @@ pub trait Recorder<P: Problem, Context> {
     /// Record a evaluated solution and its outcome.
     ///
     /// This method is called after each solution evaluation to persist the result.
+    /// The context parameters provides additional information for the [`Recordable`] (`CR`)
+    /// and [`Schema`] (`CS`) implementations.
     fn record<T, CR, CS>(
         &self,
         target: &RecorderTargets,

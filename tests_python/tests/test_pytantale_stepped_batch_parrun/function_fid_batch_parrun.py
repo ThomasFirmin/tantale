@@ -27,10 +27,10 @@ class MyOutcome:
         self.step = step
 
     @staticmethod
-    def csv_header():
+    def header():
         return ["obj1", "obj2", "info", "step"]
     
-    def csv_write(self):
+    def record(self):
         return [str(self.obj1), str(self.obj2), str(self.info), str(self.step)]
 
 def objective(x: list, fid: float, state : State | None) -> tuple[MyOutcome, State]:

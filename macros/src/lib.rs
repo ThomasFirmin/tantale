@@ -20,13 +20,13 @@ use proc_macro2::TokenStream;
 use quote::quote;
 pub(crate) fn schema_crate_path() -> TokenStream {
     match crate_name("tantale_core") {
-        Ok(FoundCrate::Itself) => quote!(crate),
+        Ok(FoundCrate::Itself) => quote!(::tantale_core),
         Ok(FoundCrate::Name(name)) => {
             let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
             quote!(::#ident)
         }
         Err(_) => match crate_name("tantale") {
-            Ok(FoundCrate::Itself) => quote!(crate::core),
+            Ok(FoundCrate::Itself) => quote!(::tantale::core),
             Ok(FoundCrate::Name(name)) => {
                 let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
                 quote!(::#ident::core)

@@ -20,40 +20,13 @@
 //!
 //! When `Obj` and `Opt` are different domains that can be mapped between each other:
 //!
-//! ```
-//! use tantale::core::{
-//!     Real, Unit, Uniform,
-//!     variable::Var,
-//! };
-//!
-//! // Optimizer works in [0, 1], objective function expects [0, 100]
-//! let var = Var::<Real, Unit>::new("learning_rate", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-//!
-//! let mut rng = rand::rng();
-//! let opt_value = var.sample_opt(&mut rng); // Sample from Unit [0, 1]
-//! let obj_value = var.onto_obj(&opt_value).unwrap(); // Map to Real [0, 100]
-//!
-//! assert!(opt_value >= 0.0 && opt_value <= 1.0);
-//! assert!(obj_value >= 0.0 && obj_value <= 100.0);
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! ## 2. Single Domain (`Var<Obj, NoDomain>`)
 //!
 //! When both optimizer and objective work in the same domain:
 //!
-//! ```
-//! use tantale::core::{
-//!     Real, NoDomain, Uniform,
-//!     variable::Var,
-//! };
-//!
-//! // Both optimizer and objective use the same Real domain
-//! let var = Var::<Real, NoDomain>::new("temperature", Real::new(0.0, 100.0, Uniform), NoDomain);
-//!
-//! let mut rng = rand::rng();
-//! let value = var.sample_obj(&mut rng);
-//! // No mapping needed - value is used directly
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! # Variable Naming
 //!
@@ -66,19 +39,7 @@
 //! Variables can be replicated to create arrays of similar variables, useful for
 //! representing vectors or matrices in optimization problems:
 //!
-//! ```
-//! use tantale::core::{
-//!     Real, Unit, Uniform,
-//!     variable::Var,
-//! };
-//!
-//! let var = Var::<Real, Unit>::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
-//! let weights = var.replicate(10); // Creates weight0, weight1, ..., weight9
-//!
-//! assert_eq!(weights.len(), 10);
-//! assert_eq!(weights[0].name, ("weight", Some(0)));
-//! assert_eq!(weights[5].name, ("weight", Some(5)));
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! # Integration with Tantale
 //!
@@ -162,17 +123,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// // Create a variable mapping between Unit [0,1] and Real [0,100]
-    /// let var = Var::<Real, Unit>::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    /// assert_eq!(var.name, ("alpha", None));
-    /// ```
-    pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt> {
         Var {
             name: (name, None),
             domain_obj: Arc::new(domain_obj),
@@ -206,22 +158,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// // Optimizer provides a value in [0, 1]
-    /// let opt_value = 0.75;
-    ///
-    /// // Map to objective domain [0, 100]
-    /// let obj_value = var.onto_obj(&opt_value).unwrap();
-    /// assert_eq!(obj_value, 75.0);
-    /// ```
-    pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
         self.domain_opt.onto(item, &self.domain_obj)
     }
 
@@ -242,22 +180,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// // Objective domain value [0, 100]
-    /// let obj_value = 25.0;
-    ///
-    /// // Map to optimizer domain [0, 1]
-    /// let opt_value = var.onto_opt(&obj_value).unwrap();
-    /// assert_eq!(opt_value, 0.25);
-    /// ```
-    pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
         self.domain_obj.onto(item, &self.domain_opt)
     }
 
@@ -272,21 +196,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("temperature", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// let mut rng = rand::rng();
-    /// let value = var.sample_obj(&mut rng);
-    ///
-    /// // Value should be within objective domain bounds
-    /// assert!(value >= 0.0 && value <= 100.0);
-    /// ```
-    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Samples a random value from the optimizer domain.
@@ -301,25 +212,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("alpha", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// let mut rng = rand::rng();
-    /// let opt_value = var.sample_opt(&mut rng);
-    ///
-    /// // Value in optimizer domain [0, 1]
-    /// assert!(opt_value >= 0.0 && opt_value <= 1.0);
-    ///
-    /// // Can be mapped to objective domain
-    /// let obj_value = var.onto_obj(&opt_value).unwrap();
-    /// assert!(obj_value >= 0.0 && obj_value <= 100.0);
-    /// ```
-    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_opt, rng)
     }
     /// Checks if a value is within the objective domain's bounds.
@@ -338,21 +232,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// assert!(var.is_in_obj(&50.0));
-    /// assert!(var.is_in_obj(&0.0));
-    /// assert!(var.is_in_obj(&100.0));
-    /// assert!(!var.is_in_obj(&-10.0));
-    /// assert!(!var.is_in_obj(&150.0));
-    /// ```
-    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
         LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds.
@@ -371,22 +252,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, Unit>::new("param", Real::new(0.0, 100.0, Uniform), Unit::new(Uniform));
-    ///
-    /// // Unit domain is [0, 1]
-    /// assert!(var.is_in_opt(&0.5));
-    /// assert!(var.is_in_opt(&0.0));
-    /// assert!(var.is_in_opt(&1.0));
-    /// assert!(!var.is_in_opt(&1.5));
-    /// assert!(!var.is_in_opt(&-0.1));
-    /// ```
-    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
         LinkOpt::<Self>::contains(&self.domain_opt, item)
     }
     /// Replicates the variable a specified number of times.
@@ -412,25 +279,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, Unit, Uniform,
-    ///     variable::Var,
-    /// };
-    /// use std::sync::Arc;
-    ///
-    /// let var = Var::<Real, Unit>::new("weight", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
-    /// let weights = var.replicate(5);
-    ///
-    /// assert_eq!(weights.len(), 5);
-    /// assert_eq!(weights[0].name, ("weight", Some(0)));
-    /// assert_eq!(weights[1].name, ("weight", Some(1)));
-    /// assert_eq!(weights[4].name, ("weight", Some(4)));
-    ///
-    /// // All variables share the same domain (Arc pointers are equal)
-    /// assert!(Arc::ptr_eq(&weights[0].domain_obj, &weights[1].domain_obj));
-    /// ```
-    pub fn replicate(self, repeats: usize) -> Vec<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::with_capacity(repeats);
         for i in 0..repeats {
             let var = Var {
@@ -460,17 +310,8 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// // Both optimizer and objective use Real domain directly
-    /// let var = Var::<Real, NoDomain>::new("param", Real::new(0.0, 100.0, Uniform), NoDomain);
-    /// assert_eq!(var.name, ("param", None));
-    /// ```
-    pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj, NoDomain> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj, NoDomain> {
         Var {
             name: (name, None),
             domain_obj: Arc::new(domain_obj),
@@ -496,17 +337,8 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// let value = 5.0;
-    /// assert_eq!(var.onto_obj(&value).unwrap(), 5.0);
-    /// ```
-    pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
         Ok(item.clone())
     }
 
@@ -518,17 +350,8 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// let value = 7.5;
-    /// assert_eq!(var.onto_opt(&value).unwrap(), 7.5);
-    /// ```
-    pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
         Ok(item.clone())
     }
 
@@ -536,70 +359,32 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// let mut rng = rand::rng();
-    /// let value = var.sample_obj(&mut rng);
-    /// assert!(value >= 0.0 && value <= 10.0);
-    /// ```
-    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Samples a random value from the optimizer domain (same as objective).
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// let mut rng = rand::rng();
-    /// let value = var.sample_opt(&mut rng);
-    /// assert!(value >= 0.0 && value <= 10.0);
-    /// ```
-    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_obj, rng)
     }
     /// Checks if a value is within the objective domain's bounds.
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// assert!(var.is_in_obj(&5.0));
-    /// assert!(!var.is_in_obj(&15.0));
-    /// ```
-    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
         LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds (same as objective).
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// assert!(var.is_in_opt(&5.0));
-    /// assert!(!var.is_in_opt(&-5.0));
-    /// ```
-    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
         LinkOpt::<Self>::contains(&self.domain_obj, item)
     }
     /// Replicates the variable a specified number of times.
@@ -608,20 +393,8 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{
-    ///     Real, NoDomain, Uniform,
-    ///     variable::Var,
-    /// };
-    ///
-    /// let var = Var::<Real, NoDomain>::new("param", Real::new(0.0, 1.0, Uniform), NoDomain);
-    /// let params = var.replicate(3);
-    ///
-    /// assert_eq!(params.len(), 3);
-    /// assert_eq!(params[0].name, ("param", Some(0)));
-    /// assert_eq!(params[2].name, ("param", Some(2)));
-    /// ```
-    pub fn replicate(self, repeats: usize) -> Vec<Self> {
+/// See the crate-level documentation for complete, tested usage examples.
+pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::with_capacity(repeats);
         for i in 0..repeats {
             let var = Var {
@@ -645,14 +418,8 @@ pub trait ToName {
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::variable::ToName;
-    /// use tantale::core::{Real, NoDomain, Uniform, variable::Var};
-    ///
-    /// let var = Var::<Real, NoDomain>::new("x", Real::new(0.0, 10.0, Uniform), NoDomain);
-    /// assert_eq!(var.to_name(), "x");
-    /// ```
-    fn to_name(&self) -> String;
+/// See the crate-level documentation for complete, tested usage examples.
+fn to_name(&self) -> String;
 }
 
 impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {

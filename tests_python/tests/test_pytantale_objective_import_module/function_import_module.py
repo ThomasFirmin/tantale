@@ -9,10 +9,10 @@ class MyOutcome:
         self.spiking = spiking
 
     @staticmethod
-    def csv_header():
+    def header():
         return ["obj1", "cost", "samples", "spiking"]
 
-    def csv_write(self):
+    def record(self):
         return [str(self.obj1), str(self.cost), str(self.samples), str(self.spiking)]
 
 

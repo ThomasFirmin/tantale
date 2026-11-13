@@ -14,11 +14,13 @@ use crate::{
     SpikeMultiCodomain,
 };
 
+/// A trait for types that can provide a schema of column names for recording.
 pub trait Schema<C> {
     type Parts: Clone;
     fn columns(context: &C, part: Self::Parts) -> Vec<String>;
 }
 
+/// A trait for types that can be recorded as a vector of strings, representing their values in a tabular format.
 pub trait Recordable<C> {
     type Parts: Clone;
     fn record(&self, context: &C, part: Self::Parts) -> Vec<String>;
@@ -461,7 +463,7 @@ impl<Out: Outcome> Schema<SpikeCostConstMultiCodomain<Out>> for ElemSpikeCostCon
 }
 
 /// Parts of a solution that can be recorded separately.
-/// When used with [`Recordable`] or [`Schema`] types, the [`Id`] is always included.
+/// When used with [`Recordable`] or [`Schema`] types, the solution identifier is always included.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SolParts {
     /// Only the variable values ([`X`](crate::HasX::X))
@@ -470,7 +472,7 @@ pub enum SolParts {
     Info,
     /// All parts of the solution
     All,
-    /// The part without the [`Id`], which is always included in the output.
+    /// The part without the solution identifier, which is always included in the output.
     NoId(Box<Self>),
 }
 
@@ -661,7 +663,7 @@ pub enum CompParts {
     Y,
     /// All parts of the solution
     All,
-    /// The part without the [`Id`], which is always included in the output.
+    /// The part without the solution identifier, which is always included in the output.
     NoId(Box<Self>),
 }
 

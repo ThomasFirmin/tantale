@@ -421,7 +421,7 @@ macro_rules! init_python {
                         .map(|s| s.inner.into())
                         .unwrap_or_else(|err| {
                             err.print(py);
-                            tantale::core::EvalStep::error()
+                            tantale::core::EvalStep::discard()
                         })
                 })
             }
@@ -1238,7 +1238,7 @@ macro_rules! init_python {
                         .map(|s| s.inner.into())
                         .unwrap_or_else(|err| {
                             err.print(py);
-                            tantale::core::EvalStep::error()
+                            tantale::core::EvalStep::discard()
                         })
                 })
             }

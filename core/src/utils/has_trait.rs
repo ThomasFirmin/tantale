@@ -8,8 +8,8 @@ use std::{fmt::Debug, sync::Arc};
 
 /// Trait for objects with a unique solution identifier.
 ///
-/// [`HasId`] provides access to a solution's unique [`Id`], which remains constant across
-/// domain transformations. Twin solutions (same point in different domains) share the same [`Id`],
+/// [`HasId`] provides access to a solution's unique [`SolId`], which remains constant across
+/// domain transformations. Paired solutions that represent the same candidate share the same [`SolId`],
 /// enabling tracking and correlation throughout the optimization process.
 pub trait HasId {
     type Id: SolId;
@@ -22,18 +22,18 @@ pub trait HasId {
     /// Returns a mutable reference to the solution's unique identifier.
     fn mut_id(&mut self) -> &mut Self::Id;
 
-    /// Checks if another object is a twin (shares the same [`Id`]).
+    /// Checks if another object shares the same [`SolId`].
     ///
     /// Two solutions are twins if they represent the same point in different domains
-    /// or shapes. Twin solutions always have equal [`Id`]s.
+    /// or shapes. Paired solutions always have equal identifiers.
     ///
     /// # Parameters
     ///
-    /// * `solb` - Another object with an [`Id`] to compare
+    /// * `solb` - Another object with an identifier to compare
     ///
     /// # Returns
     ///
-    /// `true` if both objects share the same [`Id`], `false` otherwise.
+    /// `true` if both objects share the same identifier, `false` otherwise.
     fn is_twin<Twin: HasId<Id = Self::Id>>(&self, solb: Twin) -> bool {
         self.ref_id() == solb.ref_id()
     }
@@ -123,7 +123,6 @@ pub trait HasY {
 /// - **[`Partially(n)`](Step::Partially)**: Evaluated to step `n`
 /// - **[`Evaluated`](Step::Evaluated)**: Fully evaluated
 /// - **[`Discard`](Step::Discard)**: Marked for rejection without full evaluation
-/// - **[`Error`](Step::Error)**: Evaluation failed
 pub trait HasStep {
     /// Returns the current evaluation [`Step`].
     fn step(&self) -> Step;
@@ -163,11 +162,6 @@ pub trait HasStep {
     /// Sets the state to [`Evaluated`](Step::Evaluated), indicating the solution
     /// has been completely evaluated at the highest fidelity.
     fn evaluated(&mut self);
-
-    /// Marks the solution as having encountered an error during evaluation.
-    ///
-    /// Sets the state to [`Error`](Step::Error), indicating evaluation failed.
-    fn error(&mut self);
 }
 
 /// Trait for solutions with an associated fidelity level.
@@ -208,12 +202,12 @@ pub trait HasVariables: Linked {
     /// Sets the slice of [Var]iables for this object.
     fn set_vars(&mut self, vars: Vec<Var<Self::Obj, Self::TrueOpt>>);
 
-    /// Returns an iterator over the `Opt` [`Domain`]s associated with this object.
+    /// Returns an iterator over the `Opt` [`Domain`](crate::Domain)s associated with this object.
     fn iter_opt(&self) -> impl Iterator<Item = &Self::Opt> + '_ {
         (0..self.size()).map(|idx| self.opt_at(idx).unwrap())
     }
 
-    /// Returns an iterator over the `Obj` [`Domain`]s associated with this object.
+    /// Returns an iterator over the `Obj` [`Domain`](crate::Domain)s associated with this object.
     fn iter_obj(&self) -> impl Iterator<Item = &Self::Obj> + '_ {
         (0..self.size()).map(|idx| self.obj_at(idx).unwrap())
     }
@@ -223,10 +217,10 @@ pub trait HasVariables: Linked {
         self.get_vars().get(index)
     }
 
-    /// Returns the `Obj` [`Domain`] at a specific index, if it exists.
+    /// Returns the `Obj` [`Domain`](crate::Domain) at a specific index, if it exists.
     fn obj_at(&self, index: usize) -> Option<&Self::Obj>;
 
-    /// Returns the `Opt` [`Domain`] at a specific index, if it exists.
+    /// Returns the `Opt` [`Domain`](crate::Domain) at a specific index, if it exists.
     fn opt_at(&self, index: usize) -> Option<&Self::Opt>;
 
     /// Returns the number of variables associated with this object.

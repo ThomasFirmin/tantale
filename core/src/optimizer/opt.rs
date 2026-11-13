@@ -1,17 +1,12 @@
 use crate::{
-    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled,
-    aliases::{Accum, CompShape, Opt, Shape},
-    solution::SolInfo,
-    utils::{
-        ShapeWithInfo,
-        has_trait::HasState,
-        record::{Recordable, Schema},
+    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled, aliases::{Accum, CompShape, Opt, Shape}, solution::SolInfo, utils::{
+        Communicator, ShapeWithInfo, has_trait::HasState, record::{Recordable, Schema},
     },
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, ops::Fn};
 
-/// Empty implementation for [`OptInfo`] or [`SolInfo`].
+/// Empty implementation of [`SolInfo`] for problems that need no metadata.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct EmptyInfo;
 impl Schema<()> for EmptyInfo {
@@ -31,7 +26,7 @@ impl SolInfo for EmptyInfo {}
 /// Core optimizer abstraction.
 ///
 /// A [`Sampler`] generates candidate [`Solution`](crate::solution::Solution)s to
-/// **maximize** an objective, and maintains the state required to resume or
+/// **maximize** objectives, and maintains the state required to resume or
 /// checkpoint an experiment.
 pub trait Sampler<P: Problem, Dom: Domain>: HasState + Clone + Debug {
     type Info: SolInfo;
@@ -48,12 +43,14 @@ pub trait Sampler<P: Problem, Dom: Domain>: HasState + Clone + Debug {
         Some(s)
     }
 
+    /// Generates a new candidate and its associated [`Sampled`] information.
     fn sample_info(
         &mut self,
         scp: &P::Scp,
         acc: &Accum<P>,
     ) -> Option<(Shape<P>, Sampled<Self::Info>)>;
 
+    /// Generates a new candidate and applies a function to the result.
     fn sample_apply<F>(&mut self, f: F, scp: &P::Scp, acc: &Accum<P>) -> Option<Shape<P>>
     where
         F: Fn(Option<Shape<P>>) -> Option<Shape<P>> + Send + Sync,
@@ -97,6 +94,7 @@ pub trait Sampler<P: Problem, Dom: Domain>: HasState + Clone + Debug {
     }
 }
 
+/// A [`Sampler`] that supports batched operations.
 pub trait Batched<P: Problem, Dom: Domain>: Sampler<P, Dom> {
     /// Returns the current batch size used by the optimizer for sampling candidates.
     fn batch_size(&self) -> usize;
@@ -140,14 +138,17 @@ pub trait Batched<P: Problem, Dom: Domain>: Sampler<P, Dom> {
 /// Multi-instance optimizer interface for parallel execution.
 ///
 /// Implementations define how optimizer instances interact and synchronize.
-pub trait MultiInstanceSampler<P: Problem>: Sampler<P, Opt<P>> {
+pub trait MultiInstanceSampler<P: Problem, Com:Communicator>: Sampler<P, Opt<P>> {
     /// Exchange information with peer instances.
-    fn interact(&self);
+    fn interact(&self, com:&Com);
     /// Update internal state after interaction.
-    fn update(&self);
+    fn update(&self, com:&Com);
 }
 
-/// Multi-fidelity marker trait for optimizers.
+/// A [`Sampler`] that supports pruning candidate solutions.
+///
+/// A [`Pruner`] can set budgets and scaling factors for pruning operations, and retrieve the
+/// current budget levels. It also provides methods to set and get the current budget level used for pruning candidates.
 pub trait Pruner<P: Problem, Opt: Domain>: Sampler<P, Opt>
 where
     P::Shape: HasFidelity + HasStep,
@@ -181,7 +182,5 @@ where
     fn get_scaling(&self) -> f64;
 }
 
-/// Marker trait for sampler that can be used in a pruner context, indicating that it supports pruning operations.
-///
-/// For [`Batched`] samplers, their inner [`batch`](Batched::batch) and [`comp_batch`](Batched::comp_batch) will be used for pruning operations.
+/// Marker trait for sampler that can be used in a [`Pruner`] context, indicating that it supports pruning operations.
 pub trait Prunable {}

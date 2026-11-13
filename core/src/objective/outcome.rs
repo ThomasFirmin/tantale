@@ -22,149 +22,23 @@
 //! Marked fields should be `f64` for objectives, constraints and cost, and any type for metadata.
 //! Special `#[step]` should be unique and of type [`Step`](crate::Step).
 //!
-//! ## Serialization and CSV recording
+//! ## Serialization and recording
 //! An [`Outcome`] must be serializable for checkpointing and
-//! compatible with CSV recording. In practice, this means implementing
-//! [`Serialize`] and [`Deserialize`], and ensuring
-//! fields can be written by the [`CSVWritable`](crate::recorder::csv::CSVWritable) layer.
-//! Supported CSV field types are:
-//! - Integers: [`isize`], [`i32`], [`i64`], [`usize`], [`u32`], [`u64`]
-//! - Floats: [`f32`], [`f64`]
-//! - Other: [`String`], [`bool`]
-//! - [`Vec`] when its elements implement [`Debug`]
-//!
-//! Other fields remain valid for checkpointing as long as they are serializable,
-//! but they will not be written to CSV.
+//! compatible with recording [`Schema`] and [`Recordable`].
 //!
 //! ## Multi-fidelity outputs
 //! A [`FidOutcome`] is an [`Outcome`]
 //! that exposes an [`EvalStep`], describing the current evaluation
 //! state. It is used in multi-[`Fidelity`](crate::solution::partial::Fidelity) optimization and
-//! [`Stepped`](crate::objective::Stepped) objectives. See [`Step`](crate::objective::Step) for the meaning of each state.
+//! [`MultiStep`](crate::objective::MultiStep) objectives. See [`Step`](crate::objective::Step) for the public states.
 //!
 //! # Example
 //!
-//! ```
-//! use tantale::macros::Outcome;
-//! use tantale::core::{Outcome, FidOutcome, Codomain, Step};
-//! use std::fmt::Debug;
-//! use serde::{Serialize,Deserialize};
-//!
-//! #[derive(Outcome,Debug,Serialize,Deserialize)]
-//! pub struct OutExample {
-//!     #[cost]
-//!     pub cost2: f64,
-//!     #[constraint]
-//!     pub con3: f64,
-//!     #[constraint]
-//!     pub con4: f64,
-//!     #[constraint]
-//!     pub con5: f64,
-//!     #[maximize]
-//!     pub mul6: f64,
-//!     #[minimize]
-//!     pub mul7: f64,
-//!     #[minimize]
-//!     pub mul8: f64,
-//!     #[maximize]
-//!     pub mul9: f64,
-//!     #[step]
-//!     pub step: Step,
-//! }
-//!
-//! // A mock output of an objective function
-//! let out = OutExample {
-//!              cost2: 2.0,
-//!              con3: 3.0,
-//!              con4: 4.0,
-//!              con5: 5.0,
-//!              mul6: 6.0,
-//!              mul7: 7.0,
-//!              mul8: 8.0,
-//!              mul9: 9.0,
-//!              step: Step::Evaluated,
-//!          };
-//!
-//!
-//! // Relation between Outcome and Codomain
-//! let codom = OutExample::codomain();
-//! let extracted = codom.get_elem(&out);
-//! println!("MULTI : {:?}", extracted.value);
-//! println!("CONSTRAINT : {:?}", extracted.constraints);
-//! println!("Cost : {}", extracted.cost);
-//! println!("Step : {:?}", out.get_step());
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! # Implementing Outcome and FidOutcome by hand
 //!
-//! ```
-//! use tantale::macros::Outcome;
-//! use tantale::core::{Outcome, FidOutcome, Codomain, Step, EvalStep, CostConstMultiCodomain};
-//! use std::fmt::Debug;
-//! use serde::{Serialize,Deserialize};
-//!
-//! #[derive(Debug,Serialize,Deserialize)]
-//! pub struct OutExample {
-//!     pub cost2: f64,
-//!     pub con3: f64,
-//!     pub con4: f64,
-//!     pub con5: f64,
-//!     pub mul6: f64,
-//!     pub mul7: f64,
-//!     pub mul8: f64,
-//!     pub mul9: f64,
-//!     pub step: Step,
-//! }
-//!
-//! impl Outcome for OutExample {
-//!    type Cod = CostConstMultiCodomain<Self>;
-//!    fn codomain() -> Self::Cod {
-//!       CostConstMultiCodomain::new(
-//!          vec![
-//!             |out: &Self| out.mul6, // maximize
-//!             |out: &Self| -out.mul7, // minimize
-//!             |out: &Self| -out.mul8, // minimize
-//!             |out: &Self| out.mul9, // maximize
-//!        ].into(),
-//!         |out: &Self| out.cost2, // cost
-//!        vec![
-//!            |out: &Self| out.con3, // constraint 1
-//!            |out: &Self| out.con4, // constraint 2
-//!            |out: &Self| out.con5, // constraint 3
-//!       ].into(),
-//!     )
-//!    }
-//! }
-//!
-//! impl FidOutcome for OutExample {
-//!     fn get_step(&self) -> EvalStep {
-//!         self.step.into()
-//!     }
-//! }
-//!
-//! // A mock output of an objective function
-//! let out = OutExample {
-//!              cost2: 2.0,
-//!              con3: 3.0,
-//!              con4: 4.0,
-//!              con5: 5.0,
-//!              mul6: 6.0,
-//!              mul7: 7.0,
-//!              mul8: 8.0,
-//!              mul9: 9.0,
-//!              step: Step::Evaluated,
-//!          };
-//!
-//!
-//! // Relation between Outcome and Codomain
-//! let codom = OutExample::codomain();
-//! let extracted = codom.get_elem(&out);
-//! println!("MULTI : {:?}", extracted.value);
-//! println!("CONSTRAINT : {:?}", extracted.constraints);
-//! println!("Cost : {}", extracted.cost);
-//! println!("Step : {:?}", out.get_step());
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::{
     Codomain, SolId,
     objective::EvalStep,
@@ -177,8 +51,7 @@ use std::{fmt::Debug, path::PathBuf};
 ///
 /// An [`Outcome`] is expected to be a named-field struct carrying the values used by
 /// the [`Codomain`] (objectives, constraints, cost,
-/// or any metadata). It must be serializable for checkpointing and compatible with
-/// CSV recording.
+/// or any metadata). It must be serializable for checkpointing and implements [`Schema`] and [`Recordable`].
 ///
 /// The `Outcome` trait is automatically implemented by the `Outcome` derive macro,
 /// which also generates the associated codomain type and implementation based on field attributes.
@@ -212,9 +85,9 @@ where
 /// A [`FidOutcome`] extends [`Outcome`] by exposing the current [`EvalStep`], which
 /// indicates whether the evaluation is [`Pending`](crate::objective::Step::Pending),
 /// [`Partially`](crate::objective::Step::Partially), [`Evaluated`](crate::objective::Step::Evaluated),
-/// [`Discard`](crate::objective::Step::Discard), or [`Error`](crate::objective::Step::Error).
+/// [`Discard`](crate::objective::Step::Discard). The internal `EvalStep::error()` marker is not a `Step` variant.
 /// This is required by multi-[`Fidelity`](crate::solution::partial::Fidelity) optimization
-/// and [`Stepped`](crate::objective::Stepped) objectives.
+/// and [`MultiStep`](crate::objective::MultiStep) objectives.
 pub trait FidOutcome: Outcome
 where
     Self: Sized + Debug + Serialize + for<'de> Deserialize<'de>,
@@ -222,11 +95,11 @@ where
     fn get_step(&self) -> EvalStep;
 }
 
-/// Marker trait for internal function state in [`Stepped`](crate::objective::Stepped) functions.
+/// Marker trait for internal function state in [`MultiStep`](crate::objective::MultiStep) functions.
 ///
 /// This represents the per-[`Solution`](crate::solution::Solution) evaluation state carried between
 /// [`Step`](crate::objective::Step)s of a multi-[`Fidelity`](crate::solution::partial::Fidelity)
-/// objective. The state is provided back to the [`Stepped`](crate::objective::Stepped) function
+/// objective. The state is provided back to the [`MultiStep`](crate::objective::MultiStep) function
 /// on the next call and can hold any serializable data needed to resume evaluation.
 pub trait FuncState
 where

@@ -8,7 +8,7 @@
 //!
 //! The primary components are:
 //! - Evaluation state tracking via [`Step`] and [`EvalStep`]
-//! - Objective function definitions via [`Objective`], [`Stepped`] and [`FuncWrapper`]
+//! - Objective function wrappers via [`OneStep`], [`MultiStep`] and [`FuncWrapper`]
 //! - Outcome representations via [`Outcome`] and [`FidOutcome`]
 //!
 //! ## Evaluation State
@@ -22,7 +22,6 @@
 //! - [`Step::Partially(n)`](Step::Partially) - Partially evaluated to step `n`
 //! - [`Step::Evaluated`] - Fully evaluated solution
 //! - [`Step::Discard`] - Evaluation discarded by optimizer
-//! - [`Step::Error`] - Evaluation failed
 //!
 //! ### Internal: `EvalStep` Struct
 //!
@@ -32,7 +31,6 @@
 //! - `EvalStep(n > 0)` <-> [`Step::Partially(n)`](Step::Partially)
 //! - `EvalStep(-1)` <-> [`Step::Evaluated`]
 //! - `EvalStep(-9)` <-> [`Step::Discard`]
-//! - `EvalStep(-10)` <-> [`Step::Error`]
 //!
 //! Conversion between these types is automatic via the [`From`] trait.
 //!
@@ -44,10 +42,10 @@
 //!
 //! ## Objective Functions
 //!
-//! Objective functions implement the [`Objective`] trait and:
+//! Objective functions use the [`OneStep`] or [`MultiStep`] wrapper and:
 //! - Accept inputs from the [`Searchspace`](crate::searchspace::Searchspace)
 //! - Return an [`Outcome`] containing objective values and metadata
-//! - Support stepped evaluation with [`Stepped`]
+//! - Support multi-step evaluation with [`MultiStep`]
 //!
 //! See the [`obj`] submodule for trait definitions and the [`outcome`] submodule for
 //! outcome type details.
@@ -56,9 +54,9 @@
 //!
 //! - [`objective!`](../../../tantale/macros/macro.objective.html) - Macro for defining the [`Searchspace`](crate::searchspace::Searchspace)
 //!   and wrapping the raw user-defined objective function.
-//! - [`Objective`] - Core trait for objective functions
+//! - [`FuncWrapper`] - Trait implemented by objective wrappers
 //! - [`Outcome`] - Result type for evaluations
-//! - [`Stepped`] - Multi-fidelity wrapper
+//! - [`MultiStep`] - Multi-fidelity wrapper
 //! - [`FuncWrapper`] - Internal function wrapper
 
 use std::write;
@@ -77,20 +75,20 @@ use serde::{Deserialize, Serialize};
 /// - [`Partially(n)`](Step::Partially) - The solution has been partially evaluated to step `n`
 /// - [`Evaluated`](Step::Evaluated) - The solution has been fully evaluated
 /// - [`Discard`](Step::Discard) - The evaluation was discarded (optimizer decided not to complete it)
-/// - [`Error`](Step::Error) - The evaluation encountered an error
 ///
 /// # Multi-Fidelity Context
 ///
 /// The [`Partially(n)`](Step::Partially) variant is primarily used in multi-fidelity optimization,
-/// where a solution can be evaluated incrementally. The value `n` indicates the current fidelity
-/// level or number of completed steps.
+/// where a solution can be evaluated incrementally. The value `n` indicates the number of completed steps.
 ///
 /// # Relationship to `EvalStep`
 ///
 /// [`Step`] is the user-facing counterpart to [`EvalStep`], which is the internal representation
 /// optimized for serialization and MPI communication. The two types convert seamlessly via [`From`]:
 ///
-/// ```ignore
+/// ```
+/// # use tantale_core::objective::{Step, EvalStep};
+/// 
 /// let step = Step::Partially(5);
 /// let eval_step: EvalStep = step.into();
 /// let back: Step = eval_step.into();
@@ -101,7 +99,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// - [`EvalStep`] - Internal integer-based representation
 /// - [`Outcome`] - Contains a step field for tracking evaluation state
-/// - [`Stepped`] - Multi-fidelity function wrapper that manages step progression
+/// - [`MultiStep`] - Multi-fidelity function wrapper that manages step progression
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub enum Step {
     /// Solution has not been evaluated yet.
@@ -152,7 +150,6 @@ impl PartialEq for Step {
 /// - `n > 0` -> [`Step::Partially(n)`](Step::Partially) - Partially evaluated to step `n`
 /// - `-1` -> [`Step::Evaluated`] - Fully evaluated
 /// - `-9` -> [`Step::Discard`] - Evaluation discarded
-/// - `-10` -> [`Step::Error`] - Evaluation error
 ///
 /// # Why Not an Enum?
 ///
@@ -187,7 +184,6 @@ impl PartialEq for Step {
 /// - [`partially(n)`](EvalStep::partially) - Creates `EvalStep(n)`
 /// - [`evaluated()`](EvalStep::evaluated) - Creates `EvalStep(-1)`
 /// - [`discard()`](EvalStep::discard) - Creates `EvalStep(-9)`
-/// - [`error()`](EvalStep::error) - Creates `EvalStep(-10)`
 ///
 /// # See Also
 ///
@@ -285,20 +281,6 @@ impl EvalStep {
     pub fn discard() -> Self {
         Self(-9)
     }
-
-    /// Creates an [`EvalStep`] representing an evaluation error.
-    ///
-    /// Equivalent to `EvalStep(-10)` and converts to [`Step::Error`].
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let step = EvalStep::error();
-    /// assert_eq!(step, EvalStep(-10));
-    /// ```
-    pub fn error() -> Self {
-        Self(-10)
-    }
 }
 
 impl std::fmt::Display for EvalStep {
@@ -309,8 +291,6 @@ impl std::fmt::Display for EvalStep {
             write!(f, "Evaluated")
         } else if self.0 == -9 {
             write!(f, "Discard")
-        } else if self.0 == -10 {
-            write!(f, "Error")
         } else {
             write!(f, "{}", self.0)
         }

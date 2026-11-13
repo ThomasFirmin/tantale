@@ -12,16 +12,13 @@ use std::{
     path::PathBuf,
 };
 
-/// A [`Checkpointer`] based on [`rmp_serde`]. See the [MessagePack page](https://msgpack.org/)
+/// A [`Checkpointer`] implementation using MessagePack serialization.
 ///
-/// # Notes on File hierarchy
+/// The configured checkpoint directory contains separate state files, including
+/// `state_stop.mp`, `state_exp.mp`, `state_optim.mp`, `state_config.mp`, and
+/// `state_acc.mp`. Function and worker state use their own subdirectories.
 ///
-/// * `path` from [`FolderConfig`]
-///  * checkpoint
-///   * `state_optim.mp`  --  ([`OptState`])
-///   * `state_stop.mp`  --  ([`Stop`])
-///   * `state_eval.mp`  --  ([`Evaluate`], might vary according to [`Runable`](crate::Runable) type)
-///   * `state_config.mp`  --  Various global parameters, see [`GlobalParameters`])
+/// The state types and targets are selected by the [`Checkpointer`] caller.
 pub struct MessagePack {
     /// Describes the folder hierarchy.
     pub config: FolderConfig,
@@ -36,7 +33,10 @@ pub struct MessagePack {
 }
 
 impl MessagePack {
-    /// Returns a [`MessagePack`] wrapped within an [`Option`] to match optional [`Checkpointer`] in [`Runable`](crate::Runable).
+    /// Create a MessagePack checkpointer for the supplied folder configuration.
+    ///
+    /// Returns `Some` so the value can be passed directly to an experiment's
+    /// optional checkpointer argument.
     pub fn new(config: FolderConfig) -> Option<Self> {
         let path_stop = config.path_check.join("state_stop.mp");
         let path_exp = config.path_check.join("state_exp.mp");

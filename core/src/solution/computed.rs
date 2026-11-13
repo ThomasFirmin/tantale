@@ -2,7 +2,7 @@
 //!
 //! A [`Computed`] solution pairs an [`Uncomputed`] solution with the
 //! corresponding codomain value (a [`TypeCodom`]) produced by evaluating the raw
-//! solution with an [`Objective`](crate::Objective). This is the evaluated form used by
+//! solution with an objective function. This is the evaluated form used by
 //! optimizers and recorders.
 //!
 //! # Note
@@ -13,45 +13,7 @@
 //! For [`TypeCodom`] that are [`Dominate`] the
 //! [`Computed`] solution implements [`Dominate`].
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{HasX, Solution, BaseSol, Outcome, Computed, Codomain, EmptyInfo, Real, Id, SId, Uncomputed};
-//! use tantale::macros::Outcome;
-//! use std::sync::Arc;
-//! use serde::{Deserialize, Serialize};
-//!
-//! #[derive(Outcome, Serialize, Deserialize, Debug)]
-//! struct Out { #[maximize] value: f64 }
-//!
-//! let cod = Out::codomain();
-//! let x = Arc::from(vec![0.1, 0.2]);
-//! let info = Arc::new(EmptyInfo {});
-//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-//! let y = Arc::new(cod.get_elem(&Out { value: 0.5 }));
-//!
-//! let computed: Computed<_, SId, Real, Out, _> = Computed::new(sol, y);
-//! assert_eq!(computed.ref_x().len(), 2);
-//! ```
-//!
-//! ```
-//! use tantale::core::{HasX, Solution, BaseSol, Outcome, Codomain, EmptyInfo, IntoComputed, Real, Id, SId, Uncomputed};
-//! use tantale::macros::Outcome;
-//! use std::sync::Arc;
-//! use serde::{Deserialize, Serialize};
-//!
-//! #[derive(Outcome, Serialize, Deserialize, Debug)]
-//! struct Out { #[maximize] value: f64 }
-//!
-//! let cod = Out::codomain();
-//! let x = Arc::from(vec![0.4, 0.8]);
-//! let info = Arc::new(EmptyInfo {});
-//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-//! let y = Arc::new(cod.get_elem(&Out { value: 1.2 }));
-//!
-//! let computed = sol.into_computed::<Out>(y);
-//! assert_eq!(computed.ref_x().len(), 2);
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::{
     Dominate, EvalStep, Fidelity, HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasUncomputed,
     HasX, HasY, StepId, Xy,
@@ -66,8 +28,8 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::{fmt::Debug, sync::Arc};
 
-/// A solution of the [`Objective`](crate::Objective) or the [`Optimizer`](crate::Optimizer)
-/// [`Domain`], enriched with the computed [`Codomain`](crate::Codomain) value [`TypeCodom`].
+/// A solution in an objective-facing or optimizer-facing [`Domain`](crate::Domain), enriched
+/// with the computed [`Codomain`](crate::Codomain) value [`TypeCodom`].
 ///
 /// # Attributes
 /// * `sol` : [`Uncomputed`] - An already created partial solution.
@@ -76,7 +38,7 @@ use std::{fmt::Debug, sync::Arc};
 /// # Note
 ///
 /// A [`Computed`] is obtained by evaluating the raw solution from an [`Uncomputed`] with the
-/// [`Objective`](crate::Objective) and then extracting a [`TypeCodom`].
+/// objective function and then extracting a [`TypeCodom`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "S: Uncomputed, Out: Outcome")]
 pub struct Computed<S: Uncomputed, Out: Outcome> {
@@ -144,7 +106,7 @@ where
 
 impl<S: Uncomputed, Out: Outcome> HasInfo for Computed<S, Out> {
     type Info = S::Info;
-    /// Return the [`SolInfo`] associated with the underlying solution.
+        /// Return the [`SolInfo`](crate::solution::SolInfo) associated with the underlying solution.
     fn sinfo(&self) -> Arc<S::Info> {
         self.sol.sinfo()
     }
@@ -178,10 +140,6 @@ impl<S: Uncomputed + HasStep, Out: Outcome> HasStep for Computed<S, Out> {
 
     fn evaluated(&mut self) {
         self.sol.evaluated();
-    }
-
-    fn error(&mut self) {
-        self.sol.error();
     }
 
     fn set_raw_step(&mut self, value: EvalStep) {
@@ -322,7 +280,7 @@ impl<S: Uncomputed, Out: Outcome> Computed<S, Out> {
 
     /// Extracts the uncomputed solution and objective value from a computed solution.
     ///
-    /// This is the inverse operation of [`into_computed`](IntoComputed::into_computed),
+    /// This is the inverse operation of `into_computed`,
     /// decomposing a computed solution back into its constituent parts.
     ///
     /// # Type Parameters

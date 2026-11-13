@@ -71,9 +71,7 @@ pub fn record<R: Recorder<P, Ctx>, P: Problem, Ctx>(
     }
 }
 
-/// Pool modes for the [`FuncStatePool`](crate::experiment::basics::FuncStatePool) when retrieving [`FuncState`](crate::FuncState).
-/// This prevent overflowing RAM whith large [`FuncState`](crate::FuncState) by allowing to retrieve the state from memory if it is still there,
-/// or to load it from disk if it has been evicted.
+/// Pool modes for [`FuncStatePool`] when retrieving [`FuncState`].
 /// It is only used for multi-fidelity optimization where the state of the objective function has to be tracked.
 #[derive(Debug, Clone, Copy)]
 pub enum PoolMode {

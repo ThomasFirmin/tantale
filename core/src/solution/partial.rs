@@ -1,19 +1,12 @@
 //! Partial (uncomputed) solutions.
 //!
 //! A partial solution is created by a [`Searchspace`](crate::Searchspace) and contains a unique
-//! [`Id`] plus its raw representation (vector, permutation, matrix, ...), assembled
+//! [`SolId`] plus its raw representation, assembled
 //! from the underlying [`Domain`] definitions. This raw solution is what gets
-//! evaluated by an [`Objective`](crate::Objective) or [`Stepped`](crate::Stepped) function.
+//! evaluated by a [`OneStep`](crate::objective::OneStep) or
+//! [`MultiStep`](crate::objective::MultiStep) function.
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{Uncomputed, BaseSol, EmptyInfo, Id, Real, SId};
-//!
-//! let x = std::sync::Arc::from(vec![0.1, 0.2, 0.3]);
-//! let info = std::sync::Arc::new(EmptyInfo {});
-//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::aliases::{Elem, TypeCodom};
 use crate::domain::Domain;
 use crate::objective::Step;
@@ -58,16 +51,7 @@ impl Fidelity {
 
 /// A non-evaluated [`Solution`].
 ///
-/// # Example
-/// ```
-/// use tantale::core::{HasX, Uncomputed, BaseSol, EmptyInfo, Id, Real, SId, Solution};
-///
-/// let x = std::sync::Arc::from(vec![0.0; 5]);
-/// let info = std::sync::Arc::new(EmptyInfo {});
-/// let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-///
-/// assert_eq!(sol.ref_x().len(), 5);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Id: SolId, Dom: Domain, Info: SolInfo")]
 pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo> {
@@ -149,19 +133,8 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{HasX, Solution, Uncomputed, BaseSol, Id, Real, EmptyInfo, SId};
-    ///
-    /// let x = std::sync::Arc::from(vec![0.0;5]);
-    /// let info = std::sync::Arc::new(EmptyInfo{});
-    /// let real_sol = BaseSol::<_,Real,_>::new(SId::generate(),x,info);
-    ///
-    /// for elem in real_sol.ref_x().iter(){
-    ///     println!("{},", elem);
-    /// }
-    ///
-    /// ```
-    fn new<T>(meta: Self::MetaData, x: T) -> Self
+/// See the crate-level documentation for complete, tested usage examples.
+fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>,
     {
@@ -202,21 +175,7 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
 
 /// A non-evaluated [`Solution`] containing a [`Fidelity`].
 ///
-/// # Example
-/// ```
-/// use tantale::core::{HasX, Id, Step, Fidelity, Uncomputed, FidelitySol, HasFidelity, HasId, HasStep, EmptyInfo, Real, StepSId, Solution};
-///
-/// let x = std::sync::Arc::from(vec![0.0; 3]);
-/// let info = std::sync::Arc::new(EmptyInfo {});
-/// let mut sol = FidelitySol::<StepSId, Real, _>::new(StepSId::generate(), x, info);
-/// // By default, the solution is pending with zero fidelity.
-/// assert_eq!(sol.step(), Step::Pending);
-/// assert_eq!(sol.fidelity().0, 0.0);
-/// // We can set the fidelity to a specific value, for example 0.5.
-/// sol.set_fidelity(0.5);
-/// assert_eq!(sol.ref_x().len(), 3);
-/// assert_eq!(sol.fidelity().0, 0.5);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound = "Id: StepId, Dom: Domain, Info: SolInfo")]
 pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo> {
@@ -332,18 +291,13 @@ impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, In
         self.step = EvalStep(-9);
     }
 
-    /// Mark the solution as errored.
-    fn error(&mut self) {
-        self.step = EvalStep(-10);
-    }
-
-    /// Return the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
+    /// Return the raw evaluation step value.
     /// [`Step`] and [`EvalStep`] are two different types: [`Step`] is an enum for user-facing APIs, while [`EvalStep`] is a wrapper around `isize` for internal use and communication.
     fn raw_step(&self) -> EvalStep {
         self.step
     }
 
-    /// Set the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
+    /// Set the raw evaluation step value.
     fn set_raw_step(&mut self, value: EvalStep) {
         self.step = value;
     }

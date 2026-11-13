@@ -1,63 +1,16 @@
-//! # Checkpointing
+//! Checkpoint used by experiment runners.
 //!
-//! This module provides checkpointing capabilities for optimization processes.
-//! Checkpointing allows saving and loading the complete state of an
-//! optimization experiment, enabling recovery from failures and resumption of long-running optimizations.
+//! The [`Checkpointer`] trait saves and loads states selected by
+//! [`CheckpointerTargets`]. Its methods return [`CheckpointerError`] on storage
+//! or serialization failures. [`MessagePack`] is the concrete implementation
+//! provided by this module.
 //!
-//! ## Overview
+//! Checkpointers are passed to [`Experiment`](crate::experiment::Experiment)
+//! or [`ParExperiment`](crate::experiment::ParExperiment), which save the
+//! state required by the runner. Function state for multi-step objectives can
+//! also be saved and loaded by solution identifier.
 //!
-//! Checkpointing in Tantale is designed to save and restore the state of an optimization experiment at each iteration.
-//!
-//! ## State Components
-//!
-//! A checkpoint captures four essential components of an optimization experiment:
-//!
-//! 1. **[`OptState`]** - The internal state of the [`Optimizer`](crate::optimizer::Optimizer), containing algorithm-specific
-//!    information (e.g., population history, learned models, covariance matrices).
-//! 2. **[`Stop`]** - The termination criteria state, tracking progress toward stopping conditions (iterations, time elapsed, evaluations).
-//! 3. **[`Evaluate`]** - The evaluation context, including cached results and solution tracking (varies by experiment type).
-//! 4. **[`GlobalParameters`]** - Global counters for solutions (`sold_id`), optimizer steps (`opt_id`), and experiment runs (`run_id`).
-//!
-//! ## Checkpoint Variants
-//!
-//! Tantale provides specialized checkpointer traits for different execution contexts:
-//!
-//! ### Sequential Experiments
-//! - **[`Checkpointer`]** - Basic abstract framework where a single global state is maintained.
-//!
-//! ### Threaded Experiments  
-//! - **[`ThrCheckpointer`]** - For multi-threaded optimization where each worker thread has its own [`Evaluate`] state.
-//!   Extends [`Checkpointer`] with thread-local evaluation state management.
-//!
-//! ### Distributed Experiments (MPI)
-//! - **[`DistCheckpointer`]** - For MPI-based distributed optimization coordinated by a master rank.
-//! - **[`WorkerCheckpointer`]** - For individual MPI worker processes to checkpoint their local state.
-//!
-//! ### Function State Checkpointing
-//! - **[`FuncStateCheckpointer`]** - For managing the [`FuncState`] of individual function evaluation.
-//!
-//! ## Usage
-//!
-//! ```ignore
-//! // Scenario 1: Starting a new optimization
-//! let mut checkpointer = MessagePack::new(config)?;
-//! // ... optimization loop with periodic checkpointing ...
-//! checkpointer.save_state(&opt_state, &stop, &eval);
-//!
-//! // Scenario 2: Resuming from checkpoint
-//! let mut checkpointer = MessagePack::new(config)?;
-//! let (opt_state, stop, eval) = checkpointer.load()?;
-//! // ... continue optimization loop with restored state ...
-//! checkpointer.save_state(&opt_state, &stop, &eval);
-//! ```
-//!
-//! ## Implementation Notes
-//!
-//! - All checkpoint data must implement [`Serialize`] and [`Deserialize`].
-//! - Checkpointers are configuration-dependent via the [`SaverConfig`] trait.
-//! - The [`MessagePack`] implementation is the primary concrete checkpointer for most use cases.
-//! - MPI-specific traits are only available with the `mpi` feature.
-//! - See [`experiment::Runable`](crate::experiment::Runable) for how checkpointers are integrated into optimization loops.
+//! See the crate-level documentation for setup and execution examples.
 
 use std::path::PathBuf;
 
@@ -82,80 +35,22 @@ pub enum CheckpointerTargets {
     Other(PathBuf),
 }
 
-// Marker trait for checkpointing management in optimization experiments.
+/// Interface for saving and loading experiment state.
 ///
-/// A [`Checkpointer`] provides the ability to save and restore the complete state of an optimization
-/// experiment, enabling resumption after interruptions. It manages the persistence of four key state
-/// components necessary to restart an experiment from any checkpoint.
-///
-/// # See Also
-/// - [`MonoCheckpointer`] - For single-threaded optimization experiments
-/// - [`ThrCheckpointer`] - For multi-threaded optimization experiments
-/// - [`DistCheckpointer`] - For distributed MPI-based optimization experiments
+/// The runner selects a [`CheckpointerTargets`] value for each state it
+/// persists. Implementations return [`CheckpointerError`] when an operation
+/// fails.
 pub trait Checkpointer<P: Problem, Context> {
-    /// Initializes a new checkpoint structure for a fresh optimization experiment.
-    ///
-    /// This method must be called before starting a new optimization that will be checkpointed.
-    /// It creates the necessary storage infrastructure (e.g., directories and files) based on the
-    /// checkpointer's configuration.
-    ///
-    /// # Panics
-    ///
-    /// Should panic if:
-    /// - The checkpoint location already exists (preventing accidental overwrite of previous experiments)
-    /// - The checkpoint path points to a file instead of a directory
-    /// - Directory creation fails due to permission issues or system errors
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let config = FolderConfig::new(Path::new("./my_experiment"));
-    /// let mut checkpointer = MessagePack::new(config)?;
-    /// checkpointer.init();  // Creates ./my_experiment/checkpoint/
-    /// ```
-    ///
-    /// # See Also
-    /// - [`before_load`](Self::before_load) - Used when resuming an existing experiment
+    /// Prepare storage for a new experiment.
     fn init(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
 
-    /// Verifies checkpoint integrity before loading a saved experiment.
-    ///
-    /// This method must be called before using any `load_*` methods.
-    /// It validates that:
-    /// - The checkpoint directory exists
-    /// - All required checkpoint files are present and intact
-    /// - The checkpoint structure matches expectations
-    ///
-    /// # Panics
-    ///
-    /// Should panic if the checkpoint is invalid or incomplete, indicating data corruption or
-    /// incomplete checkpoint writes.
-    ///
-    /// # See Also
-    /// - [`init`](Self::init) - Used when starting a new experiment
+    /// Prepare storage for loading a previous experiment.
     fn before_load(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
-    /// Performs any necessary cleanup or state preparation after loading a checkpoint.
-    /// This method can be used to create a new checkpoint directory after loading an existing one.
-    /// It should be called after successfully loading a checkpoint and before resuming optimization.
+
+    /// Finalize storage setup after restoring an experiment.
     fn after_load(&mut self, p: &P, context: &Context) -> Result<(), CheckpointerError>;
-    /// Saves the complete state of an optimization experiment to a checkpoint.
-    ///
-    /// This is the primary checkpoint method.
-    /// It should be called periodically during optimization to enable recovery from failures.
-    ///
-    /// # Checkpointed Components
-    ///
-    /// The method persists:
-    /// - [`OptState`] The optimizer's internal state
-    /// - [`Stop`] The termination criteria state
-    /// - [`Evaluate`] The evaluation context state
-    /// - [`GlobalParameters`] Solution, optimizer, run IDs...
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// checkpointer.save_state(&opt_state, &stop, &eval);
-    /// ```
+
+    /// Save a state value under the requested target.
     fn save_state<T: HasState>(
         &self,
         state: &T,
@@ -163,37 +58,9 @@ pub trait Checkpointer<P: Problem, Context> {
         ctx: &Context,
     ) -> Result<(), CheckpointerError>;
 
-    /// Loads the complete state of an optimization experiment from a checkpoint.
+    /// Load a state value previously stored under the requested target.
     ///
-    /// This is the primary checkpoint recovery method, restoring all three essential state components.
-    /// Call [`before_load`](Self::before_load) before using this method to verify checkpoint integrity.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `OState` - The optimizer's state type implementing [`OptState`]
-    /// * `St` - The stopping criteria type implementing [`Stop`]
-    /// * `Eval` - The evaluation state type implementing [`Evaluate`]
-    ///
-    /// # Returns
-    ///
-    /// A tuple containing:
-    /// - The restored optimizer state
-    /// - The restored termination criteria state
-    /// - The restored evaluation context state
-    ///
-    /// # Errors
-    ///
-    /// Returns [`CheckpointerError`] if:
-    /// - Checkpoint files don't exist
-    /// - Deserialization fails (corrupted checkpoint data)
-    /// - File I/O errors occur
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// checkpointer.before_load()?;
-    /// let (opt_state, stop, eval) = checkpointer.load()?;
-    /// ```
+    /// Returns [`CheckpointerError`] if the target cannot be read or decoded.
     fn load<T: HasState>(
         &self,
         target: &CheckpointerTargets,

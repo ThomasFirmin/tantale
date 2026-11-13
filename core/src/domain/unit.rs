@@ -1,3 +1,5 @@
+//! A [`Unit`] domain defines a [`Domain`] for which values are in $[0.0, 1.0]$.
+//! 
 use crate::{
     GridDom,
     distribution::{BoundedDistribution, Distribution},
@@ -125,7 +127,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -172,7 +174,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
     ///
     /// # Errors
@@ -207,7 +209,7 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`GridDom`].
     ///
     /// # Errors
@@ -253,7 +255,7 @@ impl Onto<Mixed> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
@@ -292,7 +294,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
     ///
     /// # Errors

@@ -351,6 +351,8 @@ where
     }
 }
 
+/// A master process that coordinates the execution of an experiment in a master-worker setup.
+/// The master process manages the problem, sampler, stopping criterion, recorder, checkpointer, and communication with worker processes.
 pub struct Master<P, O, S, R, C, Com>
 where
     P: Problem,
@@ -371,7 +373,7 @@ where
     pub recorder: Option<R>,
     /// The [`Checkpointer`] used to save and load experiment state.
     pub checkpointer: Arc<Mutex<Option<C>>>,
-    /// The [`Accumulator`] that collects best evaluated solutions and their outcomes.
+    /// The accumulator that collects evaluated solutions and their outcomes.
     pub accumulator: Accum<P>,
     /// The [`Communicator`] used for send and receiving tasks.
     pub com: Com,
@@ -673,7 +675,7 @@ where
     Worker(Worker<P, C, Com>),
 }
 
-/// A parallel experiment, with the same user experience as [`Experiment`].
+/// A parallel experiment, with the same user experience as [`Experiment`](crate::experiment::Experiment).
 ///
 /// It hides the [`Worker`] / [`Master`] split and guarantees that the workers are started
 /// before the master routine runs, whatever the [`MasterWorkerCom`] backend:
@@ -804,7 +806,7 @@ where
 {
     /// Run the experiment. Workers are always started before the master routine.
     ///
-    /// Returns the [`Accumulator`] on the master, and `None` on worker processes.
+    /// Returns the accumulator on the master, and `None` on worker processes.
     pub fn run(self) -> Option<Accum<SimplePb<Info, Scp, Out>>> {
         match self.role {
             Role::Master(mut master) => {
@@ -855,7 +857,7 @@ where
 {
     /// Run the experiment. Workers are always started before the master routine.
     ///
-    /// Returns the [`Accumulator`] on the master, and `None` on worker processes.
+    /// Returns the accumulator on the master, and `None` on worker processes.
     pub fn run(self) -> Option<Accum<FidPb<Info, Scp, Out, FnState>>> {
         match self.role {
             Role::Master(mut master) => {

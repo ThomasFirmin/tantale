@@ -6,66 +6,13 @@
 //! For end-to-end usage (including the [`hpo!`](../../../tantale/macros/macro.hpo.html) and [`objective!`](../../../tantale/macros/macro.objective.html)
 //! macros), see the module-level examples in [`crate::searchspace`].
 //!
-//! # Example
-//! ```
-//! use tantale::core::{SpPar, Var, Real, Unit, Uniform};
-//!
-//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
-//! let sp = SpPar { var: vec![v1, v2].into_boxed_slice() };
-//!
-//! assert_eq!(sp.var.len(), 2);
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! # Example: convert from [`Sp`]
-//! ```
-//! use tantale::core::{Sp, SpPar, Var, Real, Unit, Uniform};
-//!
-//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
-//! let sp = Sp { var: vec![v1, v2].into_boxed_slice() };
-//! let sp_par: SpPar<_, _> = sp.into();
-//!
-//! assert_eq!(sp_par.var.len(), 2);
-//! ```
+//! See the crate-level documentation for complete, tested usage examples.
 //!
 //! # Example: sampling pairs with [`Searchspace`]
-//! ```
-//! use tantale::core::{BaseSol, EmptyInfo, HasId, SId, Searchspace, SpPar, Var, Real, Unit, Uniform};
-//! use std::sync::Arc;
-//!
-//! let v1 = Var::<Real, Unit>::new("x", Real::new(0.0, 1.0, Uniform), Unit::new(Uniform));
-//! let v2 = Var::<Real, Unit>::new("y", Real::new(-1.0, 1.0, Uniform), Unit::new(Uniform));
-//! let sp = SpPar { var: vec![v1, v2].into_boxed_slice() };
-//! let info = Arc::new(EmptyInfo {});
-//! let mut rng = rand::rng();
-//!
-//! type OptSol = BaseSol<SId, Unit, EmptyInfo>;
-//! let pair = <SpPar<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::sample_pair(
-//!     &sp,
-//!     &mut rng,
-//!     info.clone(),
-//! );
-//! let pairs = <SpPar<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::vec_sample_pair(
-//!     &sp,
-//!     &mut rng,
-//!     3,
-//!     info.clone(),
-//! );
-//! let obj = <SpPar<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::sample_obj(
-//!     &sp,
-//!     &mut rng,
-//!     info,
-//! );
-//! let _pair_from_obj = <SpPar<Real, Unit> as Searchspace<OptSol, SId, EmptyInfo>>::onto_opt(
-//!     &sp,
-//!     obj,
-//! );
-//!
-//! assert_eq!(pairs.len(), 3);
-//! let _ = pair.id();
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::{
     FuncWrapper, HasInfo, HasVariables, HasX, Solution, Sp,
     aliases::{GetFuncSol, GetRaw, GetSObj, GetSOpt, MetaData},
@@ -86,7 +33,7 @@ use rayon::prelude::*;
 
 /// A basic parallel [`Searchspace`] made of a boxed slice of [`Var`].
 pub struct SpPar<Obj: Domain, Opt: PreDomain> {
-    /// Variables that define the [`Objective`](crate::Objective) and [`Optimizer`](crate::Optimizer) domains.
+    /// Variables that define the objective-facing and optimizer-facing domains.
     pub var: Box<[Var<Obj, Opt>]>,
 }
 

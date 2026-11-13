@@ -1,6 +1,6 @@
 //! The [`Onto`] trait for [`Domains`](Domain) is used to map a point sampled from an input [`Domain`]
 //! onto an output [`Domain`]. For example, mapping $0.5 \in [0.0, 1.0]$ to $[0.0,100.0]$, $onto(0.5)=50.0$.
-//! Or mapping a sample ([`TypeDom`](crate::Domain::TypeDom)) from an [`Int`](crate::domain::Int) onto a [`Cat`](crate::domain::Cat) [`Domain`], $1 \in \[0,2\]$ to `["relu", "tanh", "sigmoid"]`,
+//! Or mapping a sample from an [`Int`](crate::domain::Int) onto a [`Cat`](crate::domain::Cat) [`Domain`], $1 \in \[0,2\]$ to `["relu", "tanh", "sigmoid"]`,
 //! $onto(1) = \texttt{"tanh"}$.
 //!
 //! # Examples
@@ -34,7 +34,7 @@ pub trait Linked {
 }
 
 /// [`Onto`] is a surjective function to map a point from an element of `Self` [`Item`](Onto::Item), to an element of `Target` [`TargetItem`](Onto::TargetItem)
-/// It is mostly used to map [`TypeDom`](Domain::TypeDom) to another [`TypeDom`](Domain::TypeDom), using a target [`Domain`].
+/// It is mostly used to map a [`Domain::Element`] to an element of a target [`Domain`].
 pub trait Onto<Target> {
     type TargetItem;
     type Item;

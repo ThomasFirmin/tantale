@@ -5,7 +5,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
-/// A [`Stop`] criterion, returning `false` when the elapsed time during a run exceeds a threshold duration.
+/// A [`Stop`] criterion that becomes true when the elapsed time reaches its limit.
 ///
 /// This criterion tracks elapsed time across checkpoints. When resumed from a checkpoint,
 /// it preserves the accumulated time from before the checkpoint and continues counting
@@ -37,7 +37,7 @@ impl Stop for Time {
 
     fn stop(&self) -> bool {
         let current_elapsed = self.2.map(|start| start.elapsed()).unwrap_or_default();
-        self.1 + current_elapsed <= self.0
+        self.1 + current_elapsed >= self.0
     }
 
     /// Update the time criterion. This does not increment any counter but allows
@@ -48,14 +48,15 @@ impl Stop for Time {
     /// ```
     /// use tantale::core::stop::{Stop, Time, ExpStep};
     /// use std::time::Duration;
-    /// use std::thread;
     ///
-    /// let mut time = Time::new(Duration::from_millis(100));
+    /// let mut time = Time::new(Duration::from_secs(60));
     /// time.init();
     /// time.update(ExpStep::Iteration);
-    /// assert!(time.stop()); // Still within time limit
-    /// thread::sleep(Duration::from_millis(150));
-    /// assert!(!time.stop()); // Time limit exceeded
+    /// assert!(!time.stop()); // The limit has not been reached.
+    ///
+    /// let mut immediate = Time::new(Duration::ZERO);
+    /// immediate.init();
+    /// assert!(immediate.stop()); // The zero-duration limit is reached immediately.
     /// ```
     fn update(&mut self, _step: ExpStep) {
         self.1 += self.2.map(|start| start.elapsed()).unwrap_or_default();
@@ -80,5 +81,23 @@ impl Time {
     /// This can be used to extend the time limit of a run.
     pub fn add(&mut self, duration: Duration) {
         self.0 += duration;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_is_false_before_the_limit() {
+        let mut time = Time::new(Duration::from_secs(60));
+        time.init();
+        assert!(!time.stop());
+    }
+
+    #[test]
+    fn stop_is_true_when_elapsed_time_reaches_the_limit() {
+        let time = Time(Duration::from_secs(1), Duration::from_secs(1), None);
+        assert!(time.stop());
     }
 }

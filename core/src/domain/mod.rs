@@ -11,21 +11,22 @@
 //! - Validates membership via [`Domain::contains`]
 //!
 //! Domains are used by [`Var`] inside a [`Searchspace`](crate::searchspace::Searchspace)
-//! to describe the inputs expected by an [`Objective`] and explored by an
-//! [`Optimizer`]. The resulting [`Solution`] contains
+//! to describe the inputs expected by an objective function and explored by a
+//! sampling algorithm. The resulting [`Solution`] contains
 //! values whose types are determined by the corresponding domain.
 //!
 //! ## Type Relationship
 //!
-//! Each domain has an associated type [`Domain::Element`]. For convenience, the alias
-//! [`Element`] maps a domain type to its value type:
+//! Each domain has an associated type [`Domain::Element`] for its values.
+//! The [`Elem`](crate::utils::aliases::Elem) alias provides shorthand for
+//! referring to that associated type.
 //!
 //! ## Built-in Domains
 //!
 //! This module exposes several commonly used domain types:
-//! - [`Real`], [`Int`], [`Nat`] and [`Bounded`] for numeric ranges
+//! - [`Real`], [`Int`], [`Nat`], [`Unit`], and [`Bounded`] for numeric ranges
 //! - [`Bool`] for binary values
-//! - [`Unit`] and [`NoDomain`] for degenerate or placeholder domains
+//! - [`NoDomain`] for placeholder domains
 //! - [`Mixed`] for heterogeneous domains
 //! - [`Grid`] for Cartesian products of discrete values made of [`GridDom`]s
 //! - [`GridDom`] for defining discrete sets of values
@@ -46,13 +47,11 @@
 //! ## Notes
 //!
 //! Combination of [`Domain`]s allows defining a [`Searchspace`](crate::searchspace::Searchspace).
-//! For example:
-//! $\mathcal{S} := [`Domain`]_1 \times \cdots \times [`Domain`]_d $
 //!
 //! ## Macro Integration
 //!
-//! Domains are constructed directly or through macros like [`objective!`](../../../tantale/macros/macro.objective.html)
-//! and [`hpo!`](../../../tantale/macros/macro.hpo.html). For compatibility with those macros, domain types should
+//! Domains are constructed directly or through macros like [`objective!`](../../../doc/tantale_macros/macro.objective.html)
+//! and [`hpo!`](../../../doc/tantale_macros/macro.hpo.html). For compatibility with those macros, domain types should
 //! provide a `new(...) -> Self` constructor.
 
 #[cfg(doc)]
@@ -82,6 +81,7 @@ use std::fmt::{Debug, Display};
 ///  [`hpo!`](../../../tantale/macros/macro.hpo.html) macros when defining domains for objectives and searchspaces.
 pub trait PreDomain: Debug {}
 
+/// Marker trait for types that can be used as elements of a [`Domain`].
 pub trait Element
 where
     Self: Sized
@@ -144,33 +144,7 @@ impl<T> Element for T where
 ///
 /// # Example
 ///
-/// ```
-/// use tantale::core::domain::{Domain, PreDomain};
-/// use rand::{RngExt, prelude::{IteratorRandom, Rng}};
-///
-/// #[derive(Debug, PartialEq)]
-/// pub struct BinaryDomain;
-///
-/// impl PreDomain for BinaryDomain {}
-///
-/// impl Domain for BinaryDomain {
-///     type Element = bool;
-///
-///     fn sample<R: Rng>(&self, rng: &mut R) -> bool {
-///         rng.random_bool(0.5)
-///     }
-///
-///     fn contains(&self, _point: &bool) -> bool {
-///         true  // All booleans are valid
-///     }
-/// }
-///
-/// impl BinaryDomain {
-///     pub fn new() -> Self {
-///         BinaryDomain
-///     }
-/// }
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 ///
 /// # Built-in Implementations
 ///
@@ -200,19 +174,18 @@ pub trait Domain:
     /// - [`Real::Element`](Real)` = f64` - Real-valued domains use 64-bit floats
     /// - [`Int::Element`](Int)` = i64` - Integer domains use 64-bit signed integers
     /// - [`Bool::Element`](Bool)` = bool` - Boolean domains use the `bool` type
-    /// - [`Cat::Element`](Cat)` = usize` - Categorical domains use indices
+    /// - [`Cat::Element`](Cat)` = String` - Categorical domains use strings
     ///
     /// # Usage in [`Solutions`](crate::Solution)
     ///
-    /// The [`Element`] determines the type of values stored in [`Solution`](crate::Solution).
-    /// instances.
+    /// The type of the [`Element`] is used to define the type of the values stored in the [`Solution`].
     type Element: Element;
 
     /// Generates a random value from the domain.
     ///
     /// This method samples a value from
     /// the domain using the provided random number generator.
-    /// See [`DomainSampler`](crate::sampler::DomainSampler) for more advanced sampling strategies.
+    /// Sampling behavior is determined by the domain and its configured distribution.
     ///
     /// # Parameters
     ///
@@ -224,14 +197,7 @@ pub trait Domain:
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{Domain, Real, Uniform};
-    ///
-    /// let domain = Real::new(0.0, 1.0, Uniform);
-    /// let mut rng: rand::rngs::ThreadRng = rand::rng();
-    /// let value = domain.sample(&mut rng);
-    /// assert!(domain.contains(&value));
-    /// ```
+    /// See the crate-level documentation for complete, tested usage examples.
     fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element;
     /// Checks whether a value belongs to the domain.
     /// # Parameters
@@ -240,6 +206,7 @@ pub trait Domain:
     fn contains(&self, point: &Self::Element) -> bool;
 }
 
+/// Marker trait for domains whose elements are numeric types.
 pub trait NumericalDomain: Domain
 where
     Self::Element: Num,
@@ -251,6 +218,7 @@ where
     fn get_ref_bounds(&self) -> (&Self::Element, &Self::Element);
 }
 
+/// Marker trait for domains whose elements are categorical types.
 pub trait CategoricalDomain: Domain
 where
     Self::Element: PartialEq,

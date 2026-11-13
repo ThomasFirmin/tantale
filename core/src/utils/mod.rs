@@ -52,7 +52,7 @@ where
 {
 }
 
-/// A wrapper struct that holds a [`Shape`] and its associated [`Sampled`] info.
+/// A wrapper struct that holds a solution shape and its associated [`Sampled`] info.
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "S: SolutionShape, I: SolInfo")]
 pub struct ShapeWithInfo<S: SolutionShape, I: SolInfo>(pub S, pub Sampled<I>);

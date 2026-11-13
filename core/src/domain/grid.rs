@@ -1,3 +1,8 @@
+//! A [`GridDom`] represents a discrete set of values for a given type `T` that can be sampled from.
+//! It is a specific implementation of a [`Domain`] that allows for sampling from a predefined list of values
+//! rather than a range. This is particularly useful for optimization problems where the search space
+//! is inherently discrete or when a user wants to restrict the search to specific values.
+
 use crate::{
     Bool, Bounded, Distribution, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
     Unit,
@@ -435,7 +440,7 @@ impl From<Mixed> for Cat {
 /// into a single enum. Unlike [`Mixed`], which covers all basic domains, [`Grid`] is restricted to
 /// grid-based domains and [`Bool`], making it well-suited for exhaustive enumeration strategies
 /// such as Grid Search.
-/// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
+/// Its associated [`Element`](Domain::Element) type is [`MixedTypeDom`].
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Grid {
     Real(GridReal),

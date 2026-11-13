@@ -1,25 +1,9 @@
 //! Solution identifiers.
 //!
-//! An [`Id`] is a unique object associated with a [`Solution`](crate::Solution). Two solutions
+//! A [`SolId`] is a unique identifier associated with a [`Solution`](crate::Solution). Two solutions
 //! created independently are considered distinct even if their contents are identical.
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{Id, SId};
-//!
-//! let a = SId::generate();
-//! let b = SId::generate();
-//! assert_ne!(a, b);
-//! ```
-//!
-//! ```
-//! use tantale::core::{Id, ParSId};
-//!
-//! let a = ParSId::generate();
-//! let b = ParSId::generate();
-//! assert_ne!(a, b);
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
 use crate::{
     SOL_ID,
     utils::record::{Recordable, Schema},
@@ -39,15 +23,9 @@ use mpi::Rank;
 
 /// Unique identifier for a [`Solution`](crate::Solution).
 ///
-/// Implementations must generate new unique identifiers via [`Id::generate`].
+/// Implementations must generate new unique identifiers via [`SolId::generate`].
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, SId};
-///
-/// let id = SId::generate();
-/// println!("Generated id: {:?}", id);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 pub trait SolId
 where
     Self: Sized
@@ -83,7 +61,7 @@ pub trait StepId: SolId {
 #[cfg(feature = "mpi")]
 /// Distributed identifier embedding the MPI [`Rank`] where a [`Solution`](crate::Solution) is being created, and a process-local counter.
 ///
-/// This [`Id`] ensures uniqueness across MPI ranks by pairing the `rank` with a unique `id`
+/// This identifier ensures uniqueness across MPI ranks by pairing the `rank` with a unique `id`
 /// local to each process.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -163,7 +141,7 @@ impl Hash for DistSId {
 
 /// Process-local identifier embedding the process id and a local counter.
 ///
-/// This [`Id`] is unique within a single process and is convenient for multi-processing workloads.
+/// This identifier is unique within a single process and is convenient for multi-process workloads.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ParSId {
     pub pid: usize,
@@ -229,16 +207,9 @@ impl Hash for ParSId {
 
 /// Simple sequential identifier using a global counter.
 ///
-/// This is the default [`Id`] for most-cases.
+/// This is the default sequential identifier for most cases.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, SId};
-///
-/// let a = SId::generate();
-/// let b = SId::generate();
-/// assert_ne!(a, b);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SId {
     pub id: usize,
@@ -293,18 +264,11 @@ impl Hash for SId {
 }
 
 /// Simple sequential identifier using a global counter,
-/// and a step counter for [`Stepped`](crate::Stepped).
+/// and a step counter for multi-step evaluation.
 ///
-/// This is the default [`Id`] for most-cases.
+/// This identifier also tracks the step number for multi-step evaluations.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, StepSId};
-///
-/// let a = StepSId::generate();
-/// let b = StepSId::generate();
-/// assert_ne!(a, b);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct StepSId {
     pub id: usize,

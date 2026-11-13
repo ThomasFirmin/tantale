@@ -5,10 +5,15 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-/// A [`Stop`] criterion, returning `false` when the number of
-/// [`Evaluated`](crate::objective::Step::Evaluated) solutions during a run exceed a threshold.
+/// A [`Stop`] criterion that terminates after the configured number of
+/// [`Evaluated`](crate::objective::Step::Evaluated) solutions.
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
-pub struct Evaluated(pub usize, pub usize);
+pub struct Evaluated(
+    /// Represents the number of evaluated solutions so far.
+    pub usize, 
+    /// Represents the threshold for stopping.
+    pub usize
+);
 
 impl State for Evaluated {}
 impl HasState for Evaluated {
@@ -44,7 +49,6 @@ impl Stop for Evaluated {
     /// calls.update(ExpStep::Evaluation(Step::Evaluated));
     /// calls.update(ExpStep::Evaluation(Step::Partially(5)));
     /// calls.update(ExpStep::Evaluation(Step::Discard));
-    /// calls.update(ExpStep::Evaluation(Step::Error));
     /// assert_eq!(calls.calls(), 1);
     fn update(&mut self, step: ExpStep) {
         if let ExpStep::Evaluation(Step::Evaluated) = step {

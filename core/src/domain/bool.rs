@@ -1,3 +1,4 @@
+//! A [`Bool`] domain defines a [`Domain`] for which values are in $\\{\texttt{false}, \texttt{true}\\}$.
 use crate::{
     Grid,
     distribution::{BoolDistribution, Distribution},
@@ -61,7 +62,7 @@ impl Domain for Bool {
     ///
     /// # Parameters
     ///
-    /// * `point` : `&`[`TypeDom`](Domain::TypeDom) - a borrowed sample from a [`Bool`].
+    /// * `point` : `&`[`Element`](Domain::Element) - a borrowed sample from a [`Bool`].
     ///
     /// # Example
     ///
@@ -110,7 +111,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -153,7 +154,7 @@ impl Onto<Unit> for Bool {
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
     ///
     /// # Errors
@@ -185,7 +186,7 @@ impl Onto<Mixed> for Bool {
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
@@ -212,7 +213,7 @@ impl Onto<Bool> for Bool {
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         Ok(*item)

@@ -17,9 +17,9 @@
 //! ```python
 //! class MyOutcome:
 //!     @staticmethod
-//!     def csv_header() -> list[str]: ...   # column names
+//!     def header() -> list[str]: ...   # column names
 //!
-//!     def csv_write(self) -> list[str]: ... # row values
+//!     def record(self) -> list[str]: ... # row values
 //! ```
 //!
 //! For multi-fidelity outcomes ([`PyFidOutcome`]) the class must additionally
@@ -169,13 +169,13 @@ impl Schema<()> for PyOutcome {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-                .call_method0("csv_header")
+                .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(
                     |err |
                     {
                         err.print(py);
-                        panic!("Python outcome class must implement static method csv_header() -> list[str]");
+                        panic!("Python outcome class must implement static method header() -> list[str]");
                     }
                 )
         })
@@ -188,12 +188,12 @@ impl Recordable<()> for PyOutcome {
         Python::attach(|py| {
             self.0
                 .bind(py)
-                .call_method0("csv_write")
+                .call_method0("record")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(|err| {
                     err.print(py);
                     panic!(
-                        "Python outcome class must implement static method csv_write() -> list[str]"
+                        "Python outcome class must implement static method record() -> list[str]"
                     );
                 })
         })
@@ -286,13 +286,13 @@ impl Schema<()> for PyFidOutcome {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-                .call_method0("csv_header")
+                .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(
                     |err |
                     {
                         err.print(py);
-                        panic!("Python outcome class must implement static method csv_header() -> list[str]");
+                        panic!("Python outcome class must implement static method header() -> list[str]");
                     }
                 )
         })
@@ -305,12 +305,12 @@ impl Recordable<()> for PyFidOutcome {
         Python::attach(|py| {
             self.0
                 .bind(py)
-                .call_method0("csv_write")
+                .call_method0("record")
                 .and_then(|v| v.extract::<Vec<String>>())
                 .unwrap_or_else(|err| {
                     err.print(py);
                     panic!(
-                        "Python outcome class must implement static method csv_write() -> list[str]"
+                        "Python outcome class must implement static method record() -> list[str]"
                     );
                 })
         })

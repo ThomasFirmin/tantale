@@ -1,3 +1,6 @@
+//! A [`Mixed`] domain defines a [`Domain`] for which values can be of different types, 
+//! including [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`], [`Unit`], and their grid versions: [`GridReal`], [`GridNat`], and [`GridInt`].
+
 use crate::{
     Cat, GridDom, GridInt, GridNat, GridReal,
     domain::{
@@ -21,7 +24,7 @@ use std::fmt::{Debug, Display};
 
 /// A mixed [`Domain`], made of the 6 basic domains [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`]
 /// and [`Unit`]. And 4, discretized, grid versions of the basic domains: [`GridReal`], [`GridNat`], and [`GridInt`].
-/// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
+/// Its associated [`Element`](Domain::Element) type is [`MixedTypeDom`].
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mixed {
     Real(Real),
@@ -66,7 +69,7 @@ impl Debug for Mixed {
     }
 }
 
-/// Basic [`TypeDom`](`Domain::TypeDom`) of [`Mixed`].
+/// The heterogeneous [`Element`](Domain::Element) type of [`Mixed`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MixedTypeDom {
     Real(Elem<Real>),

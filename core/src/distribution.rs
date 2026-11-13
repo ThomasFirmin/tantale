@@ -5,7 +5,7 @@
 //!
 //! ## Overview
 //!
-//! The [`DomainSampler`] trait abstracts the process of generating random values from a [`Domain`].
+//! The [`Distribution`] trait abstracts the process of generating random values from a [`Domain`].
 //! Different domains support different sampling strategies:
 //! - Bounded numeric domains: [`Uniform`] sampling
 //! - Boolean domains: [`Bernoulli`] sampling
@@ -63,7 +63,7 @@ use serde::{Deserialize, Serialize};
 
 /// Core trait for sampling strategies that generate random values from a domain.
 ///
-/// A [`DomainSampler`] defines how to draw random values from a given [`Domain`]. Different samplers
+/// A [`Distribution`] defines how to draw random values from a given [`Domain`]. Different distributions
 /// implement different probability distributions or selection strategies. This abstraction allows
 /// optimizers and initialization routines to use customizable sampling approaches.
 ///
@@ -99,7 +99,7 @@ pub trait Distribution<D: Domain> {
     ///
     /// # Returns
     ///
-    /// A randomly sampled value of type [`D::TypeDom`](Domain::TypeDom) drawn according
+    /// A randomly sampled value of type [`D::Element`](Domain::Element) drawn according
     /// to this sampler's distribution.
     fn sample<R: Rng>(&self, dom: &D, rng: &mut R) -> D::Element;
 }

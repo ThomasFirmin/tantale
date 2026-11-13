@@ -1,247 +1,316 @@
-//! Tantale core contains the foundational abstractions and building blocks used
-//! throughout the library. It defines the modeling layer (domains, variables,
-//! search spaces, solutions), the optimization layer (objectives, optimizers,
-//! stop criteria), and the execution layer (experiments, recorders,
-//! checkpointing).
+//! # Tantale core
 //!
-//! ## Main building blocks
+//! `tantale_core` provides typed building blocks for black-box optimization:
+//! domains, search spaces, solutions, objective outputs, samplers, stopping
+//! criteria, experiment runners, recording and checkpointing traits.
 //!
-//! - **Modeling:** [`Domain`], [`Var`], [`Searchspace`], [`Solution`]
-//! - **Objective:** [`Objective`], [`Outcome`], [`Stepped`]
-//! - **Optimization:** [`Optimizer`], [`BatchOptimizer`], [`SingleOptimizer`]
-//! - **Execution:** [`Runable`], [`Recorder`], [`Checkpointer`], [`Stop`]
+//! ## Install
 //!
-//! Most of these items are re-exported at the crate root for convenience.
+//! Add the core crate when implementing integrations or custom components:
 //!
-//! ## Module map
+//! ```toml
+//! [dependencies]
+//! tantale_core = "0.3.2"
+//! ```
 //!
-//! - [`domain`]: Domain definitions and codomains (objective outputs).
-//! - [`sampler`]: Sampling utilities and distributions.
-//! - [`variable`]: [`Var`] to relate objective and optimizer domains.
-//! - [`searchspace`]: Composition of variables into a [`Searchspace`].
-//! - [`solution`]: Solution shapes, identifiers, solution metadata, and computed wrappers.
-//! - [`objective`]: Objective functions, steps, and outcomes.
-//! - [`optimizer`]: Optimizer traits and state metadata.
-//! - [`stop`]: Stop criteria and lifecycle signals.
-//! - [`experiment`]: Execution pipelines and orchestration.
-//! - [`recorder`]: Recording utilities (e.g., CSV).
-//! - [`checkpointer`]: Checkpointing primitives.
+//! For the macros and built-in algorithms used in the examples below, depend on
+//! the facade crate instead:
 //!
-//! ## Execution contexts
+//! ```toml
+//! [dependencies]
+//! tantale = "0.3.2"
+//! ```
 //!
-//! Tantale provides multiple execution contexts through [`Runable`]:
-//! - [`MonoExperiment`] for single-threaded runs.
-//! - [`ThrExperiment`] for multi-threaded runs.
-//! - [`MPIExperiment`] for distributed runs (requires the `mpi` feature).
+//! The workspace uses Rust 1.91.1 or later and the Rust 2024 edition. The
+//! `mpi` feature enables MPI communication types. Python bindings are provided by the separate
+//! `tantale_python` crate and are not part of `tantale_core`.
 //!
-//! ## Feature flags
+//! ## Architecture
 //!
-//! - `mpi`: Enables MPI-based distributed execution and related utilities.
+//! A problem connects an input model, a function, and the interpretation of
+//! that function's output:
 //!
-//! ## Dependencies and integration
+//! 1. A [`Domain`] defines valid values. A [`Var`] pairs the function-facing
+//!    domain with the optimizer-facing domain. When those representations
+//!    differ, [`Onto`] maps between them.
+//! 2. A [`Searchspace`] collects variables and samples or maps complete
+//!    candidate inputs. [`Sp`] is the standard implementation.
+//! 3. An [`Outcome`] contains the raw result of evaluating a candidate. Its
+//!    [`Codomain`] extracts objective values, constraints, or cost. A
+//!    single-objective result and a multi-objective result use different
+//!    codomain types.
+//! 4. A [`Problem`] groups the search space and function. [`Pb`] is the
+//!    general implementation; [`SimplePb`] and [`FidPb`] are aliases for
+//!    one-step and multi-fidelity problems.
+//! 5. A [`Sampler`] proposes candidates and receives computed solutions to
+//!    update its state. Algorithms such as random search are provided by
+//!    `tantale_algos`; the core crate defines the interface, not a separate
+//!    samplers.
+//! 6. An [`Experiment`] runs a problem with a sampler and a [`Stop`] criterion.
+//!    [`ParExperiment`] uses a [`utils::Communicator`] to coordinate workers. The
+//!    [`ThreadCommunicator`] implementation is available without features;
+//!    MPI communication types require `mpi`.
 //!
-//! Tantale core relies on a few external crates:
-//! - `serde`: Most core types implement [`Serialize`] and
-//!   [`Deserialize`] to support checkpointing.
-//! - `rand`: Domains and samplers use RNG traits to generate valid values.
-//! - `mpi` (optional): Distributed experiments are enabled behind the `mpi`
-//!   feature flag and expose MPI-specific execution helpers.
-//! - `rayon`: Parallel evaluation and orchestration in multi-threaded runs. Used in synchrnous batched optimization, and [`SpPar`] utilities.
-//! - `csv`: CSV-backed [`Recorder`], with [`CSVRecorder`] as the main implementation.
-//! - `rmp-serde`: MessagePack serialization used by the default checkpointer. Used by [`MessagePack`] for compact checkpointing of experiment state.
-//! - `bincode`: Compact binary serialization for checkpointing and transport.
-//!   Used by MPI-distributed optimization to create messages from [`Uncomputed`] and [`Outcome`].
-//! - `bitvec`: Efficient bit-level storage in domain and solution utilities.
-//!   Used by MPI-distributed optimization within [`IdleWorker`](crate::experiment::mpi::utils::IdleWorker) to track idle workers.
-//! - `num_cpus`: Detects available CPU cores to size thread pools. Used in multi-threaded execution contexts, for asynchrnous multi-threaded optimization, to determine pool size of threads.
-//! - `indexmap`: Provides a hashmap preserving iteration order. It used to managa
-//!   function states, for FIFO discarding of old states to save memory.
+//! Experiment results are collected in a codomain-specific accumulator. A
+//! single-objective problem keeps its best result; multi-objective problems
+//! maintain a Pareto set.
 //!
-//! ## Examples
+//! ## Main modules
 //!
-//! ### Define a searchspace with `objective!`
+//! - [`domain`]: input domains, domain mappings, and objective codomains.
+//! - [`distribution`]: random sampling distributions used by domains.
+//! - [`variable`]: variable definitions relating objective and optimizer domains.
+//! - [`searchspace`]: variable collections and candidate sampling/mapping.
+//! - [`solution`]: solution shapes, identifiers, metadata, and computed results.
+//! - [`objective`]: function wrappers, outcomes, and multi-fidelity steps.
+//! - [`optimizer`]: the [`Sampler`] interface and optimizer metadata.
+//! - [`stop`]: [`Calls`], [`Evaluated`], [`stop::Time`], and the [`Stop`] trait.
+//! - [`experiment`]: [`Experiment`], [`ParExperiment`], and communication.
+//! - [`recorder`]: result persistence, including [`CSVRecorder`].
+//! - [`checkpointer`]: experiment persistence, including [`MessagePack`].
+//! - [`errors`]: errors returned by recorder, checkpointer, and communication
+//!   components.
 //!
-//! The `objective!` macro builds a [`Searchspace`] and wraps a user-defined
-//! function into an [`Objective`]. The example below mirrors the evaluator
-//! pattern used in the test suite.
+//! ## Python integration
 //!
-//! The objective macro and the function must be defined within another module than the main function, to avoid issues with the generated code.
-//! The macro generates a searchspace based on the variables defined in the function body, and an objective that wraps the user function.
-//! The searchspace and objective can then be created via generated function: `my_module::get_searchspace()` and `my_module::get_function()`.
+//! The Python bridge is provided by the separate `tantale_python` crate and
+//! exposed through the facade crate's `tantale::python` module. A Rust host
+//! defines the search space and uses `init_python!` to load a Python objective
+//! and outcome class. The Python function receives a candidate solution
+//! in search-space order and returns an outcome object. The index constant is
+//! generated from the Rust search-space variable name; this example assumes a
+//! variable named `a`:
 //!
-//! ```rust
-//! use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-//! use tantale::macros::{objective, Outcome, CSVWritable};
-//! use serde::{Serialize, Deserialize};
+//! ```python
+//! from pytantale import indices as idx
 //!
-//! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
-//! struct OutExample {
-//!     #[maximize]
-//!     obj: f64,
-//!     info: f64,
+//! class Score:
+//!     def __init__(self, value: float):
+//!         self.value = value
+//!
+//!     @staticmethod
+//!     def header():
+//!         return ["value"]
+//!
+//!     def record(self):
+//!         return [str(self.value)]
+//!
+//! def objective(x: list) -> Score:
+//!     return Score(float(x[idx.A]) ** 2)
+//! ```
+//!
+//! The outcome class supplies `header()` and `record()` for CSV
+//! recording. The Rust-side `init_python!` declaration selects which outcome
+//! fields are objectives.
+//!
+//! ## Single-shot optimization
+//!
+//! The facade crate's [`objective!`](../../target/doc/macros/macro.objective.html) macro declares the variables and wraps the
+//! function. The `Outcome` derive marks which field to maximize or minimize
+//! and generates the corresponding codomain. The generated `get_problem`
+//! helper can then be passed to an experiment.
+//!
+//! This example runs random search, records CSV output, checkpoints state,
+//! and removes its temporary output directory when complete.
+//!
+//! ```
+//! use tantale::{
+//!     algos::RandomSearch,
+//!     core::{
+//!         Evaluated, CSVRecorder, 
+//!         Experiment, FolderConfig, MessagePack,
+//!         experiment::Runable,
+//!     },
+//! };
+//! 
+//! mod model {
+//!     use super::*;
+//!     use serde::{Deserialize, Serialize};
+//!     use tantale::core::{Real, Uniform};
+//!     use tantale::macros::{objective, Outcome, Recordable, Schema};
+//! 
+//!     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+//!     pub struct Score {
+//!         #[maximize]
+//!         pub value: f64,
+//!     }
+//!
+//!     objective!(
+//!         pub fn quadratic() -> Score {
+//!             let x = [! x | Real(-2.0, 2.0, Uniform) | !];
+//!             Score {
+//!                 value: -(x - 0.25).powi(2),
+//!             }
+//!         }
+//!     );
 //! }
+//! let problem = model::get_problem();
+//! let config = FolderConfig::new("tmp_test_quadratic");
+//! let recorder = CSVRecorder::new(config.clone());
+//! let checkpointer = MessagePack::new(config);
+//! 
+//! let experiment = Experiment::new(
+//!     problem,
+//!     RandomSearch::new(),
+//!     Evaluated::new(8),
+//!     recorder,
+//!     checkpointer,
+//! );
+//! let results = experiment.run();
+//! let best = results.best.expect("No best solution found");
+//! println!("Best solution: {:?}", best);
+//! # std::fs::remove_dir_all("tmp_test_quadratic").expect("Failed to remove temporary directory");
+//! ```
 //!
-//! objective!(
-//!     pub fn example() -> OutExample {
-//!         let _a = [! a | Int(0,100, Uniform) | !];
-//!         let _b = [! b | Nat(0,100, Uniform) | !];
-//!         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-//!         let _d = [! d | Bool(Bernoulli(0.5)) | !];
-//!         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-//!         // ... more variables and computation ...
-//!         OutExample{
-//!             obj: e,
-//!             info: [! f | Real(10.0,20.0, Uniform) | !],
+//! ## Multi-fidelity objectives
+//!
+//! A multi-fidelity function returns `(Outcome, State)` and marks the outcome's
+//! [`Step`] field with `#[step]`. On a later evaluation of that candidate,
+//! `[! STATE !]` provides the state returned by the previous call. Implement
+//! [`FuncState`] to save and load that state when checkpointing is needed.
+//! Unlike `Outcome`, `FuncState` does not prescribe a serialization format;
+//! its `save` and `load` methods return `std::io::Result`.
+//!
+//! ```no_run
+//!
+//! mod training {
+//!     use serde::{Deserialize, Serialize};
+//!     use std::{io, path::PathBuf};
+//!     use tantale::core::{EvalStep, FidOutcome, Outcome, SingleCodomain, Step, Real, Uniform, FuncState, EmptyInfo};
+//!     use tantale::macros::{objective, Outcome, Recordable, Schema};
+//!     
+//!     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+//!     pub struct TrainingOutcome {
+//!         #[maximize]
+//!         score: f64,
+//!         #[step]
+//!         step: Step,
+//!     }
+//! 
+//!     #[derive(Serialize, Deserialize)]
+//!     pub struct TrainingState {
+//!         epochs: u32,
+//!     }
+//! 
+//!     impl FuncState for TrainingState {
+//!         fn save(&self, path: PathBuf) -> io::Result<()> {
+//!             std::fs::write(path.join("epochs"), self.epochs.to_le_bytes())
+//!         }
+//!         fn load(path: PathBuf) -> io::Result<Self> {
+//!             let bytes: [u8; 4] = std::fs::read(path.join("epochs"))?
+//!                 .try_into()
+//!                 .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid epoch state"))?;
+//!             Ok(Self {
+//!                 epochs: u32::from_le_bytes(bytes),
+//!             })
 //!         }
 //!     }
-//! );
+//! 
+//!     objective!(
+//!         pub fn train() -> (TrainingOutcome, TrainingState) {
+//!             let learning_rate = [! learning_rate | Real(0.001, 0.1, Uniform) | !];
+//!             let mut state = [! STATE !].unwrap_or(TrainingState { epochs: 0 });
+//!             state.epochs += 1;
 //!
-//! // The macro expands to helpers like:
-//! // let sp = example::get_searchspace();
-//! // let obj = example::get_function();
+//!             let step = if state.epochs == 3 {
+//!                 Step::Evaluated
+//!             } else {
+//!                 Step::Partially(state.epochs as isize)
+//!             };
+//!             (
+//!                 TrainingOutcome {
+//!                     score: -learning_rate,
+//!                     step,
+//!                 },
+//!                 state,
+//!             )
+//!         }
+//!     );
+//! }
+//! 
+//! // The EmptyInfo type is unecessary when problem is combined with a sampler and run, allowing the compiler to infer the type.
+//! // It is included here for clarity.
+//! let _problem = training::get_problem::<tantale::core::EmptyInfo>();
 //! ```
 //!
-//! ### Define a searchspace with `objective!` for [`Stepped`] function
+//! ## Parallel execution
 //!
-//! [`Stepped`] functions is similar to [`Objective`] except that the user-defined function
-//! can be evaluated by [`Step`]. Hence, the function must maintain an internal state that is updated at each step.
-//! To trigger the wrapping within a [`Stepped`] objective, the user must defined an [`Outcome`] containing a [`Step`].
+//! `ParExperiment` takes the same problem, sampler, stop criterion, recorder,
+//! and checkpointer as `Experiment`, plus a communicator.
+//! This example uses the thread communicator. For process-based distributed
+//! execution, enable `mpi` and use the MPI communicator APIs after initializing
+//! the MPI environment.
 //!
-//! First, the user defines the function state by implementing the [`FuncState`] trait,
-//! which requires implementing the `save` and `load` methods for checkpointing.
-//! Then, the user defines an outcome struct that contains a field of type `Step`.
-//! Finally, the user can use the `objective!` macro to define the function, and manage the internal state and evaluation step within the function body.
+//! ```no_run
+//! use tantale::{
+//!     algos::RandomSearch,
+//!     core::{
+//!         Evaluated, CSVRecorder, FolderConfig, MessagePack, ParExperiment,
+//!         experiment::{Runable, ThreadCommunicator},
+//!         Outcome,
+//!     },
+//! };
+//! use serde::{Deserialize, Serialize};
+//! use tantale::macros::{Outcome, objective, Recordable, Schema};
 //!
-//! ```rust
-//! use tantale::core::{FuncState, Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-//! use tantale::macros::{objective, Outcome, CSVWritable};
-//! use serde::{Serialize, Deserialize};
+//! mod model {
+//!     use super::*;
+//!     use serde::{Deserialize, Serialize};
+//!     use tantale::core::{Real, Uniform};
+//!     use tantale::macros::{Outcome, objective, Recordable, Schema};
 //!
-//! #[derive(Outcome, CSVWritable, Debug, Serialize, Deserialize)]
-//! struct OutExample {
-//!     #[maximize]
-//!     obj: f64,
-//!     info: f64,
-//!     #[step]
-//!     step: Step,
-//! }
-//!
-//! #[derive(Serialize, Deserialize)]
-//! pub struct FnState {
-//!     pub something: isize,
-//! }
-//!
-//! // The user must implement the saving and loading logic of the function state,
-//! // to enable checkpointing of the internal state of the function.
-//! // The input is a folder path where the checkpoint is stored, and the user can decide how to serialize the state (e.g., using rmp_serde or bincode).
-//! impl FuncState for FnState {
-//!    fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
-//!        let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
-//!        rmp_serde::encode::write(&mut file, &self).unwrap();
-//!        Ok(())
-//!    }
-//!    fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
-//!        let file_path = path.join("fn_state.mp");
-//!        let file = std::fs::File::open(file_path)?;
-//!        let state = rmp_serde::decode::from_read(file).unwrap();
-//!        Ok(state)
-//!    }
-//! }
-//!
-//! objective!(
-//!     pub fn example() -> (OutExample, FnState) {
-//!         let _a = [! a | Int(0,100, Uniform) | !];
-//!         let _b = [! b | Nat(0,100, Uniform) | !];
-//!         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-//!         let _d = [! d | Bool(Bernoulli(0.5)) | !];
-//!         let e = [! e | Real(1e-4, 1e-1, Uniform) | Log !];
-//!         // ... more variables and computation ...
-//!         
-//!         // Manage the internal state
-//!         let mut state = if let Some(s) = [! STATE !] {
-//!             s
-//!         } else {
-//!             FnState { something: 0 }
-//!         };
-//!         state.something += 1;
-//!         let evalstep = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
-//!         
-//!         (
-//!             OutExample{
-//!                 obj: e,
-//!                 info: [! f | Real(10.0,20.0, Uniform) | !],
-//!                 step: evalstep,
-//!             },
-//!             state
-//!         )
+//!     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+//!     pub struct Score {
+//!         #[maximize]
+//!         pub value: f64,
 //!     }
+//!
+//!     objective!(
+//!         pub fn quadratic() -> Score {
+//!             let x = [! x | Real(-2.0, 2.0, Uniform) | !];
+//!             Score {
+//!                 value: -(x - 0.25).powi(2),
+//!             }
+//!         }
+//!     );
+//! }
+//!
+//! let problem = model::get_problem();
+//! let config = FolderConfig::new("threaded-run");
+//! let experiment = ParExperiment::new(
+//!     problem,
+//!     RandomSearch::new(),
+//!     Evaluated::new(32),
+//!     CSVRecorder::new(config.clone()),
+//!     MessagePack::new(config),
+//!     ThreadCommunicator::new(),
 //! );
+//! let _results = experiment.run();
 //! ```
 //!
-//! ### Batch run with checkpointing (mono)
+//! ## Configuration, stopping, and persistence
 //!
-//! ```rust,ignore
-//! use tantale::core::{
-//!     CSVRecorder, FolderConfig, MessagePack, Objective, SingleCodomain,
-//!     experiment::{Runable, mono}, stop::Calls,
-//! };
-//! use tantale::algos::BatchRandomSearch;
+//! [`FolderConfig::new`] gives paths for the run, recorder, and checkpointer;
+//! the experiment components create their output directories when initialized.
+//! [`CSVRecorder::new`] enables CSV recording, and [`MessagePack::new`] enables
+//! MessagePack checkpointing. Both constructors currently return `Option`.
 //!
-//! let sp = my_module::get_searchspace();
-//! let obj = my_module::get_function();
-//! let opt = BatchRandomSearch::new(7);
+//! [`Calls::new`] stops after a certain number of calls to the objective function. 
+//! [`Evaluated::new`] counts only fully evaluated candidates. [`stop::Time::new`] sets a duration limit. 
+//! Each criterion implements [`Stop`] and can be extended with its `add` method.
 //!
-//! let stop = Calls::new(50);
-//! let config = FolderConfig::new("run_batch").init();
-//! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-//! let check = MessagePack::new(config);
+//! The objective function returns an `Outcome`, not a `Result`. Recorder and
+//! checkpointer traits expose typed errors, but the experiment runner currently
+//! unwraps some lifecycle errors, so `Runable::run` does not return those
+//! errors to the caller.
 //!
-//! let exp = mono(sp, obj, opt, stop, (rec, check));
-//! exp.run();
-//! ```
+//! ## Extending the core
 //!
-//! ### Sequential run with threaded execution
-//!
-//! ```rust,ignore
-//! use tantale::core::{
-//!     CSVRecorder, FolderConfig, MessagePack, Objective,
-//!     experiment::{Runable, threaded}, stop::Calls,
-//! };
-//! use tantale::algos::RandomSearch;
-//!
-//! let sp = my_module::get_searchspace();
-//! let obj = my_module::get_function();
-//! let opt = RandomSearch::new();
-//!
-//! let stop = Calls::new(50);
-//! let config = FolderConfig::new("run_seq_threads").init();
-//! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-//! let check = MessagePack::new(config);
-//!
-//! let exp = threaded(sp, obj, opt, stop, (rec, check));
-//! exp.run();
-//! ```
-//!
-//! ### Multi-fidelity batch run
-//!
-//! ```rust,ignore
-//! use tantale::core::{
-//!     CSVRecorder, FolderConfig, MessagePack, experiment::{Runable, mono}, stop::Calls,
-//! };
-//! use tantale::algos::{random_search::RandomSearch};
-//!
-//! let sp = my_module::get_searchspace();
-//! let obj = my_module::get_function();
-//! let opt = BatchRandomSearch::new(7);
-//!
-//! let stop = Calls::new(50);
-//! let config = FolderConfig::new("run_fidelity").init();
-//! let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-//! let check = MessagePack::new(config);
-//!
-//! let exp = mono(sp, obj, opt, stop, (rec, check));
-//! exp.run();
-//! ```
+//! Implement [`Domain`] and [`Searchspace`] types to add input representations,
+//! [`Outcome`] to define an output and codomain, [`Sampler`] to add an
+//! optimization strategy, and [`Stop`], [`Recorder`], or [`Checkpointer`] to
+//! customize execution. The core types and traits are re-exported at the
+//! crate root; their defining modules provide more specific documentation.
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "mpi")]
@@ -324,7 +393,7 @@ pub use variable::var::Var;
 pub mod solution;
 pub use solution::{
     BaseSol, Computed, Fidelity, FidelitySol, Lone, Pair, ParSId, SId, Sampled, SolId, SolInfo,
-    Solution, SolutionShape, StepId, StepSId, Uncomputed,
+    Solution, SolutionShape, StepId, StepSId, Uncomputed, IntoComputedShape, UncomputedShape,
 };
 
 pub mod searchspace;

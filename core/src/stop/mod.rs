@@ -4,8 +4,8 @@
 //! optimization should terminate. Implementations receive updates via
 //! [`Stop::update`], and return their state through [`Stop::stop`].
 //!
-//! The [`ExpStep`] enum provides a minimal signal of where the experiment is in
-//! its progression: distribution, iteration, or after a [`step`](crate::BatchOptimizer::step) (see also single [`step`](crate::SingleOptimizer::step)).
+//! The [`ExpStep`] enum tells a stop criterion whether an evaluation, iteration,
+//! or sampling event has occurred.
 
 use crate::{objective::Step, utils::has_trait::HasState};
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 /// Experiment step used to update a [`Stop`] implementation.
 #[derive(Debug, Clone, Copy)]
 pub enum ExpStep {
-    /// Within an [`Evaluate`](crate::experiment::Evaluate), during evaluation of a batch or a single solution.
+    /// During evaluation of a batch or a single solution.
     Evaluation(Step),
     /// At each full optimization loop.
     Iteration,

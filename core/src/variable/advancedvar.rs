@@ -31,10 +31,10 @@ where
     ///   The name of the Var, mostly used for saving, or pass a point as a keyword.
     /// * `domobj` : [`Arc`]`<Obj>` - Accessible via the method [`domain_obj()`](Var::domain_obj).
     ///   The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`Element`](Domain::Element)`>` -
     ///   An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
     ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
-    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`Element`](Domain::Element)`>` -
     ///   An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     ///
@@ -67,10 +67,10 @@ where
     ///   The [`Domain`] of the [`Objective`](crate::core::objective::Objective) [`Domain`].
     /// * `domopt` : [`Arc`]`<Opt>` - Accessible via the method [`domain_opt()`](Var::domain_opt).
     ///   The [`Domain`] of the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
-    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// * `sampobj` : [`Option`]`<fn(&Obj, &mut `[`ThreadRng`]`) -> Obj::`[`Element`](Domain::Element)`>` -
     ///   An optional sampler function for the [`Objective`](crate::core::objective::Objective) [`Domain`].
     ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
-    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`TypeDom`](Domain::TypeDom)`>` -
+    /// * sampopt : [`Option`]`<fn(&Opt, &mut `[`ThreadRng`]`) -> Opt::`[`Element`](Domain::Element)`>` -
     ///   An optional sampler function for the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     ///   By default uses the [`sampler`](Domain::sample) of the [`Domain`].
     ///
@@ -94,7 +94,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `&Opt::`[`TypeDom`](Domain::TypeDom) - A reference to point sampled within the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] to be
+    /// * `item` : `&Opt::`[`Element`](Domain::Element) - A reference to point sampled within the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`] to be
     ///   mapped onto the [`Objective`](crate::core::objective::Objective) [`Domain`].
     ///
     /// # Example
@@ -125,7 +125,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` : `Obj::`[`TypeDom`](Domain::TypeDom) - A reference to point sampled within the [`Objective`](crate::core::objective::Objective) [`Domain`] to be
+    /// * `item` : `Obj::`[`Element`](Domain::Element) - A reference to point sampled within the [`Objective`](crate::core::objective::Objective) [`Domain`] to be
     ///   mapped onto the [`Optimizer`](crate::core::optimizer::Optimizer) [`Domain`].
     ///
     /// # Example

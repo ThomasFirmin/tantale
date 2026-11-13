@@ -151,7 +151,7 @@ impl ErrMsg for RecorderError {
 }
 err_msg!(RecorderError);
 
-/// Error type for evaluation operations from an [`Evaluator`](crate::Evaluator).
+/// Error type for objective evaluation operations.
 pub enum EvaluationError {
     NotEvaluated(String),
 }
@@ -166,6 +166,7 @@ impl ErrMsg for EvaluationError {
 }
 err_msg!(EvaluationError);
 
+/// Error type for worker operations in a distributed optimization setting.
 pub struct WorkerError(pub String);
 impl ErrMsg for WorkerError {
     fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {

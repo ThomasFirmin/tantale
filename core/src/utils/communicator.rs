@@ -319,7 +319,7 @@ impl Communicator for NoCommunicator {
 pub struct Peers(pub BitBox, pub BitBox);
 
 impl Peers {
-    /// Create a new [`IdlePeers`]. All worker are set to idle (`true`).
+    /// Create a new [`Peers`] tracker. All workers are set to idle (`true`).
     pub fn new(size: usize) -> Self {
         let mut r = Peers(bitbox![1; size], bitbox![0; size]);
         r.set_busy(0); // The master is always busy
@@ -330,7 +330,7 @@ impl Peers {
     pub fn has_idle(&self) -> bool {
         self.0
             .iter()
-            .by_vals() // Itère efficacement par valeur (bool)
+            .by_vals() // Iterate efficiently by value (bool)
             .zip(self.1.iter().by_vals())
             .any(|(is_available, is_dead)| is_available && !is_dead)
     }
@@ -338,7 +338,7 @@ impl Peers {
     pub fn all_idle(&self) -> bool {
         self.0
             .iter()
-            .by_vals() // Itère efficacement par valeur (bool)
+            .by_vals() // Iterate efficiently by value (bool)
             .zip(self.1.iter().by_vals())
             .all(|(is_available, is_dead)| is_available || is_dead)
     }
@@ -364,7 +364,7 @@ impl Peers {
     pub fn first_idle(&self) -> Option<usize> {
         self.0
             .iter()
-            .by_vals() // Itère efficacement par valeur (bool)
+            .by_vals() // Iterate efficiently by value (bool)
             .zip(self.1.iter().by_vals())
             .position(|(is_available, is_dead)| is_available && !is_dead)
     }

@@ -1,83 +1,18 @@
-//! # Solution
+//! Candidate solution types and relationships.
 //!
-//! This module defines the [`Solution`] trait and related types representing candidate solutions
-//! in the optimization process. Solutions are points sampled from a [`Searchspace`](crate::Searchspace)
-//! and form the fundamental data structure manipulated by optimizers and objective functions.
+//! A solution stores a candidate's domain-specific values, identifier, and
+//! metadata. [`BaseSol`] represents an unevaluated candidate, while
+//! [`Computed`] pairs one with the codomain value produced by evaluation.
 //!
-//! ## Core Concepts
+//! [`SolutionShape`] links objective-facing and optimizer-facing solutions
+//! that represent the same candidate and share an identifier. [`Pair`] stores
+//! both representations; [`Lone`] is used when only one side is needed.
 //!
-//! ### Dual Domain Solutions
-//!
-//! Following Tantale's dual domain architecture, there are two types of solutions:
-//! - **Obj solutions**: In the objective function's domain
-//! - **Opt solutions**: In the optimizer's domain
-//!
-//! [`Twin`](Solution::twin) [`Solution`] are wrapped within a [`SolutionShape`] to maintain the relationship and bounds between both
-//! generated `Obj` and `Opt` [`Solution`]s.
-//!
-//! Each solution is statically typed by its corresponding [`Domain`].
-//!
-//! ### Solution Components
-//!
-//! A [`Solution`] consists of three essential components:
-//! 1. **Unique [`Id`]**: Identifies the solution and links [`twin`](Solution::twin) representations across domains
-//! 2. **[`Raw`](Solution::Raw) data**: The actual variable values in the domain's native type
-//! 3. **[`SolInfo`]**: Metadata associated with the solution (e.g., iteration info)
-//!
-//! ### Twin Solutions
-//!
-//! Solutions in different domains that represent the same point share an [`Id`], making them "twins":
-//! ```ignore
-//! let obj_solution = sp.sample_obj(&mut rng, info.clone());
-//! let paired = sp.onto_opt(obj_solution); // Creates twin in Opt domain
-//! assert_eq!(paired.get_obj().id(), paired.get_opt().id());
-//! ```
-//!
-//! ## Solution States
-//!
-//! Solutions progress through different states during optimization:
-//!
-//! - **[`Uncomputed`]**: Generated but not yet evaluated
-//! - **[`Computed`]**: Evaluated with an associated [`Codomain`](crate::Codomain) value
-//!
-//! The [`IntoComputed`] trait enables conversion from uncomputed to computed states.
-//!
-//! ## Multi-Fidelity Support
-//!
-//! For multi-fidelity optimization, solutions can track:
-//! - **[`Step`](crate::Step)** progress via [`HasStep`](crate::HasStep)
-//! - **[`Fidelity`]** level via [`HasFidelity`](crate::HasFidelity)
-//!
-//! This enables progressive evaluation and resource allocation strategies.
-//!
-//! ## Structured solutions
-//!
-//! Solutions can be arranged in different way:
-//! - [`Lone`]: Single-domain solution
-//! - [`Pair`]: Paired Obj/Opt solutions
-//! - [`Batch`]: Collections of [`SolutionShape`]
-//!
-//! ## Creation and Usage
-//!
-//! Solutions are typically created through [`Searchspace`](crate::Searchspace) methods:
-//! ```ignore
-//! // Sampling creates Uncomputed solutions
-//! let solution = sp.sample_opt(&mut rng, info);
-//!
-//! // Evaluation converts to Computed
-//! let outcome = objective_fn(solution.get_x());
-//! let computed = solution.into_computed(Arc::new(outcome));
-//! ```
-//!
-//! ## See Also
-//!
-//! - [`Searchspace`](crate::Searchspace) - Creates and manages solutions
-//! - [`Domain`] - Defines solution value types
-//! - [`Codomain`](crate::Codomain) - Defines evaluation result types
-//! - [`Id`] - Solution identifier types
-//! - [`BaseSol`] - Concrete solution implementations
-//! - [`Computed`] - Evaluated solution wrappers
-//!
+//! For multi-fidelity evaluation, [`FidelitySol`] additionally stores a
+//! fidelity budget and evaluation [`Step`](crate::objective::Step). The
+//! [`Searchspace`](crate::Searchspace) API creates, samples, and maps
+//! solutions. See the crate-level documentation for complete, tested usage
+//! examples.
 
 use crate::{
     HasId, HasInfo, HasX, Outcome,
@@ -160,33 +95,11 @@ impl<I: SolInfo> Sampled<I> {
     }
 }
 
-/// Core trait representing a candidate solution in the optimization process.
+/// Core trait representing a candidate solution.
 ///
-/// [`Solution`] is the fundamental abstraction for points in the search space. It combines
-/// a unique identifier ([`Id`]), variable values ([`Raw`](Solution::Raw)), and metadata
-/// ([`SolInfo`]), with full serialization support for checkpointing.
-///
-/// # Associated Types
-///
-/// ## [`Raw`](Solution::Raw)
-///
-/// The native representation of variable values in this domain. The type depends on the [`Domain`]:
-/// - [`Real`](crate::Real): `f64`
-/// - [`Nat`](crate::Nat): `i64`
-/// - [`Cat`](crate::Cat): `String``
-/// - [`Mixed`](crate::Mixed): [`MixedTypeDom`](crate::MixedTypeDom) (heterogeneous values)
-///
-/// ## [`Twin`](Solution::Twin)
-///
-/// The solution type in an alternative domain `B`. Twin solutions share the same [`Id`]
-/// but have different [`Raw`](Solution::Raw) representations, enabling domain transformations while
-/// maintaining solution identity.
-///
-/// # Concrete Implementations
-///
-/// - [`BaseSol`] - Standard solution implementation
-/// - [`FidelitySol`] - With fidelity support
-/// - [`Computed`] - Wrapper for evaluated solutions
+/// A solution identifies its [`Domain`] and metadata type. The associated raw
+/// values are provided by [`HasX`], and the identifier is provided by
+/// [`HasId`].
 pub trait Solution:
     Debug + Send + Sync + Clone + HasX + HasId + HasInfo + Serialize + for<'de> Deserialize<'de>
 {
@@ -200,38 +113,17 @@ pub trait Solution:
 
 /// Trait for solutions that have not yet been evaluated.
 ///
-/// [`Uncomputed`] represents solutions generated by sampling or optimization but not yet
-/// evaluated by the objective function. These solutions can be converted to [`Computed`]
-/// solutions via the [`IntoComputed`] trait and a [`TypeCodom`](crate::Codomain::TypeCodom).
-///
-/// # Type Parameters
-///
-/// * `SolId` - The unique identifier type
-/// * `Dom` - The domain defining variable types and constraints
-/// * `SInfo` - The solution metadata type
-///
-/// # Lifecycle
-///
-/// ```text
-///        Uncomputed --[evaluate]-> Computed
-///              ^                       |
-///              |                       |
-/// TypeCodom <--+------[extract]--------+
-/// ```
-///
-/// # Builder methods
-///
-/// [`Uncomputed`] provides multiple ways to create solutions:
-/// - [`new`](Uncomputed::new) - From explicit values
-/// - [`default`](Uncomputed::default) - Placeholder with zero/default values
-/// - [`default_vec`](Uncomputed::default_vec) - Batch of placeholders
+/// Sampling and searchspace operations create uncomputed solutions. They can
+/// be paired with an objective codomain value using [`Uncomputed::into_computed`].
+/// The constructors also support default-valued placeholders and batches of
+/// placeholders.
 pub trait Uncomputed: Solution {
     /// Creates a new uncomputed solution with specified values.
     ///
     /// # Parameters
     ///
     /// * `id` - Unique identifier for this solution
-    /// * `x` - Variable values (convertible to [`Raw`](Solution::Raw))
+    /// * `x` - Variable values convertible to the solution raw-value type
     /// * `info` - Solution metadata
     ///
     /// # Returns
@@ -299,4 +191,4 @@ pub use computed::Computed;
 // pub use batchtype::{Batch, OutBatch};
 
 pub mod shape;
-pub use shape::{Lone, Pair, SolutionShape};
+pub use shape::{Lone, Pair, SolutionShape, IntoComputedShape, UncomputedShape};

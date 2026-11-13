@@ -1,48 +1,15 @@
-//! # Optimizers
+//! Sampling interfaces for optimization algorithms.
 //!
-//! This module provides the public optimizer abstractions and re-exports the core optimizer
-//! traits and types from the [`opt`] submodule.
+//! The [`Sampler`] trait proposes candidate solutions for a [`Problem`](crate::Problem),
+//! receives evaluated candidates, and maintains the state needed by an
+//! experiment. [`Batched`](opt::Batched) extends it with batch operations.
+//! This crate defines these interfaces; ready-made algorithms are provided
+//! by companion crates.
+//! 
+//! The [`Prunable`] and [`Pruner`] interfaces support pruning candidate solutions.
 //!
-//! The [`Optimizer`] combined with [`Objective`](crate::Objective) and [`Searchspace`](crate::Searchspace) defines the core optimization loop:
-//!
-//! $$ x^\star \in \arg\min_{x \in \mathcal{X}} f(x)\enspace, $$
-//! where:
-//! * $x^\star$ is the optimal [`Solution`](crate::Solution), or the best-solution
-//!   so-far found by the [`Optimizer`]
-//! * $\mathcal{X}$ is the [`Searchspace`](crate::Searchspace)
-//! * $f$ is the user-define function wrapped in [`Objective`](crate::Objective) or [`Stepped`](crate::Stepped)
-//!
-//! ## Overview
-//!
-//! Optimizers are responsible for proposing new candidate solutions and updating their
-//! internal state based on evaluated results. Tantale distinguishes between two execution
-//! styles:
-//!
-//! - **Single optimization**: generates one solution at a time
-//! - **Batch optimization**: generates a batch of solutions at each step
-//!
-//! These styles are captured by the [`SingleOptimizer`] and [`BatchOptimizer`] traits.
-//!
-//! ## Core Traits
-//!
-//! - [`Optimizer`] - Base trait implemented by all optimizers
-//! - [`SingleOptimizer`] - Optimizers that produce a single solution per step
-//! - [`BatchOptimizer`] - Optimizers that produce a batch of solutions per step
-//!
-//! ## State and Metadata
-//!
-//! - [`State`](crate::State) - Serializable state used for checkpointing
-//! - [`EmptyInfo`] - Default empty metadata type
-//!
-//! ## Integration Points
-//!
-//! Optimizers integrate with:
-//! - [`Searchspace`](crate::searchspace::Searchspace) for solution types
-//! - [`Objective`](crate::objective::Objective) for evaluation
-//! - [`Checkpointer`](crate::Checkpointer) for state persistence
-//! - [`Runable`](crate::experiment::Runable) for execution control
-//!
-//! See the [`opt`] submodule for trait definitions and details.
+//! See the crate-level documentation for how samplers interact with problems
+//! and experiment runners.
 
 pub mod opt;
 pub use opt::{EmptyInfo, Prunable, Pruner, Sampler};

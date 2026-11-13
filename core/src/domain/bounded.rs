@@ -248,7 +248,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -336,7 +336,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
     ///
     /// # Errors
@@ -375,7 +375,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
     ///
     /// # Errors
@@ -430,7 +430,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -478,7 +478,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
