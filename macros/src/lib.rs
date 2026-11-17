@@ -38,8 +38,6 @@
 //!
 //! ## Features
 //!
-//! - `spikes` enables the `#[samples]` and `#[spiking]` attributes on
-//!   `Outcome` fields.
 //! - `py` enables the [`pyhpo!`] macro. In the facade crate this is enabled by
 //!   the `py` feature.
 //! - `mpi` is provided for feature alignment with the other Tantale crates;
@@ -117,7 +115,6 @@ pub(crate) fn schema_crate_path() -> TokenStream {
     }
 }
 
-#[cfg(not(feature = "spikes"))]
 /// Derives `tantale_core::Outcome` from a named-field result struct.
 ///
 /// At least one field must be marked `#[maximize]` or `#[minimize]`; marked
@@ -151,55 +148,6 @@ pub(crate) fn schema_crate_path() -> TokenStream {
 /// }
 /// ```
 #[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step))]
-pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    outcome::proc_outcome(input)
-}
-
-#[cfg(feature = "spikes")]
-/// Derives `tantale_core::Outcome` from a named-field result struct.
-///
-/// At least one field must be marked `#[maximize]` or `#[minimize]`; marked
-/// objective fields must be `f64`. Minimization objectives are negated when
-/// constructing the codomain. Multiple objective fields define a
-/// multi-objective result.
-///
-/// Optional field attributes are:
-///
-/// - `#[constraint]` on an `f64` field to add a constraint.
-/// - `#[cost]` on one `f64` field to provide evaluation cost.
-/// - `#[step]` on one `tantale::core::Step` field to implement fidelity-step
-///   tracking.
-/// - `#[samples]` on a `usize` field for the total sample count.
-/// - `#[spiking]` on a `usize` field for the spiking sample count.
-///
-/// The struct must have named fields and must not have generic parameters.
-/// An outcome type must also implement `Schema`, `Recordable`, `Serialize`,
-/// and `Deserialize`; derive those alongside `Outcome`.
-///
-/// The spike-specific codomain is enabled when both fields are present.
-/// 
-/// ```
-/// use serde::{Deserialize, Serialize};
-/// use tantale::macros::{Outcome, Recordable, Schema};
-///
-/// #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
-/// struct Metrics {
-///     #[minimize]
-///     loss: f64,
-///     #[constraint]
-///     max_latency: f64,
-///     #[cost]
-///     training_seconds: f64,
-/// }
-/// ```
-/// Derives `tantale_core::Outcome` and fidelity tracking from an outcome
-/// struct. It accepts the same attributes and field requirements as the
-/// default-feature version, with two additional attributes:
-///
-#[proc_macro_derive(
-    Outcome,
-    attributes(maximize, minimize, constraint, cost, step, samples, spiking)
-)]
 pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }

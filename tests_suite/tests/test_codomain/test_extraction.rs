@@ -40,11 +40,7 @@ test_const!(
     outcodconst, OutCodConst;
     outcodcostconst, OutCodCostConst;
     outcodconstmulti, OutCodConstMulti;
-    outcodcostconstmulti, OutCodCostConstMulti;
-    outspikecodconst, OutSpikeCodConst;
-    outspikecodcostconst, OutSpikeCodCostConst;
-    outspikecodconstmulti, OutSpikeCodConstMulti;
-    outspikecodcostconstmulti, OutSpikeCodCostConstMulti
+    outcodcostconstmulti, OutCodCostConstMulti
 );
 
 macro_rules! test_cost {
@@ -83,11 +79,7 @@ test_cost!(
     outcodcost, OutCodCost;
     outcodcostconst, OutCodCostConst;
     outcodcostmulti, OutCodCostMulti;
-    outcodcostconstmulti, OutCodCostConstMulti;
-    outspikecodcost, OutSpikeCodCost;
-    outspikecodcostconst, OutSpikeCodCostConst;
-    outspikecodcostmulti, OutSpikeCodCostMulti;
-    outspikecodcostconstmulti, OutSpikeCodCostConstMulti
+    outcodcostconstmulti, OutCodCostConstMulti
 );
 
 macro_rules! test_single {
@@ -126,11 +118,7 @@ test_single!(
     outcodsingle , OutCodSingle;
     outcodcost , OutCodCost;
     outcodconst , OutCodConst;
-    outcodcostconst , OutCodCostConst;
-    outspikecodsingle , OutSpikeCodSingle;
-    outspikecodcost , OutSpikeCodCost;
-    outspikecodconst , OutSpikeCodConst;
-    outspikecodcostconst , OutSpikeCodCostConst
+    outcodcostconst , OutCodCostConst
 );
 
 macro_rules! test_multi {
@@ -172,9 +160,5 @@ test_multi!(
     outcodmulti , OutCodMulti;
     outcodcostmulti , OutCodCostMulti;
     outcodconstmulti , OutCodConstMulti;
-    outcodcostconstmulti , OutCodCostConstMulti;
-    outspikecodmulti , OutSpikeCodMulti;
-    outspikecodcostmulti , OutSpikeCodCostMulti;
-    outspikecodconstmulti , OutSpikeCodConstMulti;
-    outspikecodcostconstmulti , OutSpikeCodCostConstMulti
+    outcodcostconstmulti , OutCodCostConstMulti
 );

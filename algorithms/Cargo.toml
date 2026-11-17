@@ -28,7 +28,6 @@ wfg_rs = "1.0.2"
 [features]
 mpi = ["tantale_core/mpi"]
 bayes = ["dep:statrs"]
-spikes = ["bayes"]
 
 [dev-dependencies]
 tantale = { path = "..", package = "tantale" }

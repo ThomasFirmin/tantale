@@ -30,5 +30,3 @@ pub mod test_tpe_splitter;
 pub mod test_tpe_weighter;
 
 pub mod test_motpe;
-
-pub mod test_safe_tpe;

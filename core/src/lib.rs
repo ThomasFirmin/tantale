@@ -432,10 +432,5 @@ pub use utils::{
     Schema, State, XToNdArray, Xy, YToNdArray, aliases,
 };
 
-#[cfg(feature = "spikes")]
-pub mod spikes;
-#[cfg(feature = "spikes")]
-pub use spikes::*;
-
 pub mod problem;
 pub use problem::{FidPb, Pb, Problem, SimplePb};

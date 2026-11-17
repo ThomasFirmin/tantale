@@ -34,7 +34,6 @@ chrono = "0.4.45"
 
 [features]
 mpi = ["dep:mpi"]
-spikes = []
 
 [dev-dependencies]
 tantale = { path = "..", package = "tantale" }

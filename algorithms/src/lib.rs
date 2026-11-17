@@ -172,9 +172,6 @@ pub use bayesian::{
     weighter::UniformWeighter,
 };
 
-#[cfg(feature = "spikes")]
-pub mod spikes;
-
 pub mod nopruner;
 pub use nopruner::NoPruner;
 
