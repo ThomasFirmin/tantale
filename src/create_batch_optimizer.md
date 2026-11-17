@@ -4,12 +4,12 @@ This guide follows the batched hill-climbing sampler in
 `examples/examples/create_batch_optimizer.rs`. It generates a group
 (batch) of candidates around the current best optimizer-side candidate,
 returns them out one at a time, and waits until every candidate of the batch has
-been evaluated before generating the next batch. It assumes a `Unit`
+been evaluated before generating the next batch. It assumes a [`Unit`](crate::core::Unit)
 optimizer domain and a single-objective accumulator, like the
 [sequential sampler](crate::docs::CreateSingleSolutionSampler).
 
-The runner only ever calls `Sampler::sample_info` (one candidate per call)
-and `Sampler::update` (one evaluated candidate per call). A batched sampler is
+The runner only ever calls [`Sampler::sample_info`](crate::core::Sampler::sample_info) (one candidate per call)
+and [`Sampler::update`](crate::core::Sampler::update) (one evaluated candidate per call). A batched sampler is
 therefore a sampler that keeps an internal queue: it fills the queue, pops
 candidates from it, and uses `None` to tell the runner that no candidate is
 available yet. In a parallel experiment, workers that find no candidate
@@ -17,8 +17,8 @@ simply wait; this is how a batch acts as a synchronization point.
 
 ## Metadata and checkpointable state
 
-As in the sequential guide, `SolInfo` metadata is attached to each candidate
-and the sampler's own state is checkpointed through `State` and `HasState`.
+As in the sequential guide, [`SolInfo`](crate::core::SolInfo) metadata is attached to each candidate
+and the sampler's own state is checkpointed through [`State`](crate::core::State) and [`HasState`](crate::core::HasState).
 The difference is that the state now contains candidates:
 
 - `iterations`: number of batches generated so far.
@@ -113,12 +113,12 @@ lost, and `pending` keeps the batch synchronization consistent.
 
 ## Serving candidates and building batches
 
-The `Sampler` implementation has three cases in `sample_info`, checked in
+The [`Sampler`](crate::core::Sampler) implementation has three cases in `sample_info`, checked in
 this order:
 
 1. The queue is not empty: pop a candidate, count it as pending, return it.
    Its metadata was created when the batch was generated, so it is returned
-   as is (`ShapeWithInfo` converts into the expected return value).
+   as is ([`ShapeWithInfo`](crate::core::utils::ShapeWithInfo) converts into the expected return value).
 2. The queue is empty but `pending > 0`: return `None`. The previous batch is
    still being evaluated.
 3. The queue is empty and nothing is pending: build a new batch from the
@@ -243,7 +243,7 @@ Points to note:
 
 ## The `Batched` trait
 
-The example also implements `Batched<P, Unit>` (same `basic_bounds` and
+The example also implements `Batched<P, Unit>` (same [`basic_bounds`](crate::macros::basic_bounds) and
 `where` clauses as the sampler). The trait exposes the queues to the rest of
 the library and requires:
 
@@ -254,7 +254,7 @@ the library and requires:
 
 On top of these, the trait provides `add_to_batch`, `pop_from_batch`,
 `add_to_comp_batch` and `pop_from_comp_batch`. Each accessor simply returns
-the matching field. `BatchRandomSearch` is another implementor, backed by its
+the matching field. [`BatchRandomSearch`](crate::algos::BatchRandomSearch) is another implementor, backed by its
 `batch_uncomputed` and `batch_computed` fields. The example imports the trait
 from `tantale::core::optimizer::opt::Batched`; the sampler logic above works
 without it, so implement it when the queue must be reachable through the trait.
@@ -385,7 +385,7 @@ This block is reviewed against the example only; the example itself compiles
 Supply a problem whose optimizer domain is `Unit`, instantiate
 `BatchedHillClimbing::new(batch_size)` and pass both to
 `Experiment::new(problem, sampler, stop, recorder, checkpointer)`, or to
-`ParExperiment` for threaded or MPI runs, where several candidates of a batch
+[`ParExperiment`](crate::core::ParExperiment) for threaded or MPI runs, where several candidates of a batch
 are evaluated at the same time and idle workers wait on `None`. The problem's
 solution metadata type must match `BHCInfo`; type inference normally
 determines it from the sampler. The source example has an empty `main`; it

@@ -17,19 +17,19 @@ accumulator maintain a Pareto set rather than a single best value.
 - **Fidelity** is the `f64` budget supplied by the sampler to this call. Its
   units are chosen by the objective: epochs in the example below.
 - **Step** is the status returned by the objective. `Step::Partially(n)`
-  reports a positive integer progress marker, `Step::Evaluated` marks
-  completion, `Step::Pending` means not yet evaluated, and `Step::Discard`
+  reports a positive integer progress marker, [`Step::Evaluated`](crate::core::Step::Evaluated) marks
+  completion, [`Step::Pending`](crate::core::Step::Pending) means not yet evaluated, and [`Step::Discard`](crate::core::Step::Discard)
   discards the evaluation. The integer marker is not automatically the
   floating-point fidelity.
 - **Function state** is per-candidate data returned by one evaluation and
   passed back on a later promotion. A training objective would save model and
-  optimizer state and the completed epoch count; it must implement `FuncState`
+  optimizer state and the completed epoch count; it must implement [`FuncState`](crate::core::FuncState)
   for checkpointing. For example, a function state could be the weights and biases
   of a neural network.
 
 MO-ASHA expects a partial step below the maximum budget and an evaluated step
-at the maximum. `Calls` counts partial and completed evaluations, whereas
-`Evaluated` counts completed ones. Parallel runs may already have work in
+at the maximum. [`Calls`](crate::core::Calls) counts partial and completed evaluations, whereas
+[`Evaluated`](crate::core::Evaluated) counts completed ones. Parallel runs may already have work in
 flight when a stop condition is reached.
 
 ## A complete example

@@ -288,9 +288,9 @@ pub struct Output {
 ```
 
 #### Notes
-- `Schema` and `Recordable` (from `tantale::macros`) describe how the outcome is written by recorders such as `CSVRecorder`. They replace the former `CSVWritable` derive. Every field must be recordable.
-- `Outcome` also requires `Debug`, `Serialize` and `Deserialize`.
-- `#[step]` marks the field holding the `Step` returned by each call. Its presence is what makes the function multi-step.
+- [`Schema`](crate::macros::Schema) and [`Recordable`](crate::macros::Recordable) (from `tantale::macros`) describe how the outcome is written by recorders such as [`CSVRecorder`](crate::core::CSVRecorder). They replace the former `CSVWritable` derive. Every field must be recordable.
+- [`Outcome`](crate::core::Outcome) also requires `Debug`, `Serialize` and `Deserialize`.
+- `#[step]` marks the field holding the [`Step`](crate::core::Step) returned by each call. Its presence is what makes the function multi-step.
 - This outcome only holds plain numbers, so it is automatically `Send` and `Sync`: no `unsafe impl` is needed.
 
 ### Function state
@@ -340,14 +340,14 @@ impl<B: Backend> FuncState for ModelState<B> {
 ```
 
 #### Notes
-- `FuncState` only requires `save` and `load` (and `Sized`). With `PoolMode::Persistent`, Tantale calls `save` when a partially evaluated solution is parked and `load` when the solution is resumed, possibly on another worker. The folder is shared between workers through the persistent storage.
-- With `PoolMode::InMemory` (the default), the state is kept in memory and `save`/`load` are only used for checkpoints.
+- [`FuncState`](crate::core::FuncState) only requires `save` and `load` (and `Sized`). With [`PoolMode::Persistent`](crate::core::PoolMode::Persistent), Tantale calls `save` when a partially evaluated solution is parked and `load` when the solution is resumed, possibly on another worker. The folder is shared between workers through the persistent storage.
+- With [`PoolMode::InMemory`](crate::core::PoolMode::InMemory) (the default), the state is kept in memory and `save`/`load` are only used for checkpoints.
 - This tutorial has not been compiled against a Burn version. Check that your backend types satisfy the bounds required by your experiment (threaded runs need `Send` for what the workers hold).
 
 ### Joint searchspace and training loop
 
 Finally, we jointly define the searchspace and the training loop (function to optimize) using the [`objective!`](crate::macros::objective) procedural macro.
-The macro generates, in the surrounding module, `get_searchspace`, `get_function` and `get_problem`. The main file only needs `get_problem`, which bundles the searchspace and the function into a single `Pb` problem.
+The macro generates, in the surrounding module, `get_searchspace`, `get_function` and `get_problem`. The main file only needs `get_problem`, which bundles the searchspace and the function into a single [`Pb`](crate::core::Pb) problem.
 We use 3 keywords:
 - `[! STATE !]` - `ModelState` : retrieve the previous function state
 - `[! FIDELITY !]` - `f64` : retrieve the current fidelity
@@ -369,8 +369,8 @@ Let's break down the content of the macros.
 
 #### Function definition
 
-We define a no-parameter objective function. It must not be generic over the backend: the macro-generated `FuncType` and `PbType` aliases do not carry the function's own generics, so a generic state type such as `ModelState<B>` does not compile inside `objective!`. We therefore fix the backend with a type alias (`MyBackend`) placed before the macro. The macro only adds an `Info: SolInfo` type parameter to the generated `get_function` and `get_problem`.
-The function returns a tuple `(Outcome, FuncState)`, here `(Output, ModelState<Autodiff<MyBackend>>)`. This tuple form makes it a `MultiStep` function, and `[! FIDELITY !]` and `[! STATE !]` become available.
+We define a no-parameter objective function. It must not be generic over the backend: the macro-generated `FuncType` and `PbType` aliases do not carry the function's own generics, so a generic state type such as `ModelState<B>` does not compile inside [`objective!`](crate::macros::objective). We therefore fix the backend with a type alias (`MyBackend`) placed before the macro. The macro only adds an `Info: SolInfo` type parameter to the generated `get_function` and `get_problem`.
+The function returns a tuple `(Outcome, FuncState)`, here `(Output, ModelState<Autodiff<MyBackend>>)`. This tuple form makes it a [`MultiStep`](crate::core::MultiStep) function, and `[! FIDELITY !]` and `[! STATE !]` become available.
 
 The parameters are populated later by the macro with input objective side solution, fidelity, and function state.
 ```rust,ignore
@@ -400,7 +400,7 @@ Some(s) => (s.config, s.model.to_device(&device)),
 In the latter case, we create a new `MyModel` conjointly with some parts of the searchspace (hyperparameter to optimize).
 These hyperparameter are defined within a specific syntax. For instance: `[! hidden1 | Nat(10,1000, Uniform) | !]`
 described the number neurons within the first hidden layer. It is a natural hyperparameter named `hidden1` within the range $\[10;1000\]$, and sampled
-using a `Uniform` law. MO-ASHA is independent of the type of the domains. It only requires them to be samplable.
+using a [`Uniform`](crate::core::Uniform) law. MO-ASHA is independent of the type of the domains. It only requires them to be samplable.
 Therefore, there is no need to define an optimizer part.
 For example, for an optimizer only working within a unit hypercube, `[! hidden1 | Nat(10,1000, Uniform) | Unit(Uniform) !]` defining a Nat to Unit and Unit to Nat mapping.
 
@@ -444,7 +444,7 @@ We then determine the [`Step`](crate::core::Step) at which the evaluation is:
 - Otherwise, the solution is partially evaluated:
   - [`Step::Partially(next_step as isize)`](crate::core::Step::Evaluated)
 
-In case of error we could also return `Step::Discard`.
+In case of error we could also return [`Step::Discard`](crate::core::Step::Discard).
 
 Finally we create the `Output` defined earlier, and return the `ModelState` containing updated weights and bisases:
 

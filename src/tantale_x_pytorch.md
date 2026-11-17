@@ -20,7 +20,7 @@ We consider the number of epochs a network is trained on as our budget.
 - The maximum budget of a single evaluation is **16 epochs**.
 
 We use the [`MoAsha`](mod@crate::algos::moasha) algorithm, with a **scaling factor** of 2.
-Hence, the available budgets are `[1, 2, 4, 8, 16]`. A budget is a fidelity: here, a total number of epochs. The objective is called several times for the same solution, each call resuming training from the saved `State` up to the requested epoch (see the multi-fidelity tutorial, `MOASHA`).
+Hence, the available budgets are `[1, 2, 4, 8, 16]`. A budget is a fidelity: here, a total number of epochs. The objective is called several times for the same solution, each call resuming training from the saved [`State`](crate::core::State) up to the requested epoch (see the multi-fidelity tutorial, `MOASHA`).
 
 ### MPI-distributed computing
 
@@ -187,7 +187,7 @@ We can directly define the outcome of the python objective function in Python.
 The class implements `header` and `record` for the current Python bridge.
 These allow elements of `MyOutcome` to be written within a CSV file.
 Moreover, because this is a multi-step function, the outcome contains a
-`PyStep` field used by the `FidOutcome` wrapper.
+[`PyStep`](crate::python::PyStep) field used by the [`FidOutcome`](crate::core::FidOutcome) wrapper.
 To track which MPI-worker has evaluated which solution, we add a `rank` field via the `mpi_rank()` function
 within `pytantale.extra` Python module.
 
@@ -267,8 +267,8 @@ But indices of hyperparameters within the input solution `x` can be accessed via
 The searchspace is defined later within the Rust part. The name of the hyperparameter are capitalized / uppercased within `indices`.
 For example `dropout | Unit(Uniform) |` > `indices.DROPOUT`.
 Moreover, Tantale consider two types of function:
-* `OneStep`: `f(x) -> Outcome` for a single-step evaluation.
-* `MultiStep`: `f(x, fidelity, state) -> (Outcome, State)` for multi-step evaluation.
+* [`OneStep`](crate::core::OneStep): `f(x) -> Outcome` for a single-step evaluation.
+* [`MultiStep`](crate::core::MultiStep): `f(x, fidelity, state) -> (Outcome, State)` for multi-step evaluation.
 
 In our case we want to perform a multi-fidelity optimization with a solution evaluated by step, with a given budget.
 The hyperparameters are retrieved with `x[idx.HIDDEN_SIZE1]`.
@@ -372,7 +372,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
 
 ## Tantale part: `searchspace.rs`
 
-To expose the indices of the hyperparameters to Python we'll use the `pyhpo!` macro.
+To expose the indices of the hyperparameters to Python we'll use the [`pyhpo!`](crate::macros::pyhpo) macro.
 We want to optimize 8 hyperparameters:
 
 - The number of neurons in layer 1
@@ -424,7 +424,7 @@ The [`init_python!`](crate::python::init_python) macro takes, in order:
 * The name of the Rust module containing the searchspace; here `searchspace`
 * The path, relative to the crate root (`CARGO_MANIFEST_DIR`), of the Python file containing the **function** to optimize.
 * The name of the Python module containing the function; here `model`
-* The name of the function to optimize; here `objective`
+* The name of the function to optimize; here [`objective`](crate::macros::objective)
 * The path, relative to the crate root (`CARGO_MANIFEST_DIR`), of the Python file containing the **outcome** of the function to optimize.
 * The name of the Python module containing the outcome; here `model`
 * The name of the outcome to optimize; here `MyOutcome`
@@ -436,9 +436,9 @@ The [`init_python!`](crate::python::init_python) macro takes, in order:
   * constraints: followed by corresponding stringified fields
   * cost: followed by the corresponding stringified field
 
-The Python `State` object is wrapped as a `FuncState` (through `save` and `load`), and `MyOutcome` is read through its `header`, `record` and attributes.
+The Python `State` object is wrapped as a [`FuncState`](crate::core::FuncState) (through `save` and `load`), and `MyOutcome` is read through its `header`, `record` and attributes.
 The Python `objective` function is wrapped so that it receives `(x, fidelity, state)` and returns `(outcome, state)`. The `step` attribute of the outcome must be a `PyStep`.
-`init_python!` returns the function only: build the problem with `Pb::new(searchspace, objective)`.
+[`init_python!`](crate::python::init_python) returns the function only: build the problem with `Pb::new(searchspace, objective)`.
 
 
 This file contains the definition of the experiment itself:

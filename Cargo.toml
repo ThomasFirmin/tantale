@@ -42,7 +42,7 @@ keywords.workspace      = true
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--html-in-header", "katex-header.html"]
+rustdoc-args = [ "--html-in-header", "katex-header.html", "--html-in-header", "highlight-header.html" ]
 
 [badges]
 maintenance = { status = "actively-developed" }

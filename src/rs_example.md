@@ -4,9 +4,9 @@ Random search samples candidates from the declared search space without using
 previous objective values to choose the next candidate. It is a useful
 baseline and can be used with single-step or multi-fidelity objectives.
 
-`RandomSearch::new()` samples one candidate at a time. For a sampler that
-provides batches, use `BatchRandomSearch::new(batch_size)`. The following
-example uses the batched sampler, following the runnable workspace example.
+[`RandomSearch`](crate::algos::RandomSearch) samples one candidate at a time. For a sampler that
+provides batches, use [`BatchRandomSearch::new(batch_size)`](crate::algos::BatchRandomSearch::new). The following
+examples use simple random search, the second one applies the batched version.
 
 ## Simple
 
@@ -124,10 +124,8 @@ use tantale::core::{
 // }
 ```
 
-`BatchRandomSearch` implements the `Batched` capability; a batch size of zero
+[`BatchRandomSearch`](crate::algos::BatchRandomSearch) implements the [`Batched`](crate::core::optimizer::opt::Batched) capability; a batch size of zero
 does not generate candidates. `Evaluated::new(50)` stops after 50 fully evaluated solutions.
-For multi-fidelity work, a partial evaluation counts as a call; use
-`Evaluated::new(limit)` to stop by the number of completed solutions instead.
 
 The complete definition of `searchspace::get_problem` is shown in the
 [Quick start](quick_start.md). The source example is

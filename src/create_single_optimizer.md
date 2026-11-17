@@ -3,10 +3,10 @@
 This guide follows the hill-climbing sampler in
 `examples/examples/create_single_optimizer.rs`. It starts with a random
 candidate; after an evaluation, it perturbs one coordinate of the current
-best optimizer-side candidate. It assumes a nonempty `Unit` optimizer domain
+best optimizer-side candidate. It assumes a nonempty [`Unit`](crate::core::Unit) optimizer domain
 and a single-objective accumulator.
 
-The runner asks a `Sampler` for one candidate and later calls `update` with
+The runner asks a [`Sampler`](crate::core::Sampler) for one candidate and later calls `update` with
 the computed result. In a parallel experiment, several candidates may be
 outstanding and updates can arrive in a different order or several times
 between sampling requests. "Single-solution" describes this sampling policy, not
@@ -14,9 +14,9 @@ a guarantee that an experiment runs one evaluation at a time.
 
 ## Metadata and checkpointable state
 
-`SolInfo` is metadata attached to each candidate, distinct from the sampler's
-own state. Here the iteration is recorded using `Schema` and `Recordable`.
-The sampler's iteration counter is itself the state. `State` and `HasState`
+[`SolInfo`](crate::core::SolInfo) is metadata attached to each candidate, distinct from the sampler's
+own state. Here the iteration is recorded using [`Schema`](crate::macros::Schema) and [`Recordable`](crate::macros::Recordable).
+The sampler's iteration counter is itself the state. [`State`](crate::core::State) and [`HasState`](crate::core::HasState)
 allow the runner to save and reconstruct it.
 
 ```rust
@@ -46,7 +46,7 @@ impl HasState for HillClimbing {
 ## Proposing a candidate
 
 The following implementation is adapted from the example. It uses
-`basic_bounds!` for the standard problem bounds and adds the requirements for
+[`basic_bounds!`](crate::macros::basic_bounds) for the standard problem bounds and adds the requirements for
 a single, orderable objective. The aliases `Shape<P>`, `CompShape<P>`, and
 `Accum<P>` respectively denote an unevaluated candidate shape, a computed
 shape, and the problem's accumulator.
@@ -125,7 +125,7 @@ where
 a shape from the perturbed optimizer value and maps it to the objective side.
 `with_rng` provides the algorithm crate's thread-local RNG.
 
-`info.into()` creates `Sampled::Fresh` metadata. `Sampled::Reused` instead
+`info.into()` creates [`Sampled::Fresh`](crate::core::Sampled::Fresh) metadata. [`Sampled::Reused`](crate::core::Sampled::Reused) instead
 keeps metadata already attached to a previously sampled shape, for example
 when a multi-fidelity algorithm promotes a candidate. `find_info` locates
 metadata even when another sampler wraps it. The example expects its metadata
@@ -138,7 +138,7 @@ Supply a problem whose optimizer domain is `Unit`, instantiate
 `Experiment::new(problem, sampler, stop, recorder, checkpointer)`. The
 problem's solution metadata type must match `HCInfo`; type inference normally
 determines it from the sampler. For multi-fidelity implementations,
-`fidelity_bounds!` adds relevant fidelity bounds; a pruning algorithm also
+[`fidelity_bounds!`](crate::macros::fidelity_bounds) adds relevant fidelity bounds; a pruning algorithm also
 needs its own promotion and budget logic.
 
 The reference source is a compilable sampler example, but its `main` is empty;

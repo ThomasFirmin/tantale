@@ -5,7 +5,7 @@ An objective returns an outcome, while the outcome's codomain identifies the
 metrics and directions to optimize. Additional outcome fields can hold
 information that is recorded but not optimized.
 
-The `objective!` macro defines the objective and its search space together.
+The [`objective!`](crate::macros::objective) macro defines the objective and its search space together.
 Each variable uses the form
 `[! name | ObjectiveDomain | OptimizerDomain !]`. Leaving the optimizer domain
 empty tells the optimizer to search the objective domain directly. A different
@@ -40,15 +40,15 @@ mod searchspace {
 }
 ```
 
-The outcome derives have distinct roles. `Outcome` derives the optimization
+The outcome derives have distinct roles. [`Outcome`](crate::core::Outcome) derives the optimization
 codomain from field attributes such as `#[maximize]` and `#[minimize]`.
-`Schema` and `Recordable` describe recorded columns and row values. Serde
+[`Schema`](crate::macros::Schema) and [`Recordable`](crate::macros::Recordable) describe recorded columns and row values. Serde
 derives support serialization used by the experiment infrastructure.
 
 Use multiple `#[maximize]` or `#[minimize]` fields for multi-objective
 problems. `#[constraint]` and `#[cost]` mark constraint and evaluation-cost
-fields. For a multi-fidelity outcome, `#[step]` marks the `Step` field. The
-`hpo!` macro can define a search space without declaring an objective function
+fields. For a multi-fidelity outcome, `#[step]` marks the [`Step`](crate::core::Step) field. The
+[`hpo!`](crate::macros::hpo) macro can define a search space without declaring an objective function
 in the same invocation.
 
 The macro generates `get_searchspace`, `get_function`, and `get_problem`
@@ -59,6 +59,8 @@ For multi-fidelity objectives, return `(Outcome, State)` and use the
 `[! FIDELITY !]` and `[! STATE !]` placeholders inside the objective body. The
 outcome's `#[step]` field communicates whether an evaluation is partial,
 complete, pending, or discarded.
+
+You can check some examples of expanded macros [here](crate::docs::ExpandedMacros).
 
 ## Run an experiment
 
@@ -117,20 +119,19 @@ fn main() {
 }
 ```
 
-`Experiment` is the single-process runner. Its type parameters are inferred
-from the problem, sampler, stop rule, recorder, and checkpointer. `Evaluated`
-counts complete evaluations; `Evaluated` counts fully evaluated
-solutions only.
+[`Experiment`](crate::core::Experiment) is the single-process runner. Its type parameters are inferred
+from the problem, sampler, stop rule, recorder, and checkpointer. The [`Evaluated`](crate::core::Evaluated) stpping criteria
+counts complete evaluations.
 
-`CSVRecorder::new` and `MessagePack::new` return `Option`. Pass `Some(value)`
+[`CSVRecorder::new`](crate::core::CSVRecorder::new) and [`MessagePack::new`](crate::core::MessagePack::new) return `Option`. Pass `Some(value)`
 to require the component, or `None` to intentionally disable it. Handle
 construction failure explicitly when recording or checkpointing is required.
-`FolderConfig::new` computes paths. However `FolderConfig` does not itself create output
+[`FolderConfig::new`](crate::core::FolderConfig::new) computes paths. However [`FolderConfig`](crate::core::FolderConfig) does not itself create output
 directories, this is done by the `init` functions of the recorder and checkpointer.
 
 ## Parallel execution
 
-Use `ParExperiment` for parallel work. The following two excerpts reuse the
+Use [`ParExperiment`](crate::core::ParExperiment) for parallel work. The following two excerpts reuse the
 `searchspace` module defined above; each is an alternative `main`, not an
 additional block in the same program.
 
@@ -160,7 +161,6 @@ additional block in the same program.
 #         }
 #     );
 # }
-
 use tantale::algos::RandomSearch;
 use tantale::core::{
     CSVRecorder, Evaluated, FolderConfig, HasX, HasY, MessagePack, ParExperiment,

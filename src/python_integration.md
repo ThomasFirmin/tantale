@@ -1,7 +1,7 @@
 # Python objective integration
 
 The optional `py` feature lets a Rust experiment call a Python objective. The
-Rust side declares the search space with `pyhpo!`, then `init_python!` loads
+Rust side declares the search space with [`pyhpo!`](crate::macros::pyhpo), then [`init_python!`](crate::python::init_python) loads
 the Python callable and registers it as a Tantale objective. Python-backed
 outcomes implement `header()` and `record()` for recording. These are the
 method names used by the current Python bridge.
@@ -140,7 +140,7 @@ def train(x: list, fidelity: float, state: State | None) -> tuple[Evaluation, St
     return Evaluation(value, value * value, step), state
 ```
 
-The `State` class is defined at module scope so it can be pickled. The bridge
+The [`State`](crate::core::State) class is defined at module scope so it can be pickled. The bridge
 calls its `save(path)` and `load(path)` methods for persistent state. Here is
 the corresponding Rust setup; use the `searchspace` module defined above:
 
@@ -168,7 +168,7 @@ fn main() {
 ```
 
 `step: "step"` selects the Python **attribute** read by the macro; it must
-contain a `PyStep`. Partial steps must be positive, and the final budget must
+contain a [`PyStep`](crate::python::PyStep). Partial steps must be positive, and the final budget must
 return `PyStep.evaluated()`. For a detailed explanation of promotion and
 fidelity, see the [MO-ASHA tutorial](mo_example.md).
 

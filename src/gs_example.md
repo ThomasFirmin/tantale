@@ -1,9 +1,9 @@
 # Grid search
 
-`GridSearch` enumerates values from finite grid domains. It is appropriate
+[`GridSearch`](crate::algos::GridSearch) enumerates values from finite grid domains. It is appropriate
 when the candidate set is small enough to evaluate exhaustively or when a
 fixed discrete set of values is required. Grid values are declared with
-`Grid<Domain([...])>` in an `objective!` invocation.
+`Grid<Domain([...])>` in an [`objective!`](crate::macros::objective) invocation.
 
 ## Define finite domains
 
@@ -83,7 +83,7 @@ fn main() {
 ```
 
 The two three-value dimensions form nine candidate combinations, so the stop
-limit is set to nine calls. `GridSearch::new` takes the problem's search space.
+limit is set to nine calls. [`GridSearch::new`](crate::algos::GridSearch::new) takes the problem's search space.
 The same domain must be finite and grid-backed for exhaustive enumeration.
 
 The corresponding runnable workspace example is

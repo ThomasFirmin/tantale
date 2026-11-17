@@ -72,6 +72,9 @@ pub mod docs {
     #[doc = include_str!("tantale_x_pytorch.md")]
     #[allow(non_snake_case)]
     pub mod TantalePyTorchExample {}
+    #[doc = include_str!("expanded_macros.md")]
+    #[allow(non_snake_case)]
+    pub mod ExpandedMacros {}
 }
 
 #[doc(inline)]
