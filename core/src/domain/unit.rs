@@ -1,5 +1,5 @@
 //! A [`Unit`] domain defines a [`Domain`] for which values are in $[0.0, 1.0]$.
-//! 
+//!
 use crate::{
     GridDom,
     distribution::{BoundedDistribution, Distribution},

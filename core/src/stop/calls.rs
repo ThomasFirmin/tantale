@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 pub struct Calls(
     /// Represents the number of calls made so far.
-    pub usize, 
+    pub usize,
     /// Represents the threshold for stopping.
-    pub usize
+    pub usize,
 );
 
 impl State for Calls {}
@@ -38,8 +38,8 @@ impl Stop for Calls {
         self.0 >= self.1
     }
 
-    /// Update the number of calls to the objective function with a new [`ExpStep`], incrementing the counter if the step is 
-    /// a fully [`Evaluated`](crate::objective::Step::Evaluated) evaluation or a [`Partially`](crate::objective::Step::Partially) evaluated step. 
+    /// Update the number of calls to the objective function with a new [`ExpStep`], incrementing the counter if the step is
+    /// a fully [`Evaluated`](crate::objective::Step::Evaluated) evaluation or a [`Partially`](crate::objective::Step::Partially) evaluated step.
     /// Other steps do not update the counter, as they do not represent a call to the objective function.
     ///
     /// # Example
@@ -52,7 +52,9 @@ impl Stop for Calls {
     /// assert_eq!(calls.calls(), 2);
     fn update(&mut self, step: ExpStep) {
         match step {
-            ExpStep::Evaluation(Step::Evaluated) | ExpStep::Evaluation(Step::Partially(_))  => self.0 += 1,
+            ExpStep::Evaluation(Step::Evaluated) | ExpStep::Evaluation(Step::Partially(_)) => {
+                self.0 += 1
+            }
             _ => {}
         }
     }

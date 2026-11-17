@@ -47,7 +47,7 @@ use crate::{
 };
 
 /// A helper macro for the `MoAsha<Sampler, Selector, Problem>` type.
-/// 
+///
 /// # Example
 /// ```ignore
 /// moasha!(RandomSearch, NSGA2Selector) // expands to MoAsha<RandomSearch, NSGA2Selector, _>
@@ -63,7 +63,7 @@ macro_rules! moasha {
 }
 
 /// A helper macro to simplify the type signature of [`BrackettedMoAsha`].*
-/// 
+///
 /// # Example
 /// ```ignore
 /// bracketted_moasha!(RandomSearch, NSGA2Selector) // expands to BrackettedMoAsha<RandomSearch, NSGA2Selector, _>

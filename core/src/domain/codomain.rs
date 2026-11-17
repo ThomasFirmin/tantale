@@ -19,9 +19,9 @@
 //!   is better than the other, regardless of `y` and `cost`.
 //!   Among elements with the same total violation, the previous comparison applies.
 //! - [`Multi`] objective: the comparison is more complex, since each element is a vector of `f64` values.
-//!   The comparison is based on Pareto dominance: an element `A` dominates another element `B` if `A` is at least as good as `B` 
-//!   in all objectives and strictly better in at least one objective. For [`Constrained`] [`Multi`] objectives, the total constraint violation 
-//!   is used as a priority. And, for [`Cost`] [`Multi`] objectives, the cost is used as a tiebreaker among elements 
+//!   The comparison is based on Pareto dominance: an element `A` dominates another element `B` if `A` is at least as good as `B`
+//!   in all objectives and strictly better in at least one objective. For [`Constrained`] [`Multi`] objectives, the total constraint violation
+//!   is used as a priority. And, for [`Cost`] [`Multi`] objectives, the cost is used as a tiebreaker among elements
 //!   with the same total constraint violation and Pareto dominance.
 //!
 //! # Notes

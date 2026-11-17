@@ -1,6 +1,11 @@
 use crate::{
-    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled, aliases::{Accum, CompShape, Opt, Shape}, solution::SolInfo, utils::{
-        Communicator, ShapeWithInfo, has_trait::HasState, record::{Recordable, Schema},
+    Domain, HasFidelity, HasInfo, HasStep, Problem, Sampled,
+    aliases::{Accum, CompShape, Opt, Shape},
+    solution::SolInfo,
+    utils::{
+        Communicator, ShapeWithInfo,
+        has_trait::HasState,
+        record::{Recordable, Schema},
     },
 };
 use serde::{Deserialize, Serialize};
@@ -138,11 +143,11 @@ pub trait Batched<P: Problem, Dom: Domain>: Sampler<P, Dom> {
 /// Multi-instance optimizer interface for parallel execution.
 ///
 /// Implementations define how optimizer instances interact and synchronize.
-pub trait MultiInstanceSampler<P: Problem, Com:Communicator>: Sampler<P, Opt<P>> {
+pub trait MultiInstanceSampler<P: Problem, Com: Communicator>: Sampler<P, Opt<P>> {
     /// Exchange information with peer instances.
-    fn interact(&self, com:&Com);
+    fn interact(&self, com: &Com);
     /// Update internal state after interaction.
-    fn update(&self, com:&Com);
+    fn update(&self, com: &Com);
 }
 
 /// A [`Sampler`] that supports pruning candidate solutions.

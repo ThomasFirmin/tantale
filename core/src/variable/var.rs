@@ -123,8 +123,8 @@ impl<Obj: OntoDom<Opt>, Opt: OntoDom<Obj>> Var<Obj, Opt> {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt> {
         Var {
             name: (name, None),
             domain_obj: Arc::new(domain_obj),
@@ -158,8 +158,8 @@ pub fn new(name: &'static str, domain_obj: Obj, domain_opt: Opt) -> Var<Obj, Opt
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
         self.domain_opt.onto(item, &self.domain_obj)
     }
 
@@ -180,8 +180,8 @@ pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoEr
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
         self.domain_obj.onto(item, &self.domain_opt)
     }
 
@@ -196,8 +196,8 @@ pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoEr
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Samples a random value from the optimizer domain.
@@ -212,8 +212,8 @@ pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_opt, rng)
     }
     /// Checks if a value is within the objective domain's bounds.
@@ -232,8 +232,8 @@ pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
         LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds.
@@ -252,8 +252,8 @@ pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
         LinkOpt::<Self>::contains(&self.domain_opt, item)
     }
     /// Replicates the variable a specified number of times.
@@ -279,8 +279,8 @@ pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn replicate(self, repeats: usize) -> Vec<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::with_capacity(repeats);
         for i in 0..repeats {
             let var = Var {
@@ -310,8 +310,8 @@ impl<Obj: Domain> Var<Obj, NoDomain> {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj, NoDomain> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj, NoDomain> {
         Var {
             name: (name, None),
             domain_obj: Arc::new(domain_obj),
@@ -337,8 +337,8 @@ pub fn new(name: &'static str, domain_obj: Obj, domain_opt: NoDomain) -> Var<Obj
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoError> {
         Ok(item.clone())
     }
 
@@ -350,8 +350,8 @@ pub fn onto_obj(&self, item: &LinkTyOpt<Self>) -> Result<LinkTyObj<Self>, OntoEr
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoError> {
         Ok(item.clone())
     }
 
@@ -359,32 +359,32 @@ pub fn onto_opt(&self, item: &LinkTyObj<Self>) -> Result<LinkTyOpt<Self>, OntoEr
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn sample_obj<R: Rng>(&self, rng: &mut R) -> LinkTyObj<Self> {
         LinkObj::<Self>::sample(&self.domain_obj, rng)
     }
     /// Samples a random value from the optimizer domain (same as objective).
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn sample_opt<R: Rng>(&self, rng: &mut R) -> LinkTyOpt<Self> {
         LinkOpt::<Self>::sample(&self.domain_obj, rng)
     }
     /// Checks if a value is within the objective domain's bounds.
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn is_in_obj(&self, item: &LinkTyObj<Self>) -> bool {
         LinkObj::<Self>::contains(&self.domain_obj, item)
     }
     /// Checks if a value is within the optimizer domain's bounds (same as objective).
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
         LinkOpt::<Self>::contains(&self.domain_obj, item)
     }
     /// Replicates the variable a specified number of times.
@@ -393,8 +393,8 @@ pub fn is_in_opt(&self, item: &LinkTyOpt<Self>) -> bool {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-pub fn replicate(self, repeats: usize) -> Vec<Self> {
+    /// See the crate-level documentation for complete, tested usage examples.
+    pub fn replicate(self, repeats: usize) -> Vec<Self> {
         let mut vec = Vec::with_capacity(repeats);
         for i in 0..repeats {
             let var = Var {
@@ -418,8 +418,8 @@ pub trait ToName {
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-fn to_name(&self) -> String;
+    /// See the crate-level documentation for complete, tested usage examples.
+    fn to_name(&self) -> String;
 }
 
 impl<Obj: Domain, Opt: PreDomain> ToName for Var<Obj, Opt> {

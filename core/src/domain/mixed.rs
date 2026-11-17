@@ -1,4 +1,4 @@
-//! A [`Mixed`] domain defines a [`Domain`] for which values can be of different types, 
+//! A [`Mixed`] domain defines a [`Domain`] for which values can be of different types,
 //! including [`Real`], [`Nat`], [`Int`], [`Bool`], [`Cat`], [`Unit`], and their grid versions: [`GridReal`], [`GridNat`], and [`GridInt`].
 
 use crate::{

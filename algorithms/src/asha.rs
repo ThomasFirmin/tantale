@@ -51,7 +51,7 @@
 //! 24. &emsp; &emsp;&emsp; $R_i \gets R_i \setminus \mathbf{x}_0$ &emsp; *Remove the selected solutions from the rung*
 //! 25. &emsp; &emsp;&emsp; **return** $(\mathbf{x}_0, i)$
 //! ---
-//! 
+//!
 //! # Reference
 //!
 //! Li et al., [*A System for Massively Parallel Hyperparameter Tuning*](https://arxiv.org/abs/1810.05934).

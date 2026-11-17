@@ -106,7 +106,7 @@ where
 
 impl<S: Uncomputed, Out: Outcome> HasInfo for Computed<S, Out> {
     type Info = S::Info;
-        /// Return the [`SolInfo`](crate::solution::SolInfo) associated with the underlying solution.
+    /// Return the [`SolInfo`](crate::solution::SolInfo) associated with the underlying solution.
     fn sinfo(&self) -> Arc<S::Info> {
         self.sol.sinfo()
     }

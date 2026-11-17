@@ -191,4 +191,4 @@ pub use computed::Computed;
 // pub use batchtype::{Batch, OutBatch};
 
 pub mod shape;
-pub use shape::{Lone, Pair, SolutionShape, IntoComputedShape, UncomputedShape};
+pub use shape::{IntoComputedShape, Lone, Pair, SolutionShape, UncomputedShape};

@@ -36,7 +36,7 @@
 //! 14. &emsp;
 //! 15. &emsp; **return best configuration across all brackets**
 //! ---
-//! 
+//!
 //! # Reference
 //!
 //! Li et al., [*Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization*](https://arxiv.org/abs/1603.06560).
@@ -59,7 +59,7 @@ use crate::Sha;
 use crate::utils::BracketInfo;
 
 /// A helper macro for the `Hyperband<InnerSampler, Problem>` type.
-/// 
+///
 /// # Example
 /// ```ignore
 /// hyperband!(RandomSearch) // expands to Hyperband<RandomSearch, _>

@@ -171,13 +171,12 @@ impl Schema<()> for PyOutcome {
             cls.bind(py)
                 .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap_or_else(
-                    |err |
-                    {
-                        err.print(py);
-                        panic!("Python outcome class must implement static method header() -> list[str]");
-                    }
-                )
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method header() -> list[str]"
+                    );
+                })
         })
     }
 }
@@ -288,13 +287,12 @@ impl Schema<()> for PyFidOutcome {
             cls.bind(py)
                 .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap_or_else(
-                    |err |
-                    {
-                        err.print(py);
-                        panic!("Python outcome class must implement static method header() -> list[str]");
-                    }
-                )
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method header() -> list[str]"
+                    );
+                })
         })
     }
 }

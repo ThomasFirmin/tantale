@@ -5,11 +5,11 @@
 //! experiment. [`Batched`](opt::Batched) extends it with batch operations.
 //! This crate defines these interfaces; ready-made algorithms are provided
 //! by companion crates.
-//! 
+//!
 //! The [`Prunable`] and [`Pruner`] interfaces support pruning candidate solutions.
 //!
 //! See the crate-level documentation for how samplers interact with problems
 //! and experiment runners.
 
 pub mod opt;
-pub use opt::{EmptyInfo, Prunable, Pruner, Sampler, Batched, MultiInstanceSampler};
+pub use opt::{Batched, EmptyInfo, MultiInstanceSampler, Prunable, Pruner, Sampler};

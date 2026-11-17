@@ -133,8 +133,8 @@ impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info
     ///
     /// # Example
     ///
-/// See the crate-level documentation for complete, tested usage examples.
-fn new<T>(meta: Self::MetaData, x: T) -> Self
+    /// See the crate-level documentation for complete, tested usage examples.
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
         T: Into<Self::X>,
     {

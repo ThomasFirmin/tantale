@@ -6,9 +6,17 @@ use std::{
 use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use tantale::{
-    algos::utils::with_rng, basic_bounds, core::{
-        HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}, optimizer::opt::Batched, utils::ShapeWithInfo,
-    }, macros::{Recordable, Schema},
+    algos::utils::with_rng,
+    basic_bounds,
+    core::{
+        HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo,
+        SolutionShape, State, Unit,
+        aliases::{Accum, CodElem, CompShape, Shape},
+        domain::{ElemSingle, SingleAccumulator},
+        optimizer::opt::Batched,
+        utils::ShapeWithInfo,
+    },
+    macros::{Recordable, Schema},
 };
 
 // A helper macro to simplify the type signature of `BatchedHillClimbing`.
@@ -201,10 +209,9 @@ where
     }
 }
 
-
 // Then we implement the Batched trait for BatchedHillClimbing, which allows it to generate and manage batches of candidate solutions.
 #[basic_bounds(P, Unit)]
-impl<P> Batched<P, Unit> for BatchedHillClimbing<P> 
+impl<P> Batched<P, Unit> for BatchedHillClimbing<P>
 where
     Accum<P>: SingleAccumulator<CompShape<P>>,
     CodElem<P>: ElemSingle + Ord,
@@ -228,7 +235,7 @@ where
     fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, Self::Info>> {
         &mut self.batch
     }
-    
+
     fn comp_batch(&self) -> &[CompShape<P>] {
         self.comp_batch.as_slice()
     }

@@ -1,12 +1,12 @@
 use tantale::algos::{BatchRandomSearch, random_search::RandomSearch};
 use tantale::algos::{NoPruner, batchrandomsearch, nopruner};
+use tantale::core::Experiment;
 use tantale::core::problem::Pb;
 use tantale::core::{
     CSVRecorder, FolderConfig, MessagePack,
     experiment::{PoolMode, Runable},
     stop::Evaluated,
 };
-use tantale::core::Experiment;
 
 use crate::cleaner::Cleaner;
 use crate::init_func::sp_evaluator_fid;
@@ -232,7 +232,8 @@ fn test_fid_batch_run_loadpool() {
     let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
+    let exp =
+        Experiment::<_, nopruner!(batchrandomsearch!()), Evaluated, _, _>::load(pb, rec, check);
     run_reader("tmp_test_fidbatchrun_loadpool", 500);
     let expstop = &exp.stop;
     assert_eq!(expstop.0, 100, "Number of calls is wrong");

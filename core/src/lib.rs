@@ -117,18 +117,18 @@
 //! use tantale::{
 //!     algos::RandomSearch,
 //!     core::{
-//!         Evaluated, CSVRecorder, 
+//!         Evaluated, CSVRecorder,
 //!         Experiment, FolderConfig, MessagePack,
 //!         experiment::Runable,
 //!     },
 //! };
-//! 
+//!
 //! mod model {
 //!     use super::*;
 //!     use serde::{Deserialize, Serialize};
 //!     use tantale::core::{Real, Uniform};
 //!     use tantale::macros::{objective, Outcome, Recordable, Schema};
-//! 
+//!
 //!     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 //!     pub struct Score {
 //!         #[maximize]
@@ -148,7 +148,7 @@
 //! let config = FolderConfig::new("tmp_test_quadratic");
 //! let recorder = CSVRecorder::new(config.clone());
 //! let checkpointer = MessagePack::new(config);
-//! 
+//!
 //! let experiment = Experiment::new(
 //!     problem,
 //!     RandomSearch::new(),
@@ -185,12 +185,12 @@
 //!         #[step]
 //!         step: Step,
 //!     }
-//! 
+//!
 //!     #[derive(Serialize, Deserialize)]
 //!     pub struct TrainingState {
 //!         epochs: u32,
 //!     }
-//! 
+//!
 //!     impl FuncState for TrainingState {
 //!         fn save(&self, path: PathBuf) -> io::Result<()> {
 //!             std::fs::write(path.join("epochs"), self.epochs.to_le_bytes())
@@ -204,7 +204,7 @@
 //!             })
 //!         }
 //!     }
-//! 
+//!
 //!     objective!(
 //!         pub fn train() -> (TrainingOutcome, TrainingState) {
 //!             let learning_rate = [! learning_rate | Real(0.001, 0.1, Uniform) | !];
@@ -226,7 +226,7 @@
 //!         }
 //!     );
 //! }
-//! 
+//!
 //! // The EmptyInfo type is unecessary when problem is combined with a sampler and run, allowing the compiler to infer the type.
 //! // It is included here for clarity.
 //! let _problem = training::get_problem::<tantale::core::EmptyInfo>();
@@ -294,8 +294,8 @@
 //! [`CSVRecorder::new`] enables CSV recording, and [`MessagePack::new`] enables
 //! MessagePack checkpointing. Both constructors currently return `Option`.
 //!
-//! [`Calls::new`] stops after a certain number of calls to the objective function. 
-//! [`Evaluated::new`] counts only fully evaluated candidates. [`stop::Time::new`] sets a duration limit. 
+//! [`Calls::new`] stops after a certain number of calls to the objective function.
+//! [`Evaluated::new`] counts only fully evaluated candidates. [`stop::Time::new`] sets a duration limit.
 //! Each criterion implements [`Stop`] and can be extended with its `add` method.
 //!
 //! The objective function returns an `Outcome`, not a `Result`. Recorder and
@@ -391,8 +391,8 @@ pub use variable::var::Var;
 
 pub mod solution;
 pub use solution::{
-    BaseSol, Computed, Fidelity, FidelitySol, Lone, Pair, ParSId, SId, Sampled, SolId, SolInfo,
-    Solution, SolutionShape, StepId, StepSId, Uncomputed, IntoComputedShape, UncomputedShape,
+    BaseSol, Computed, Fidelity, FidelitySol, IntoComputedShape, Lone, Pair, ParSId, SId, Sampled,
+    SolId, SolInfo, Solution, SolutionShape, StepId, StepSId, Uncomputed, UncomputedShape,
 };
 
 pub mod searchspace;

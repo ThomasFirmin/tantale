@@ -34,13 +34,13 @@
 //! 12. &emsp; &emsp; $b \gets \eta \times b$
 //! 13. &emsp; **return best of $(L,\mathbf{y})$**
 //! ---
-//! 
+//!
 //! SHA evaluates a fixed-size batch at each budget level. After the batch is
 //! computed, it ranks the candidates, promotes the best candidates to the next
 //! budget, and discards the rest. The budget sequence starts at `budget_min`,
 //! grows by `scaling`, and includes `budget_max` exactly. After the final
 //! budget rung, the sampler starts a new batch at the minimum budget.
-//! 
+//!
 //! # Type Parameters
 //!
 //! The inner sampler proposes candidates for the first rung. SHA requires
@@ -228,8 +228,8 @@ where
         })
     }
 
-    /// Returns `true` if the current rung is complete, 
-    /// meaning that the current budget has reached the maximum budget, 
+    /// Returns `true` if the current rung is complete,
+    /// meaning that the current budget has reached the maximum budget,
     /// the batch is empty, and the number of computed candidates is at least equal to the current rung size.
     pub fn bracket_complete(&self) -> bool {
         self.current_budget == *self.budgets.last().unwrap()

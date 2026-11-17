@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 pub struct Evaluated(
     /// Represents the number of evaluated solutions so far.
-    pub usize, 
+    pub usize,
     /// Represents the threshold for stopping.
-    pub usize
+    pub usize,
 );
 
 impl State for Evaluated {}

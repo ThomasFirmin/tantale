@@ -46,16 +46,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let checkpointer = MessagePack::new(config)
         .ok_or_else(|| std::io::Error::other("could not create MessagePack checkpointer"))?;
 
-    let experiment = Experiment::new(
-        problem,
-        sampler,
-        stop,
-        Some(recorder),
-        Some(checkpointer),
-    );
+    let experiment = Experiment::new(problem, sampler, stop, Some(recorder), Some(checkpointer));
     let accumulator = experiment.run();
     if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
-        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+        println!(
+            "Best candidate: {:?}, score: {}",
+            best.ref_x(),
+            best.y().value
+        );
     }
     Ok(())
 }

@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Marker trait for a problem that can be optimized by an [`Sampler`](crate::Sampler).
-/// A [`Problem`] is a combination of a [searchspace](crate::Searchspace) and an [objective](crate::objective::FuncWrapper) function, 
+/// A [`Problem`] is a combination of a [searchspace](crate::Searchspace) and an [objective](crate::objective::FuncWrapper) function,
 /// along with associated types for solution identifiers,
 /// solution information, and solution shapes. It defines the interface for accessing the searchspace, objective function, and codomain of the problem.
 /// Formally, a [`Problem`] defines:
@@ -19,11 +19,11 @@ use crate::{
 /// - $f$ the objective function, defined by the [`FuncWrapper`] ($f: \mathcal{X} \rightarrow \mathcal{Y}$)
 /// - $\mathcal{Y}$ the [`Codomain`](crate::Codomain) of the objective function, defined by the [`Outcome`] ($f(x) \in \mathcal{Y}$).
 ///   Hence, [`TypeCodom`](crate::Codomain::TypeCodom) is $f(x)$ or $y$.
-/// 
+///
 /// The [`Problem`] trait is implemented by the [`Pb`] struct, which provides a concrete implementation of a problem with a searchspace and an objective function.
-/// 
+///
 /// # Type aliases
-/// 
+///
 /// - [`SimplePb`] is a [`Problem`] with a single-step objective function.
 /// - [`FidPb`] is a [`Problem`] with a multi-step objective function that supports fidelity evaluations.
 pub trait Problem: Sized + Send + Sync

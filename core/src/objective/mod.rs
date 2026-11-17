@@ -88,7 +88,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```
 /// # use tantale_core::objective::{Step, EvalStep};
-/// 
+///
 /// let step = Step::Partially(5);
 /// let eval_step: EvalStep = step.into();
 /// let back: Step = eval_step.into();

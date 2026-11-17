@@ -177,7 +177,7 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Supported special placeholders are:
 ///
 /// - `[! STATE !]` expands to the optional state supplied for the current
-///   evaluation; 
+///   evaluation;
 /// - `[! FIDELITY !]` expands to its current fidelity value.
 /// - `[! MPI_RANK !]` and `[! MPI_SIZE !]` in MPI-enabled runs. They require
 ///   the MPI runtime environment and initialized Tantale MPI values.
@@ -267,17 +267,17 @@ pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// let _grid = get_searchspace();
 /// ```
-/// 
+///
 /// Log-scaled optimizer domains are specified with `Log` in the optimizer-domain position:
-/// 
+///
 /// ```
 /// use tantale::core::{Real, Uniform};
 /// use tantale::macros::hpo;
-/// 
+///
 /// hpo!(
 ///    learning_rate | Real(1e-5, 1e-1, Uniform) | Log ;
 /// );
-/// 
+///
 /// let _searchspace = get_searchspace();
 /// ```
 /// This creates a log-scaled Real domain for the optimizer by applying the log function to the objective domain's bounds.

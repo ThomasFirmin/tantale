@@ -37,16 +37,14 @@ fn main() {
     let recorder = CSVRecorder::new(config.clone());
     let checkpointer = MessagePack::new(config);
 
-    let experiment = Experiment::new(
-        problem,
-        sampler,
-        stop,
-        recorder,
-        checkpointer,
-    );
+    let experiment = Experiment::new(problem, sampler, stop, recorder, checkpointer);
     let accumulator = experiment.run();
     if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
-        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+        println!(
+            "Best candidate: {:?}, score: {}",
+            best.ref_x(),
+            best.y().value
+        );
     }
     let _ = std::fs::remove_dir_all("tmp_quick_start");
 }

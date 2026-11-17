@@ -527,7 +527,7 @@ where
     fn evaluated(&mut self) {
         self.0.evaluated();
     }
-    
+
     fn set_raw_step(&mut self, value: EvalStep) {
         self.0.set_raw_step(value);
     }
