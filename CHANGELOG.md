@@ -314,3 +314,86 @@
 - *(HasSpikes)* Added the `HasSpikes` trait to qualify objects that contains total number of `samples` and `spiking` samples. Implemented `HasSpike` for all spike codomains, `Computed` for which the `TypeCodom` is `HasSpike`, same for `CompPair`, and `CompLone`
 - *(Outcome)* Added #[samples] and #[spiking] to the `Outcome` macro. This allows to build dedicated `Spikes` Codomain. 
 - *(tests)* Added tests for Spikes codomains
+
+## Release 0.5.0: Major refactoring
+
+This release rewrites the core architecture. It is a breaking release: experiment construction, the optimizer traits, the objective types, recording and checkpointing have all changed. See `RELEASE.md` for a migration-oriented summary. Version 0.4.x was not published.
+
+### Breaking Changes
+
+#### Core
+
+- Replaced the `Optimizer`, `SingleOptimizer`, `BatchOptimizer`, `SingleSampler`, `BatchSampler`, `OptState` and `OptInfo` hierarchy with a single `Sampler<P, Dom>` trait. A sampler only implements `sample_info` and `update`, and its checkpointable state is exposed through the new `HasState` and `State` traits. `Sampled<Info>` (`Fresh` or `Reused`) tells whether a candidate carries new metadata.
+- Added `Batched<P, Dom>` for samplers that keep a queue of candidates (see `BatchRandomSearch`). Batching is no longer a separate optimizer kind.
+- Added `Pruner` and `Prunable` for multi-fidelity algorithms, separating the promotion logic from the underlying sampler.
+- Renamed `DomainSampler` to `Distribution` (module `sampler` renamed to `distribution`).
+- Replaced `Objective` and `Stepped` with `OneStep` and `MultiStep`.
+- Replaced the experiment builders `mono`, `threaded`, `distributed` and their `_with_pool` and `_load` variants, together with `MonoExperiment`, `ThrExperiment` and `MPIExperiment`, by two types:
+    - `Experiment` for sequential runs.
+    - `ParExperiment` for parallel runs, parameterized by a communicator: `ThreadCommunicator` for threads, `MPICommunicator` for MPI (`mpi` feature). The pool mode is set with `.with_pool(PoolMode::...)`.
+- Experiments now take a `Problem` (`Pb`, `SimplePb`, `FidPb`) instead of a searchspace and an objective passed separately. `Pb::new(searchspace, objective)` builds one.
+- `Experiment::new` and `ParExperiment::new` take `recorder` and `checkpointer` arguments; `CSVRecorder::new` and `MessagePack::new` now return `Option`. A recorder or checkpointer fails to initialize if its folder already exists.
+- Replaced `SeqRecorder`, `BatchRecorder`, `DistSeqRecorder`, `DistBatchRecorder`, `NoSaver`, `MonoCheckpointer`, `ThrCheckpointer` and `DistCheckpointer` with a single `Recorder` trait and a single `Checkpointer` trait.
+- Replaced `SaverConfig`, `DistSaverConfig` and `.init(&proc)` by `FolderConfig::new(path)`. It does not create directories itself.
+- Replaced the `CSVWritable` derive and trait by the `Schema` and `Recordable` derives and traits. `Outcome` now requires both.
+- Removed `MPIProcess`; MPI runs use `MPICommunicator::new(&problem)`. Only the master process receives the accumulator from `ParExperiment::run()`.
+- Removed `CompShape` and `OptionCompShape` from the crate root; they live in `tantale::core::aliases`, together with `Accum`, `Shape`, `CodElem`, `XObj` and `Opt`.
+- Removed `Batch`, `OutBatch`, `CompBatch`, `Id` and `IntoComputed` from the public API.
+- Metadata types implement `SolInfo`; a sampler's metadata can be wrapped by other samplers and is retrieved with `find_info`.
+- `Step::Error` was removed.
+
+#### Algorithms
+
+- `RandomSearch`, `BatchRandomSearch`, `GridSearch`, `Sha`, `Asha`, `Hyperband`, `MoAsha` and the Bayesian algorithms now implement `Sampler` (and `Pruner` for the multi-fidelity ones).
+- `Sha`, `Asha`, `Hyperband` and `MoAsha` wrap an inner sampler. Their constructors validate budgets and return a `Result` (for example `MoAsha::new(sampler, selector, min, max, scaling)`); `build_halving_budgets` always includes the maximum budget exactly once.
+
+#### Python
+
+- The Python bridge calls `header()` and `record()` on the outcome class (instead of `csv_header` and `csv_write`) and reads the step from the attribute named by `step:`, which must be a `PyStep`.
+- `init_python!` takes `OneStep` or `MultiStep` and returns the function only; combine it with the searchspace using `Pb::new`. File paths are relative to `CARGO_MANIFEST_DIR`.
+- A Python state class needs `save(path)` and a static `load(path)`.
+
+#### Macros
+
+- `objective!` now also generates `get_problem` and the `FuncType` and `PbType` aliases, in addition to `get_searchspace` and `get_function`. The macro adds an `Info: SolInfo` generic parameter to the generated getters.
+- Added the `Schema` and `Recordable` derive macros; removed `CSVWritable`.
+- Added the `basic_bounds` and `fidelity_bounds` attribute macros to simplify trait bounds when implementing samplers.
+
+### Added
+
+#### Algorithms
+
+- Added `Premade`, a sampler replaying user-provided solutions.
+- Added `NoPruner`, to run a multi-fidelity function with a plain sampler.
+- Added `BrackettedAsha`, `BrackettedMoAsha`.
+
+#### Core
+
+- Added `ThreadCommunicator` and `ThreadChannel`, `MPICommunicator` and `MPIChannel`, and the `MasterWorkerCom` abstraction used by `ParExperiment`.
+- Added parallel file system (PFS) management for function states and checkpoints in parallel runs.
+- Added the `aliases` module containing many type alias from a `Problem`.
+- Added the `Problem` trait with `Pb`, `SimplePb` and `FidPb`.
+- Added `log` based logging in core, algorithms and Python crates.
+- `bincode` and `bitvec` are no longer optional dependencies of the core crate; added `crossbeam` and `chrono`.
+
+### Fixed
+
+- Fixed implementation errors in `Sha`, `Asha`, `MoAsha` and `Hyperband`, and parallel multi-fidelity evaluation.
+- Fixed loading of an experiment state from a checkpoint.
+- Fixed `init_python!` handling of extra imports inside user Python modules.
+
+### Documentation
+
+- Rewrote the RustDoc of `tantale_core`, `tantale_algos` and `tantale_macros` against the new architecture.
+- Rewrote the facade (`tantale`) documentation: README, crate-io.md and the tutorials in `src/`:
+    - Quick start (sequential, threaded and MPI, with instructions to run with `mpiexec`).
+    - `RandomSearch`, `GridSearch` and `MoAsha` (explaining fidelity, `Step` and function state).
+    - Implementing a single-solution sampler and a batched sampler, from the runnable examples.
+    - Python integration, including a multi-fidelity example.
+    - Burn and PyTorch MPI multi-objective tutorials.
+- Removed empty "Coming soon" tutorials.
+- Added a syntax highlighting header for Python code (`highlight-header.html`).
+
+### Testing
+
+- Reworked `tests_suite` and `tests_python` for the new API, and added runnable examples (`examples/examples`), including MPI and Python MPI examples.

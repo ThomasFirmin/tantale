@@ -12,14 +12,14 @@ Or add the dependency directly to `Cargo.toml`:
 
 ```toml
 [dependencies]
-tantale = "0.3.2"
+tantale = "0.5.0"
 ```
 
 Enable optional integrations as needed:
 
 ```toml
 [dependencies]
-tantale = { version = "0.3.2", features = ["mpi", "py", "bayes"] }
+tantale = { version = "0.5.0", features = ["mpi", "py", "bayes"] }
 ```
 
 The `mpi` feature requires an MPI implementation. The `py` feature enables the

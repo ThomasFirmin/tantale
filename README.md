@@ -27,7 +27,7 @@ Enable only the optional integrations your project uses:
 
 ```toml
 [dependencies]
-tantale = { version = "0.3.2", features = ["py"] }
+tantale = { version = "0.5.0", features = ["py"] }
 ```
 
 Available facade features are `mpi`, `py` and `bayes`.
