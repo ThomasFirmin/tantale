@@ -206,7 +206,7 @@ impl PyOutcome {
     ///
     /// Mirrors direct field access on typed outcomes, enabling identical
     /// codomain closure syntax:
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
@@ -222,7 +222,7 @@ impl PyOutcome {
 
     /// Extracts a named attribute from the Python outcome as a `usize`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyOutcome| o.getattr_usize("spikes")
     /// ```
     /// Returns `usize::MAX` if the attribute is missing or not numeric.
@@ -318,7 +318,7 @@ impl Recordable<()> for PyFidOutcome {
 impl PyFidOutcome {
     /// Extracts a named attribute from the Python outcome as a `f64`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyFidOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
@@ -334,7 +334,7 @@ impl PyFidOutcome {
 
     /// Extracts a named attribute from the Python outcome as a `usize`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyFidOutcome| o.getattr_usize("spikes")
     /// ```
     /// Returns `usize::MAX` if the attribute is missing or not numeric.

@@ -397,3 +397,12 @@ This release rewrites the core architecture. It is a breaking release: experimen
 ### Testing
 
 - Reworked `tests_suite` and `tests_python` for the new API, and added runnable examples (`examples/examples`), including MPI and Python MPI examples.
+
+### Removed "🔮 For future release"
+- Removed the following announced features which are not mature enough :
+  - *(spikes)* Added the `spikes` and `pyspikes` features. 
+  - *(Spikes)* Added the `Spikes` trait, to qualify codomains containing info about spiking activity.
+  - *(init_python!)* Added `samples` and `spiking` keyword to the `init_python!` macros, allowing to build corresponding `Spikes` codomains. 
+  - *(HasSpikes)* Added the `HasSpikes` trait to qualify objects that contains total number of `samples` and `spiking` samples. Implemented `HasSpike` for all spike codomains, `Computed` for which the `TypeCodom` is `HasSpike`, same for `CompPair`, and `CompLone`
+  - *(Outcome)* Added #[samples] and #[spiking] to the `Outcome` macro. This allows to build dedicated `Spikes` Codomain. 
+  - *(tests)* Added tests for Spikes codomains

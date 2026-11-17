@@ -3,7 +3,7 @@
 The facade crate re-exports the `tantale_core`, `tantale_algos`, and
 `tantale_macros` crates as `tantale::core`, `tantale::algos`, and
 `tantale::macros`. The optional Python bridge is available as
-`tantale::python` with the `py` or `pyspikes` feature.
+`tantale::python` with the `py` feature.
 
 Start with the [Quick start](quick_start.md), then see the
 [random search](rs_example.md), [grid search](gs_example.md), and

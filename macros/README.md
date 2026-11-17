@@ -27,10 +27,6 @@ Main macros:
 - `pyhpo!` generates a Python-compatible search-space module when the `py`
   feature is enabled.
 
-The `spikes` feature adds the `#[samples]` and `#[spiking]` attributes to
-`Outcome`. The `basic_bounds` and `fidelity_bounds` attribute macros are
-primarily intended for generic Tantale algorithm implementations.
-
 Outcome structs also need `Schema`, `Recordable`, `Serialize`, and
 `Deserialize` implementations. The common pattern is to derive all five
 together. `objective!` and `hpo!` generate names in their invocation module;

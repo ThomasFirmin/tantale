@@ -29,7 +29,7 @@
 //! | `bayes` | Enables the TPE implementation and its statistical components. |
 //! | `mpi` | Enables the MPI support forwarded to `tantale_core`. |
 //!
-//! The default feature set does not include `bayes` or `spikes`.
+//! The default feature set does not include `bayes`.
 //!
 //! ## How the algorithms fit into Tantale
 //!
