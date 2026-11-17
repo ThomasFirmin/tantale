@@ -1,491 +1,393 @@
-# Creating a new Optimizer
+# Implementing a batched sampler
 
-We consider the [Successive Halving](https://arxiv.org/abs/1502.07943) algorithm described by the following pseudo-code:
+This guide follows the batched hill-climbing sampler in
+`examples/examples/create_batch_optimizer.rs`. It generates a group
+(batch) of candidates around the current best optimizer-side candidate,
+returns them out one at a time, and waits until every candidate of the batch has
+been evaluated before generating the next batch. It assumes a `Unit`
+optimizer domain and a single-objective accumulator, like the
+[sequential sampler](crate::docs::CreateSingleSolutionSampler).
 
-**Successive Halving (SH)**
----
-**Inputs** 
-1. &emsp; $\mathcal{X}$ &emsp;&emsp; *A [searchspace](crate::core::Searchspace)*
-2. &emsp; $n$ &emsp;&emsp; *[Batch](crate::core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
-3. &emsp; $b_0$ &emsp;&emsp; *Initial budget*
-4. &emsp; $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
-5. &emsp; $\eta$ &emsp;&emsp; *Scaling*
-6. &emsp; 
-7. &emsp; $b \gets b_0$
-8. &emsp; $L \gets \text{Random}(\mathcal{X},n)$ &emsp; *Sample $n$ [solution](crate::core::Solution)s*
-9. &emsp; **while** $b < b_\text{max}$ **do**
-10. &emsp; &emsp; $\mathbf{y} \gets f(L;b)$ &emsp; *Evaluate $L$ with [fidelity](crate::core::Fidelity) $b$*
-11. &emsp; &emsp; $L \gets \text{Top}_k\left(L,\mathbf{y},\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor\right)$ *Select the top $\left\lfloor \frac{\lvert L \rvert }{\eta} \right\rfloor$ best [computed](crate::core::Computed)*
-12. &emsp; &emsp; $b \gets \eta \times b$
-13. &emsp; **return best of $(L,\mathbf{y})$**
----
+The runner only ever calls `Sampler::sample_info` (one candidate per call)
+and `Sampler::update` (one evaluated candidate per call). A batched sampler is
+therefore a sampler that keeps an internal queue: it fills the queue, pops
+candidates from it, and uses `None` to tell the runner that no candidate is
+available yet. In a parallel experiment, workers that find no candidate
+simply wait; this is how a batch acts as a synchronization point.
 
-## Defining the state
+## Metadata and checkpointable state
 
-First, we need to define the [`OptState`](crate::core::OptState). This marker trait 
-defines all necessary information for each iteration of the optimizer.
-It is also used for checkpointing, resuming an experiment, and creating the optimizer object from its state.
+As in the sequential guide, `SolInfo` metadata is attached to each candidate
+and the sampler's own state is checkpointed through `State` and `HasState`.
+The difference is that the state now contains candidates:
 
-According to the previous pseudo-code Successive Halving requires:
-- A [`Searchspace`](crate::core::Optimizer): It is given as a parameter to the [`Optimizer`](crate::core::Optimizer) at every iteration. So, there is no need to specify this into [`OptState`](crate::core::OptState).
-- $n$, the batch size: This is parameter used for initialization, so it must be specified in [`OptState`](crate::core::OptState).
-- $b_0$, the initial budget: same argument as for $n$.
-- $b_{\text{max}}$, the maximum budget: same argument as for $n$.
-- $b$, the current budget for a given iteration: this must specified within [`OptState`](crate::core::OptState). It is the trace of the current iteration.
-- $\eta$, the scaling: same argument as for $n$.
-- $L$, the batch of sampled [`Solution`](crate::core::Solution)s: checkpointing of batches is handled externally by an [`Evaluate`](crate::core::Evaluate) object.
+- `iterations`: number of batches generated so far.
+- `batch_size`: number of candidates per batch.
+- `batch`: candidates generated but not yet evaluted, each paired with its
+  metadata (`ShapeWithInfo<Shape<P>, BHCInfo>`).
+- `pending`: returned candidates whose evaluation has not been reported
+  through `update`.
+- `comp_batch`: a field intended for computed candidates. The example never
+  fills or reads it, because the metadata and results are already available
+  through the accumulator.
 
-We add an extra field `iteration`, to count the number of calls to the SHA `step` function, later described in the implementation of [`BatchOptimizer](crate::core::BatchOptimizer).
-
-```rust
-use tantale::macros::OptState;
-use serde::{Serialize,Deserialize};
-
-#[derive(OptState, Serialize, Deserialize)]
-pub struct ShaState {
-    pub batch: usize,     // batch size
-    pub budget_min: f64,  // b0
-    pub budget_max: f64,  // bmax
-    pub budget: f64,      // b
-    pub scaling: f64,     // eta
-    pub iteration: usize, // i
-}
-```
-## Defining per-iteration metadata
-
-[`OptInfo`](crate::core::OptInfo) describes object for per-optimizer-iteration meta-data.
-But, some meta-data can be also linked to single solution.
-For optimizers which do not generate any [`OptInfo`](crate::core::OptInfo), Tantale provides a built-in [`OptInfo`](crate::core::OptInfo) named [`EmptyInfo`](crate::core::EmptyInfo).
-
-To record [`OptInfo`](crate::core::OptInfo) within a CSV file, the [`CSVWritable`](crate::macros::CSVWritable) derive macro can be applied.
-But, only if usage conditions, described within the corresponding documentation, are met. Or you can implement by hand the
-[`CSVWritable`](crate::core::CSVWritable) trait.
+Because the state depends on the problem type `P`, the struct is generic and
+needs two adjustments. The Serde bound states that the stored shape must be
+serializable, and `Clone` and `Debug` are written by hand so that `P` itself
+does not need to implement them.
 
 ```rust
-use tantale::macros::{OptInfo, CSVWritable};
-use serde::{Serialize,Deserialize};
-
-#[derive(OptInfo, CSVWritable, Default, Debug, Serialize, Deserialize)]
-pub struct ShaInfo {
-    pub iteration: usize,
-}
-
-```
-
-or with [`CSVWritable`](crate::core::CSVWritable) implemented by hand:
-
-```rust
-use tantale::macros::{OptInfo};
-use tantale::core::CSVWritable;
-use serde::{Serialize,Deserialize};
-
-#[derive(OptInfo, Debug, Default, Serialize, Deserialize)]
-pub struct ShaInfo{
-    pub iteration: usize,
-}
-
-// Extra implementation for CSV compatibility
-// (),() because ShaInfo is autosufficient
-// left (): there is no need of another object to define the header in a CSV;
-// right (): the component to be written is ShaInfo itself.
-// See some impl on Domains for examples. 
-// SolInfo should always be (),().
-impl CSVWritable<(), ()> for ShaInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("iteration")])
-    }
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.iteration.to_string()])
-    }
-}
-```
-
-## Defining per-solution metadata
-
-We previously described meta-data linked to **all** solutions generated by a single optimizer's iteration.
-But, some meta-data can be also linked to single solution. This meta-data is defined by an object implementing the [`SolInfo`](crate::core::SolInfo). In the case of SH, no meta-data can be associated to single-solution.
-Indeed, the budget $b$ is handled by [`FidelitySol`](crate::core::FidelitySol) containing a [`Fidelity`](crate::core::Fidelity) field.
-Thus, Tantale provides a built-in [`SolInfo`](crate::core::SolInfo) named [`EmptyInfo`](crate::core::EmptyInfo).
-
-If some meta-data **would have been necessary**, which is not the case for SH, then we could define it like this:
-
-```rust
-// THIS IS A MOCK IMPLEMENTATION
-// SUCCESSIVE HALVING DOES NOT REQUIRE PER-SOLUTION META-DATA
-use tantale::macros::{SolInfo, CSVWritable};
-use serde::{Serialize, Deserialize};
-
-#[derive(SolInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
-pub struct MockSolInfo{
-    pub expected_score: f64
-}
-```
-
-## Characterize the optimizer
-
-The next step is to define the [`Optimizer`](crate::core::Optimizer). This trait does not yet define the iteration itself, but the different types characterizing the optimizer.
-This include:
-* PSol: A generic defining what kind of solution the optimizer handles. For instance, [`BaseSol`](crate::core::BaseSol), or [`FidelitySol`](crate::core::FidelitySol).
-* SolId: A generic [`Id`](crate::core::Id) type, to make a solution [`Solution`](crate::core::Solution) unique. Note that because the optimizer is a multi-fidelity one, the [`Id`](crate::core::Id) is a [`StepSId`](crate::core::Id), tracking how many times the current solution was passed to the objective functions.
-* Opt: A generic [`Domain`](crate::core::Domain) to constrain or not an optimizer's search domain type (e.g. continus, natural...).
-* Out: Should always be generic, it corresponds to the user-defined [`Outcome`](crate::core::Outcome) of the function to optimize.
-* Scp: A generic over a [`Searchspace`](crate::core::Searchspace). It can be specified if the optimizer works for some kind of searchspaces.
-
-Then, multiple associated types have to be defined:
-* [`State`](crate::core::Optimizer::State): The [`OptState`](crate::core::OptState) described earlier
-* [`SInfo`](crate::core::SolInfo): Some meta-data associated to each unique solution
-  and for [`BatchOptimizer`](crate::core::BatchOptimizer):
-* [`Info`](crate::core::OptInfo): Per-iteration meta-data
-
-Finally, two methods have to be written:
-* `get_state`: returns the current [`OptState`](crate::core::OptState) of the optimizer.
-* `from_state`: creates an instance of the optimizer from the [`OptState`](crate::core::OptState).
-
-### Creating Successive Halving struct
-
-SHA requires a [`ThreadRng`](https://docs.rs/rand/latest/rand/rngs/struct.ThreadRng.html) to generate random samples from the searchspace (line 8).
-But, it is not serializable, nor deserializable, so it cannot be stored within the 
-[`OptState`](crate::core::OptState).
-
-Then, we can implement some methods for a better user usage. For example, a `new` builder method.
-
-``` rust
-# use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize};
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct ShaState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
-# 
-# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
-# pub struct ShaInfo{
-#     pub iteration: usize,
-# }
-
-use rand::prelude::ThreadRng;
-
-pub struct Sha(pub ShaState, ThreadRng);
-
-impl Sha {
-    pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-
-        let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-        assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-
-        Sha(
-            ShaState {
-                batch,
-                budget_min,
-                budget_max,
-                budget: budget_min,
-                scaling,
-                iteration: 0,
-            },
-            rand::rng(),
-        )
-    }
-}
-```
-
-
-### Implementing Optimizer trait
-
-We consider `ShaState` and `ShaInfo` previously described. SHA only requires the `Opt` [`Domain`](crate::core::Domain) to
-be samplable. Therefore, the [`Optimizer`](crate::core::Optimizer) can be generic over this domain.
-This is modeled by `Scp::Opt` equal to the type alias `LinkOpt<Scp>`. It means that the SHA can be used whatever
-the `Opt` [`Domain`](crate::core::Domain) is. SHA is a multi-fidelity optimizer, working with [`FidelitySol`](crate::core::FidelitySol) solution type. It is also generic over any [`FidOutcome`](crate::core::FidOutcome), i.e. any [`Outcome`](crate::core::Outcome) containing a [`Step`](crate::core::Step).
-
-The [`Codomain`](crate::core::Codomain) and its associated [`TypeCodom`](crate::core::Codomain::TypeCodom) can be constrained to specialize the optimizer.
-For the SHA algorithm the [`TypeCodom`](crate::core::Codomain::TypeCodom) must be [`ElemSingle`](crate::core::ElemSingle), an [`Orderable`](crate::core::Orderable) to compare solutions between each others.
-Moreover, the codomain must be [`Single`](crate::core::Single) as SHA is a mono-objective optimizer.
-
-```rust
-# use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize};
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct ShaState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
-# 
-# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
-# pub struct ShaInfo{
-#     pub iteration: usize,
-# }
-# 
-# use rand::prelude::ThreadRng;
-# 
-# pub struct Sha(pub ShaState, ThreadRng);
-# 
-# impl Sha {
-#     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
-#         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-#         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-# 
-#         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-#         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-# 
-#         Sha(
-#             ShaState {
-#                 batch,
-#                 budget_min,
-#                 budget_max,
-#                 budget: budget_min,
-#                 scaling,
-#                 iteration: 0,
-#             },
-#             rand::rng(),
-#         )
-#     }
-# }
-
-use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, ElemSingle};
-
-impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
-where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-    type State = ShaState;
-    type SInfo = EmptyInfo;
-    
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
-    
-    fn from_state(state: Self::State) -> Self {
-        Sha(state, rand::rng())
-    }
-}
-```
-
-### Implementing BatchOptimizer trait
-
-We have implemented the Optimizer trait to characterize SH.
-Now we can define computations of an iteration.
-SHA generates a [`Batch`](crate::core::Batch) of [`FidelitySol`](crate::core::FidelitySol); solutions that will be further pruned, i.e. [`Discarded`](crate::core::Step::Discard).
-SHA is then a [`BatchOptimizer`](crate::core::BatchOptimizer).
-We have to define two functions:
-- `first_step`: Able to generate a [`Batch`](crate::core::Batch) ex-nihilo, without a previous [`Computed`](crate::core::Computed) [`Batch`](crate::core::Batch). It is used to initialize the algorithm (line 8.). 
-- `step`: the usual iteration of the algorithm after initialization (line 9. to ). It takes a [`Searchspace`](crate::core::Searchspace), a [`Batch`](crate::core::Batch) of computed, and an [`Accumulator`](crate::core::Accumulator) containing a clone of best [`Computed`](crate::core::Computed) [`SolutionShape`](crate::core::SolutionShape) so far.
-```rust
-# use tantale::macros::OptState;
-# use serde::{Serialize,Deserialize};
-# 
-# #[derive(OptState,Serialize,Deserialize)]
-# pub struct ShaState{
-#     pub batch: usize, // batch size
-#     pub budget_min: f64, // b0
-#     pub budget_max: f64, // bmax
-#     pub budget: f64, // b
-#     pub scaling: f64, // eta
-#     pub iteration:usize, // i
-# }
-# use tantale::macros::{OptInfo, CSVWritable};
-# 
-# #[derive(OptInfo, CSVWritable, Debug, Default, Serialize, Deserialize)]
-# pub struct ShaInfo{
-#     pub iteration: usize,
-# }
-# 
-# use rand::prelude::ThreadRng;
-# 
-# pub struct Sha(pub ShaState, ThreadRng);
-# 
-# impl Sha {
-#     pub fn new(batch:usize, budget_min:f64, budget_max:f64, scaling:f64) -> Self {
-#         assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-#         assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-#         assert!(budget_max > budget_min, "Maximum budget must be > minimum budget");
-# 
-#         let i_max = scaling.powf((budget_max/budget_min).log(scaling));
-#         assert!(batch as f64 >= i_max, "Batch size should be greater or equal than {i_max}");
-# 
-#         Sha(
-#             ShaState {
-#                 batch,
-#                 budget_min,
-#                 budget_max,
-#                 budget: budget_min,
-#                 scaling,
-#                 iteration: 0,
-#             },
-#             rand::rng(),
-#         )
-#     }
-# }
-# 
-# use tantale::core::{FidOutcome, EmptyInfo, FidelitySol, Optimizer, StepSId, Searchspace, LinkOpt, Single, TypeCodom, ElemSingle};
-# 
-# impl<Out,Scp> Optimizer<FidelitySol<StepSId,Scp::Opt,EmptyInfo>,StepSId,Scp::Opt,Out,Scp> for Sha
-# where
-#     Out: FidOutcome,
-#     Out::Cod: Single<Out>,
-#     TypeCodom<Out>: ElemSingle, // Use an helper type alias to access Out::Cod::TypeCodom
-#     Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-# {
-#     type State = ShaState;
-#     type SInfo = EmptyInfo;
-#     
-#     fn get_state(&self) -> &Self::State {
-#         &self.0
-#     }
-# 
-#     fn get_mut_state(&mut self) -> &Self::State {
-#         &self.0
-#     }
-#     
-#     fn from_state(state: Self::State) -> Self {
-#         Sha(state, rand::rng())
-#     }
-# }
-
+use std::fmt::Debug;
+use serde::{Deserialize, Serialize};
 use tantale::core::{
-    CompShape, Batch, BatchOptimizer, CompAcc, CompBatch, FuncState, 
-    HasFidelity, HasStep, RawObj, Step, Stepped, IntoComputedShape,
-    Orderable,
+    HasState, Problem, SolInfo, State,
+    aliases::{CompShape, Shape},
+    utils::ShapeWithInfo,
+};
+use tantale::macros::{Recordable, Schema};
+
+#[derive(Schema, Recordable, Serialize, Deserialize, Debug, Default, Clone, Copy)]
+pub struct BHCInfo {
+    pub iterations: usize,
+}
+impl SolInfo for BHCInfo {}
+
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "ShapeWithInfo<Shape<P>, BHCInfo>: Serialize + for<'a> Deserialize<'a>")]
+pub struct BatchedHillClimbing<P: Problem> {
+    iterations: usize,
+    batch_size: usize,
+    batch: Vec<ShapeWithInfo<Shape<P>, BHCInfo>>,
+    comp_batch: Vec<CompShape<P>>,
+    pending: usize,
+}
+
+impl<P: Problem> Clone for BatchedHillClimbing<P> {
+    fn clone(&self) -> Self {
+        Self {
+            iterations: self.iterations,
+            batch_size: self.batch_size,
+            batch: self.batch.clone(),
+            comp_batch: self.comp_batch.clone(),
+            pending: self.pending,
+        }
+    }
+}
+
+impl<P: Problem> Debug for BatchedHillClimbing<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchedHillClimbing")
+            .field("iterations", &self.iterations)
+            .field("batch_size", &self.batch_size)
+            .field("batch", &self.batch)
+            .field("comp_batch", &self.comp_batch)
+            .field("pending", &self.pending)
+            .finish()
+    }
+}
+
+impl<P: Problem> BatchedHillClimbing<P> {
+    pub fn new(batch_size: usize) -> Self {
+        Self {
+            iterations: 0,
+            batch_size,
+            batch: Vec::new(),
+            comp_batch: Vec::new(),
+            pending: 0,
+        }
+    }
+}
+
+impl<P: Problem> State for BatchedHillClimbing<P> {}
+impl<P: Problem> HasState for BatchedHillClimbing<P> {
+    type State = Self;
+    fn get_state(&self) -> &Self { self }
+    fn get_mut_state(&mut self) -> &mut Self { self }
+    fn from_state(state: Self) -> Self { state }
+}
+```
+
+Serializing the queue matters: when an experiment is resumed from a
+checkpoint, candidates already generated are served again instead of being
+lost, and `pending` keeps the batch synchronization consistent.
+
+## Serving candidates and building batches
+
+The `Sampler` implementation has three cases in `sample_info`, checked in
+this order:
+
+1. The queue is not empty: pop a candidate, count it as pending, return it.
+   Its metadata was created when the batch was generated, so it is returned
+   as is (`ShapeWithInfo` converts into the expected return value).
+2. The queue is empty but `pending > 0`: return `None`. The previous batch is
+   still being evaluated.
+3. The queue is empty and nothing is pending: build a new batch from the
+   current best result, then serve from it by calling `sample_info` again.
+
+`update` decrements `pending` for each reported evaluation. Updates can arrive
+in any order and in groups, so only the count matters.
+
+```rust
+# use std::{fmt::Debug, sync::Arc};
+# use rand::{RngExt, rngs::StdRng};
+# use serde::{Deserialize, Serialize};
+# use tantale::core::{
+#     HasState, Problem, SolInfo, State,
+#     aliases::{CompShape, Shape},
+#     utils::ShapeWithInfo,
+# };
+# use tantale::macros::{Recordable, Schema};
+# #[derive(Schema, Recordable, Serialize, Deserialize, Debug, Default, Clone, Copy)]
+# pub struct BHCInfo { pub iterations: usize }
+# impl SolInfo for BHCInfo {}
+# impl BHCInfo { pub fn new(iterations: usize) -> Self { Self { iterations } } }
+# #[derive(Serialize, Deserialize)]
+# #[serde(bound = "ShapeWithInfo<Shape<P>, BHCInfo>: Serialize + for<'a> Deserialize<'a>")]
+# pub struct BatchedHillClimbing<P: Problem> {
+#     iterations: usize,
+#     batch_size: usize,
+#     batch: Vec<ShapeWithInfo<Shape<P>, BHCInfo>>,
+#     comp_batch: Vec<CompShape<P>>,
+#     pending: usize,
+# }
+# impl<P: Problem> Clone for BatchedHillClimbing<P> {
+#     fn clone(&self) -> Self {
+#         Self { iterations: self.iterations, batch_size: self.batch_size,
+#                batch: self.batch.clone(), comp_batch: self.comp_batch.clone(),
+#                pending: self.pending }
+#     }
+# }
+# impl<P: Problem> Debug for BatchedHillClimbing<P> {
+#     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+#         f.debug_struct("BatchedHillClimbing").finish()
+#     }
+# }
+# impl<P: Problem> State for BatchedHillClimbing<P> {}
+# impl<P: Problem> HasState for BatchedHillClimbing<P> {
+#     type State = Self;
+#     fn get_state(&self) -> &Self { self }
+#     fn get_mut_state(&mut self) -> &mut Self { self }
+#     fn from_state(state: Self) -> Self { state }
+# }
+use tantale::{
+    algos::utils::with_rng,
+    basic_bounds,
+    core::{
+        HasInfo, HasX, Sampled, Sampler, Searchspace, SolutionShape, Unit,
+        aliases::{Accum, CodElem},
+        domain::{ElemSingle, SingleAccumulator},
+    },
 };
 
-impl<Out, Scp, FnState>
-    BatchOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        Stepped<RawObj<Scp::SolShape, StepSId, EmptyInfo>, Out, FnState>,
-    > for Sha
+fn neighbor(x: &[f64], rng: &mut StdRng) -> Arc<[f64]> {
+    let mut next = x.to_vec();
+    let i = rng.random_range(0..next.len());
+    next[i] = (next[i] + rng.random_range(-0.1..0.1)).clamp(0.0, 1.0);
+    Arc::from(next)
+}
+
+#[basic_bounds(P, Unit)]
+impl<P> Sampler<P, Unit> for BatchedHillClimbing<P>
 where
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: ElemSingle,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>: HasStep + HasFidelity + Orderable,
-    FnState: FuncState,
+    Accum<P>: SingleAccumulator<CompShape<P>>,
+    CodElem<P>: ElemSingle + Ord,
 {
-    type Info = ShaInfo;
+    type Info = BHCInfo;
 
-    fn first_step(&mut self, scp: &Scp, _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let info = ShaInfo {
-            iteration: self.0.iteration,
-        };
-        let pairs: Vec<_> = scp.vec_apply_pair(
-            // Use vec_apply_pair to set minimum fidelity
-            |mut pair| {
-                pair.set_fidelity(self.0.budget);
-                pair
-            },
-            &mut self.1,
-            self.0.batch,
-            EmptyInfo.into(), // EmptyInfo because to solution metadata
-        );
-        Batch::new(pairs, info.into())
-    }
-    fn step(
-        &mut self,
-        x: CompBatch<
-            StepSId,
-            Self::SInfo,
-            Self::Info,
-            Scp::SolShape,
-        
-            Out,
-        >,
-        scp: &Scp,
-        acc: &CompAcc<
-            Scp::SolShape,
-            StepSId,
-            Self::SInfo,
-        
-            Out,
-        >,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let (pairs, _) = x.extract(); // Extract component of CompBatch
-        // Keep only Partially computed solution
-        let mut pairs: Vec<_> = pairs
-            .into_iter()
-            .filter_map(|comp| match comp.step() {
-                Step::Partially(_) => Some(comp),
-                _ => None,
-            })
-            .collect();
-
-        // If no solution is remaining, then generate a new batch with first_step
-        if pairs.is_empty() {
-            self.0.budget = self.0.budget_min; // Reset budget
-            <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(self, scp, acc)
+    fn sample_info(&mut self, scp: &P::Scp, acc: &Accum<P>)
+        -> Option<(Shape<P>, Sampled<BHCInfo>)>
+    {
+        if let Some(candidate) = self.batch.pop() {
+            self.pending += 1;
+            Some(candidate.into())
+        } else if self.pending > 0 {
+            None
         } else {
-            // Compute the k to extract top k solution and discard others
-            let k = pairs.len() - (((pairs.len() as f64) / self.0.scaling) as usize).max(1);
-            self.0.budget = (self.0.budget * self.0.scaling).min(self.0.budget_max); // min to prevent overflowing budget_max
-            self.0.iteration += 1;
-
-            // worst solutions before index k, top k  solution at index k and after
-            pairs.select_nth_unstable_by(k, |a,b| a.ord_cmp(b).unwrap());
-            // Extract Uncomputed solution from Computed
-            let new_pairs: Vec<_> = pairs
-                .into_iter()
-                .enumerate()
-                .map(|(i, computed)| {
-                    let (mut pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(computed);
-                    if i < k {
-                        pair.discard(); // Discard all solution before k and k others
-                    } else {
-                        pair.set_fidelity(self.0.budget); // Set new budget for solution after index k
-                    }
-                    pair
+            self.iterations += 1;
+            self.batch = (0..self.batch_size)
+                .map(|_| {
+                    let shape = match acc.get_best() {
+                        Some(best) => {
+                            // find_info extracts BHCInfo even if wrapped by other metadata.
+                            let _info = best.sinfo().find_info::<BHCInfo>().unwrap();
+                            let x = best.get_sopt().ref_x();
+                            scp.new_opt(with_rng(|rng| neighbor(x, rng)))
+                        }
+                        None => with_rng(|rng| scp.sample_pair(rng)),
+                    };
+                    let info = Sampled::Fresh(BHCInfo::new(self.iterations).into());
+                    ShapeWithInfo(shape, info)
                 })
                 .collect();
-
-            // If no solution remaining then generate new ones
-            if new_pairs.is_empty() {
-                self.0.budget = self.0.budget_min; // Reset budget
-                <Sha as BatchOptimizer<_, _, _, _, _, Stepped<_, _, FnState>>>::first_step(
-                    self, scp, acc
-                )
-            } else {
-                Batch::new(
-                    new_pairs,
-                    ShaInfo {
-                        iteration: self.0.iteration,
-                    }
-                    .into(),
-                )
-            }
+            self.sample_info(scp, acc)
         }
     }
 
-    fn set_batch_size(&mut self, batch_size: usize) {
-        self.0.batch = batch_size
-    }
-
-    fn get_batch_size(&self) -> usize {
-        self.0.batch
+    fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
+        self.pending = self.pending.saturating_sub(1);
     }
 }
-
 ```
+
+Points to note:
+- `find_info::<BHCInfo>()` reads the metadata of the best result even when
+  another layer wraps it (for example an outer or inner sampler adding its own info).
+- The best result is read from the accumulator, which is why
+  `Accum<P>: SingleAccumulator<CompShape<P>>` is required.
+- The batch size must be positive. With zero, the generated batch is empty and
+  the recursive `sample_info` call never terminates in this example.
+- The neighborhood needs at least one optimizer coordinate, as in the
+  sequential guide.
+- Returning `None` means "wait", not "finished". A sampler that returns `None`
+  forever with nothing pending can stop the experiment.
+
+## The `Batched` trait
+
+The example also implements `Batched<P, Unit>` (same `basic_bounds` and
+`where` clauses as the sampler). The trait exposes the queues to the rest of
+the library and requires:
+
+- `batch_size` and `set_batch_size`: read and change the batch size at runtime.
+- `batch` and `mut_batch`: the candidates waiting to be served.
+- `comp_batch` and `mut_comp_batch`: computed candidates (unused by this
+  sampler, but required).
+
+On top of these, the trait provides `add_to_batch`, `pop_from_batch`,
+`add_to_comp_batch` and `pop_from_comp_batch`. Each accessor simply returns
+the matching field. `BatchRandomSearch` is another implementor, backed by its
+`batch_uncomputed` and `batch_computed` fields. The example imports the trait
+from `tantale::core::optimizer::opt::Batched`; the sampler logic above works
+without it, so implement it when the queue must be reachable through the trait.
+
+```rust
+# use std::{fmt::Debug, sync::Arc};
+# use rand::{RngExt, rngs::StdRng};
+# use serde::{Deserialize, Serialize};
+# use tantale::core::{
+#     HasState, Problem, SolInfo, State,
+#     aliases::{CompShape, Shape},
+#     utils::ShapeWithInfo,
+# };
+# use tantale::macros::{Recordable, Schema};
+# #[derive(Schema, Recordable, Serialize, Deserialize, Debug, Default, Clone, Copy)]
+# pub struct BHCInfo { pub iterations: usize }
+# impl SolInfo for BHCInfo {}
+# impl BHCInfo { pub fn new(iterations: usize) -> Self { Self { iterations } } }
+# #[derive(Serialize, Deserialize)]
+# #[serde(bound = "ShapeWithInfo<Shape<P>, BHCInfo>: Serialize + for<'a> Deserialize<'a>")]
+# pub struct BatchedHillClimbing<P: Problem> {
+#     iterations: usize,
+#     batch_size: usize,
+#     batch: Vec<ShapeWithInfo<Shape<P>, BHCInfo>>,
+#     comp_batch: Vec<CompShape<P>>,
+#     pending: usize,
+# }
+# impl<P: Problem> Clone for BatchedHillClimbing<P> {
+#     fn clone(&self) -> Self {
+#         Self { iterations: self.iterations, batch_size: self.batch_size,
+#                batch: self.batch.clone(), comp_batch: self.comp_batch.clone(),
+#                pending: self.pending }
+#     }
+# }
+# impl<P: Problem> Debug for BatchedHillClimbing<P> {
+#     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+#         f.debug_struct("BatchedHillClimbing").finish()
+#     }
+# }
+# impl<P: Problem> State for BatchedHillClimbing<P> {}
+# impl<P: Problem> HasState for BatchedHillClimbing<P> {
+#     type State = Self;
+#     fn get_state(&self) -> &Self { self }
+#     fn get_mut_state(&mut self) -> &mut Self { self }
+#     fn from_state(state: Self) -> Self { state }
+# }
+# use tantale::{
+#     algos::utils::with_rng,
+#     basic_bounds,
+#     core::{
+#         HasInfo, HasX, Sampled, Sampler, Searchspace, SolutionShape, Unit,
+#         aliases::{Accum, CodElem},
+#         domain::{ElemSingle, SingleAccumulator},
+#     },
+# };
+# 
+# fn neighbor(x: &[f64], rng: &mut StdRng) -> Arc<[f64]> {
+#     let mut next = x.to_vec();
+#     let i = rng.random_range(0..next.len());
+#     next[i] = (next[i] + rng.random_range(-0.1..0.1)).clamp(0.0, 1.0);
+#     Arc::from(next)
+# }
+# 
+# #[basic_bounds(P, Unit)]
+# impl<P> Sampler<P, Unit> for BatchedHillClimbing<P>
+# where
+#     Accum<P>: SingleAccumulator<CompShape<P>>,
+#     CodElem<P>: ElemSingle + Ord,
+# {
+#     type Info = BHCInfo;
+# 
+#     fn sample_info(&mut self, scp: &P::Scp, acc: &Accum<P>)
+#         -> Option<(Shape<P>, Sampled<BHCInfo>)>
+#     {
+#         if let Some(candidate) = self.batch.pop() {
+#             self.pending += 1;
+#             Some(candidate.into())
+#         } else if self.pending > 0 {
+#             None
+#         } else {
+#             self.iterations += 1;
+#             self.batch = (0..self.batch_size)
+#                 .map(|_| {
+#                     let shape = match acc.get_best() {
+#                         Some(best) => {
+#                             // find_info extracts BHCInfo even if wrapped by other metadata.
+#                             let _info = best.sinfo().find_info::<BHCInfo>().unwrap();
+#                             let x = best.get_sopt().ref_x();
+#                             scp.new_opt(with_rng(|rng| neighbor(x, rng)))
+#                         }
+#                         None => with_rng(|rng| scp.sample_pair(rng)),
+#                     };
+#                     let info = Sampled::Fresh(BHCInfo::new(self.iterations).into());
+#                     ShapeWithInfo(shape, info)
+#                 })
+#                 .collect();
+#             self.sample_info(scp, acc)
+#         }
+#     }
+#
+#     fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
+#         self.pending = self.pending.saturating_sub(1);
+#     }
+# }
+
+use tantale::core::optimizer::Batched;
+
+#[basic_bounds(P, Unit)]
+impl<P> Batched<P, Unit> for BatchedHillClimbing<P>
+where
+    Accum<P>: SingleAccumulator<CompShape<P>>,
+    CodElem<P>: ElemSingle + Ord,
+{
+    fn batch_size(&self) -> usize { self.batch_size }
+    fn set_batch_size(&mut self, size: usize) { self.batch_size = size; }
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, BHCInfo>] { self.batch.as_slice() }
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, BHCInfo>> { &mut self.batch }
+    fn comp_batch(&self) -> &[CompShape<P>] { self.comp_batch.as_slice() }
+    fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>> { &mut self.comp_batch }
+}
+```
+
+This block is reviewed against the example only; the example itself compiles
+(`cargo check -p tantale_examples --examples`).
+
+## Use in an experiment
+
+Supply a problem whose optimizer domain is `Unit`, instantiate
+`BatchedHillClimbing::new(batch_size)` and pass both to
+`Experiment::new(problem, sampler, stop, recorder, checkpointer)`, or to
+`ParExperiment` for threaded or MPI runs, where several candidates of a batch
+are evaluated at the same time and idle workers wait on `None`. The problem's
+solution metadata type must match `BHCInfo`; type inference normally
+determines it from the sampler. The source example has an empty `main`; it
+does not itself run an experiment. The two Rust blocks that define the
+sampler are compiled as RustDoc tests with `cargo test -p tantale --doc`.

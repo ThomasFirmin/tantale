@@ -369,7 +369,7 @@ where
                         warn!("
                             Warning: Rung index out of bounds due to wrong Step. 
                             Most probably within user-defined objective function.
-                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                         ");
                     } else {
                         self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
@@ -902,7 +902,7 @@ where
                         warn!("
                             Warning: Rung index out of bounds due to wrong Step. 
                             Most probably within user-defined objective function.
-                            Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                         ");
                     } else {
                         self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));

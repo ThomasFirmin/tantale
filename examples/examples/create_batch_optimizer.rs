@@ -6,16 +6,9 @@ use std::{
 use rand::{RngExt, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use tantale::{
-    algos::utils::with_rng,
-    basic_bounds,
-    core::{
-        HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo,
-        SolutionShape, State, Unit,
-        aliases::{Accum, CodElem, CompShape, Shape},
-        domain::{ElemSingle, SingleAccumulator},
-        utils::ShapeWithInfo,
-    },
-    macros::{Recordable, Schema},
+    algos::utils::with_rng, basic_bounds, core::{
+        HasInfo, HasState, HasX, HasY, Problem, Sampled, Sampler, Searchspace, SolInfo, SolutionShape, State, Unit, aliases::{Accum, CodElem, CompShape, Shape}, domain::{ElemSingle, SingleAccumulator}, optimizer::opt::Batched, utils::ShapeWithInfo,
+    }, macros::{Recordable, Schema},
 };
 
 // A helper macro to simplify the type signature of `BatchedHillClimbing`.
@@ -205,6 +198,43 @@ where
                 "Warning: update called with no pending evaluations. This may indicate a logic error in the optimizer."
             );
         }
+    }
+}
+
+
+// Then we implement the Batched trait for BatchedHillClimbing, which allows it to generate and manage batches of candidate solutions.
+#[basic_bounds(P, Unit)]
+impl<P> Batched<P, Unit> for BatchedHillClimbing<P> 
+where
+    Accum<P>: SingleAccumulator<CompShape<P>>,
+    CodElem<P>: ElemSingle + Ord,
+{
+    // The 'batch_size' method returns the number of candidate solutions generated in each iteration.
+    fn batch_size(&self) -> usize {
+        self.batch_size
+    }
+
+    // The 'set_batch_size' method allows changing the batch size at runtime.
+    fn set_batch_size(&mut self, size: usize) {
+        self.batch_size = size;
+    }
+
+    // The 'batch' and 'comp_batch' methods return references to the current batch of candidate solutions and computed solutions, respectively.
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, Self::Info>] {
+        self.batch.as_slice()
+    }
+
+    // The 'mut_batch' and 'mut_comp_batch' methods return mutable references to the current batch of candidate solutions and computed solutions, respectively.
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, Self::Info>> {
+        &mut self.batch
+    }
+    
+    fn comp_batch(&self) -> &[CompShape<P>] {
+        self.comp_batch.as_slice()
+    }
+
+    fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>> {
+        &mut self.comp_batch
     }
 }
 

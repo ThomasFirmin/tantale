@@ -18,7 +18,8 @@ We consider the number of epochs a network is trained on as our budget.
 - The maximum budget of a single evaluation is **20 epochs**.
 
 We use the [`MoAsha`](mod@crate::algos::moasha) algorithm, with a **scaling factor** of 2.
-Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdots 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
+Hence, the available budgets are `[1, 2, 4, 8, 16, 20]`: each budget is twice the previous one, and the maximum user-defined budget (20) is always the last one.
+A budget is a fidelity: here, a number of epochs. The objective function is called several times for the same solution, each call resuming the training up to the requested fidelity (see the multi-fidelity tutorial, `MOASHA`).
 
 ### MPI-distributed computing
 
@@ -69,7 +70,7 @@ foo@bar:~$ cargo init my_burn_hpo
 - A distribution of MPI should be installed on your nodes.
 - Serde for serialization:
 ```console
-foo@bar:~$ cargo add serde
+foo@bar:~$ cargo add serde --features derive
 ```
 - Tantale with `mpi` feature:
 ```console
@@ -271,7 +272,7 @@ To resume the evaluation, we need to remember the previous step.
 
 First we define the [`Outcome`](crate::core::Outcome), describing the output of the function to optimize:
 ```rust,ignore
-#[derive(Outcome, CSVWritable, Serialize, Deserialize, Debug)]
+#[derive(Outcome, Schema, Recordable, Serialize, Deserialize, Debug)]
 pub struct Output {
     pub train_accuracy: f32,
     pub train_loss: f32,
@@ -287,11 +288,10 @@ pub struct Output {
 ```
 
 #### Notes
-To use this with a [`threaded`](crate::core::threaded) experiment, the `Output` has to be `Send` and `Sync`:
-```rust,ignore
-unsafe impl Send for Output {}
-unsafe impl Sync for Output {}
-```
+- `Schema` and `Recordable` (from `tantale::macros`) describe how the outcome is written by recorders such as `CSVRecorder`. They replace the former `CSVWritable` derive. Every field must be recordable.
+- `Outcome` also requires `Debug`, `Serialize` and `Deserialize`.
+- `#[step]` marks the field holding the `Step` returned by each call. Its presence is what makes the function multi-step.
+- This outcome only holds plain numbers, so it is automatically `Send` and `Sync`: no `unsafe impl` is needed.
 
 ### Function state
 
@@ -340,15 +340,14 @@ impl<B: Backend> FuncState for ModelState<B> {
 ```
 
 #### Notes
-To use this with a [`threaded`](crate::core::threaded) experiment, the `ModelState` has to be `Send` and `Sync`:
-```rust,ignore
-unsafe impl<B: Backend> Send for ModelState<B> {}
-unsafe impl<B: Backend> Sync for ModelState<B> {}
-```
+- `FuncState` only requires `save` and `load` (and `Sized`). With `PoolMode::Persistent`, Tantale calls `save` when a partially evaluated solution is parked and `load` when the solution is resumed, possibly on another worker. The folder is shared between workers through the persistent storage.
+- With `PoolMode::InMemory` (the default), the state is kept in memory and `save`/`load` are only used for checkpoints.
+- This tutorial has not been compiled against a Burn version. Check that your backend types satisfy the bounds required by your experiment (threaded runs need `Send` for what the workers hold).
 
 ### Joint searchspace and training loop
 
 Finally, we jointly define the searchspace and the training loop (function to optimize) using the [`objective!`](crate::macros::objective) procedural macro.
+The macro generates, in the surrounding module, `get_searchspace`, `get_function` and `get_problem`. The main file only needs `get_problem`, which bundles the searchspace and the function into a single `Pb` problem.
 We use 3 keywords:
 - `[! STATE !]` - `ModelState` : retrieve the previous function state
 - `[! FIDELITY !]` - `f64` : retrieve the current fidelity
@@ -370,13 +369,12 @@ Let's break down the content of the macros.
 
 #### Function definition
 
-We can define a no-parameter objective function. The `objective!` support generics.
-To enable the [`Stepped`](crate::core::Stepped), the `Output` must contain a `Step`, and the output of `run`
-should be a tuple made of `(Outcome`, `FuncState)`, here `(Output, ModelState<Autodiff<B>>)`.
+We define a no-parameter objective function. It must not be generic over the backend: the macro-generated `FuncType` and `PbType` aliases do not carry the function's own generics, so a generic state type such as `ModelState<B>` does not compile inside `objective!`. We therefore fix the backend with a type alias (`MyBackend`) placed before the macro. The macro only adds an `Info: SolInfo` type parameter to the generated `get_function` and `get_problem`.
+The function returns a tuple `(Outcome, FuncState)`, here `(Output, ModelState<Autodiff<MyBackend>>)`. This tuple form makes it a `MultiStep` function, and `[! FIDELITY !]` and `[! STATE !]` become available.
 
 The parameters are populated later by the macro with input objective side solution, fidelity, and function state.
 ```rust,ignore
-pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) { ... }
+pub fn run() -> (Output, ModelState<Autodiff<MyBackend>>) { ... }
 ```
 
 #### Next step
@@ -412,8 +410,8 @@ None => {
                 10, 
                 [! hidden1 | Nat(10,1000, Uniform) | !] as usize,
                 [! hidden2 | Nat(10,1000, Uniform) | !] as usize,
-                [! activation1 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | !],
-                [! activation2 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | !],
+                [! activation1 | Cat(["relu", "sigmoid", "tanh"], Uniform) | !],
+                [! activation2 | Cat(["relu", "sigmoid", "tanh"], Uniform) | !],
                 [! dropout1 | Unit(Uniform) | !],
                 [! dropout2 | Unit(Uniform) | !],
             );
@@ -421,7 +419,7 @@ None => {
             let config = TrainingConfig::new(config_model, AdamConfig::new(), 0)
                 .with_batch_size([! batch | Nat(16,256, Uniform) | !] as usize)
                 .with_learning_rate([! lr | Real(1.0e-4, 1.0e-2, Uniform) | !]);
-            let model = config.model.init::<Autodiff<B>>(&device);
+            let model = config.model.init::<Autodiff<MyBackend>>(&device);
 
             (config, model)
         }
@@ -446,7 +444,7 @@ We then determine the [`Step`](crate::core::Step) at which the evaluation is:
 - Otherwise, the solution is partially evaluated:
   - [`Step::Partially(next_step as isize)`](crate::core::Step::Evaluated)
 
-In case of error we could also return [`Step::Error`](crate::core::Step::Error).
+In case of error we could also return `Step::Discard`.
 
 Finally we create the `Output` defined earlier, and return the `ModelState` containing updated weights and bisases:
 
@@ -479,6 +477,8 @@ let step = if next_step >= config.num_epochs {
 #### Full objective! code
 
 ```rust,ignore
+// The backend is fixed here, because objective! functions cannot be generic over the state type.
+
 objective!{
     pub fn run<B:Backend>() -> (Output, ModelState<Autodiff<B>>) {
         let state = [! STATE !];
@@ -498,8 +498,8 @@ objective!{
                     10, 
                     [! hidden1 | Nat(10,1000, Uniform) | !] as usize,
                     [! hidden2 | Nat(10,1000, Uniform) | !] as usize,
-                    [! activation1 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | !],
-                    [! activation2 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | !],
+                    [! activation1 | Cat(["relu", "sigmoid", "tanh"], Uniform) | !],
+                    [! activation2 | Cat(["relu", "sigmoid", "tanh"], Uniform) | !],
                     [! dropout1 | Unit(Uniform) | !],
                     [! dropout2 | Unit(Uniform) | !],
                 );
@@ -592,7 +592,7 @@ objective!{
             Output{
                 train_accuracy,
                 train_loss,
-                test_accuracy: test_accuracy as f64,
+                test_accuracy,
                 test_loss,
                 parameters: model.num_params() as f64,
                 step,
@@ -616,30 +616,41 @@ This file contains the definition of the experiment itself:
 // Where we jointly defined the function to optimize
 // and searchspace
 pub mod searchspace;
-pub use searchspace::{get_searchspace, get_function};
+pub use searchspace::get_problem;
+
+use tantale::algos::{MoAsha, RandomSearch, mo::NSGA2Selector};
+use tantale::core::{
+    CSVRecorder, FolderConfig, HasX, HasY, MPICommunicator, MessagePack, ParExperiment,
+    PoolMode, SolutionShape, stop::Evaluated,
+};
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
+
+use burn::backend::cuda::Cuda;
 
 fn main() {
-    
-    let proc = MPIProcess::new();
-    let rank = proc.rank;
+    // The macro-generated getter has 2 type parameters, the Backent B, and the 
+    // Info inferred from the sampler (hence `_`).
+    let pb = get_problem::<Cuda<f32, i32>, _>();
+    // Pick one of the 2 GPUs of the node, before any CUDA call.
+    // worker ranks are 1.. (rank 0 is the master).
+    let com = MPICommunicator::new(&pb);
+    let rank = com.me();
     unsafe { std::env::set_var("CUDA_VISIBLE_DEVICES", (rank % 2).to_string()) };
-    
-    let device = CudaDevice::new(0);
-    println!("GPU 0/{}, on {:?}",CudaDevice::device_count_total(), device);
 
-
-    let sp = get_searchspace();
-    let obj = get_function::<Cuda<f32, i32>>();
+    // Min budget, max budget, scaling factor. Returns a Result.
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.);
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.).unwrap();
 
-    let stop = Calls::new(1000);
-    let config = FolderConfig::new("moasha_example").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let stop = Evaluated::new(1000);
+    // The folder must not already exist: recorders and checkpointers fail otherwise.
+    let config = FolderConfig::new("tmp_burn_example");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(&proc, sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
-    println!("RUNNING EXPERIMENT from rank {}", rank);
+    // Persistent: partially trained networks are saved to disk, and reloaded when promoted.
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com).with_pool(PoolMode::Persistent);
+
+    // Only the master returns the accumulator, workers return None.
     let acc = exp.run();
     if let Some(a) = acc {
         let pareto = a.get();

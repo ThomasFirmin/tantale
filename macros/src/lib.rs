@@ -1,7 +1,86 @@
-//! This crate contains the procedural macros for Tantale, including:
-//! - `Outcome` derive macro to wrap the outcome of the user-defined function with `Outcome` (see core documentation).
-//! - `objective!` macro for defining objectives and searchspaces together
-//! - `hpo!` macro for concise searchspace definitions
+//! # Tantale procedural macros
+//!
+//! `tantale_macros` provides procedural macros used to define Tantale objective
+//! results and search spaces. The macros are re-exported by the `tantale`
+//! facade crate under `tantale::macros`.
+//!
+//! ## Installation
+//!
+//! Most applications should depend on `tantale`, which re-exports the macros
+//! and the core types required by their expansions:
+//!
+//! ```toml
+//! [dependencies]
+//! tantale = "0.3.2"
+//! ```
+//!
+//! Import only the macros used by an application:
+//!
+//! ```ignore
+//! use tantale::macros::{Outcome, Recordable, Schema, objective};
+//! ```
+//!
+//! `hpo!` and `objective!` generate items in the module where they are invoked.
+//! Put invocations in their own module if generated names such as `ObjType`,
+//! `OptType`, `indices`, or `get_searchspace` would otherwise collide.
+//!
+//! ## Macro overview
+//!
+//! | Macro | Purpose |
+//! | --- | --- |
+//! | [`Outcome`] | Derives the outcome codomain from field attributes such as `#[maximize]` and `#[minimize]`. |
+//! | [`objective!`] | Defines an objective function and extracts its search space from inline variable declarations. |
+//! | [`hpo!`] | Declares a search space using one variable per line. |
+//! | [`Schema`] | Derives recording column names from struct fields. |
+//! | [`Recordable`] | Derives string values for supported result fields. |
+//! | [`basic_bounds`] and [`fidelity_bounds`] | Add standard problem-type bounds to generic items; primarily used by Tantale's algorithm implementations. |
+//! | [`pyhpo!`] | Builds a Python-compatible search-space module when the `py` feature is enabled. |
+//!
+//! ## Features
+//!
+//! - `spikes` enables the `#[samples]` and `#[spiking]` attributes on
+//!   `Outcome` fields.
+//! - `py` enables the [`pyhpo!`] macro. In the facade crate this is enabled by
+//!   the `py` feature.
+//! - `mpi` is provided for feature alignment with the other Tantale crates;
+//!   it does not add another macro to this crate.
+//!
+//! ## Typical use
+//!
+//! Derive `Outcome` for a named-field struct, then use `objective!` to declare
+//! the function inputs and body together. The example below is scoped in a
+//! module because the macro emits several public items:
+//!
+//! ```no_run
+//! mod model {
+//!     use serde::{Deserialize, Serialize};
+//!     use tantale::core::{Real, Uniform};
+//!     use tantale::macros::{Outcome, Recordable, Schema, objective};
+//!
+//!     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+//!     pub struct Score {
+//!         #[minimize]
+//!         loss: f64,
+//!     }
+//!
+//!     objective!(
+//!         pub fn squared_error() -> Score {
+//!             let x = [! x | Real(-2.0, 2.0, Uniform) | !];
+//!             Score {
+//!                 loss: (x - 0.25).powi(2),
+//!             }
+//!         }
+//!     );
+//! }
+//!
+//! let problem = model::get_problem::<tantale::core::EmptyInfo>();
+//! ```
+//!
+//! `objective!` supports multi-fidelity functions that return
+//! `(Outcome, State)` as well as one-step functions that return `Outcome`.
+//! See its documentation below for the search-space syntax and special
+//! placeholders. For a search space without an objective function, use
+//! `hpo!` instead.
 
 extern crate proc_macro;
 
@@ -39,50 +118,36 @@ pub(crate) fn schema_crate_path() -> TokenStream {
 }
 
 #[cfg(not(feature = "spikes"))]
-/// The `Outcome` derive macro automates the implementation of result/output types for objective
-/// functions. It derives traits that enable logging, serialization,
-/// and multi-fidelity evaluation tracking for optimization results.
+/// Derives `tantale_core::Outcome` from a named-field result struct.
 ///
-/// ## Purpose
+/// At least one field must be marked `#[maximize]` or `#[minimize]`; marked
+/// objective fields must be `f64`. Minimization objectives are negated when
+/// constructing the codomain. Multiple objective fields define a
+/// multi-objective result.
 ///
-/// Objective functions in Tantale must return an `Outcome` - a structured type describing
-/// the evaluation result. The `Outcome` macro:
-/// 1. Implements the `Outcome` trait marker
-/// 2. Optionally tracks multi-fidelity evaluation state via `Step` fields
+/// Optional field attributes are:
 ///
-/// ## Quick Example
+/// - `#[constraint]` on an `f64` field to add a constraint.
+/// - `#[cost]` on one `f64` field to provide evaluation cost.
+/// - `#[step]` on one `tantale::core::Step` field to implement fidelity-step
+///   tracking.
 ///
-/// ```
-/// use tantale::macros::Outcome;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(Outcome, Debug, Serialize, Deserialize)]
-/// pub struct ModelResult {
-///     pub train_loss: f64,
-///     pub val_loss: f64,
-///     #[maximize]
-///     pub accuracy: f64,
-/// }
-/// ```
-///
-/// Generated:
-/// - `impl Outcome for ModelResult` - Marks type as objective output
-///
-/// ## Multi-Fidelity with `Step`
-///
-/// For multi-fidelity optimization, a field of type `Step` tracks evaluation progress:
+/// The struct must have named fields and must not have generic parameters.
+/// An outcome type must also implement `Schema`, `Recordable`, `Serialize`,
+/// and `Deserialize`; derive those alongside `Outcome`.
 ///
 /// ```
-/// use tantale::macros::{Outcome};
-/// use tantale::core::Step;
-/// use serde::{Serialize, Deserialize};
+/// use serde::{Deserialize, Serialize};
+/// use tantale::macros::{Outcome, Recordable, Schema};
 ///
-/// #[derive(Outcome, Debug, Serialize, Deserialize)]
-/// pub struct ProgressiveResult {
-///     #[maximize]
-///     pub loss: f64,
-///     #[step]
-///     pub epoch: Step,  // Tracks evaluation stage
+/// #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+/// struct Metrics {
+///     #[minimize]
+///     loss: f64,
+///     #[constraint]
+///     max_latency: f64,
+///     #[cost]
+///     training_seconds: f64,
 /// }
 /// ```
 #[proc_macro_derive(Outcome, attributes(maximize, minimize, constraint, cost, step))]
@@ -91,57 +156,46 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 #[cfg(feature = "spikes")]
-/// The `Outcome` derive macro automates the implementation of result/output types for objective
-/// functions. It derives traits that enable logging, serialization,
-/// and multi-fidelity evaluation tracking for optimization results.
+/// Derives `tantale_core::Outcome` from a named-field result struct.
 ///
-/// ## Purpose
+/// At least one field must be marked `#[maximize]` or `#[minimize]`; marked
+/// objective fields must be `f64`. Minimization objectives are negated when
+/// constructing the codomain. Multiple objective fields define a
+/// multi-objective result.
 ///
-/// Objective functions in Tantale must return an `Outcome` - a structured type describing
-/// the evaluation result. The `Outcome` macro:
-/// 1. Implements the `Outcome` trait marker
-/// 2. Optionally tracks multi-fidelity evaluation state via `Step` fields
+/// Optional field attributes are:
 ///
-/// ## Quick Example
+/// - `#[constraint]` on an `f64` field to add a constraint.
+/// - `#[cost]` on one `f64` field to provide evaluation cost.
+/// - `#[step]` on one `tantale::core::Step` field to implement fidelity-step
+///   tracking.
+/// - `#[samples]` on a `usize` field for the total sample count.
+/// - `#[spiking]` on a `usize` field for the spiking sample count.
 ///
+/// The struct must have named fields and must not have generic parameters.
+/// An outcome type must also implement `Schema`, `Recordable`, `Serialize`,
+/// and `Deserialize`; derive those alongside `Outcome`.
+///
+/// The spike-specific codomain is enabled when both fields are present.
+/// 
 /// ```
-/// use tantale::macros::Outcome;
-/// use serde::{Serialize, Deserialize};
+/// use serde::{Deserialize, Serialize};
+/// use tantale::macros::{Outcome, Recordable, Schema};
 ///
-/// #[derive(Outcome, Debug, Serialize, Deserialize)]
-/// pub struct ModelResult {
-///     pub train_loss: f64,
-///     pub val_loss: f64,
-///     #[maximize]
-///     pub accuracy: f64,
+/// #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+/// struct Metrics {
+///     #[minimize]
+///     loss: f64,
+///     #[constraint]
+///     max_latency: f64,
+///     #[cost]
+///     training_seconds: f64,
 /// }
 /// ```
+/// Derives `tantale_core::Outcome` and fidelity tracking from an outcome
+/// struct. It accepts the same attributes and field requirements as the
+/// default-feature version, with two additional attributes:
 ///
-/// Generated:
-/// - `impl Outcome for ModelResult` - Marks type as objective output
-///
-/// ## Multi-Fidelity with `Step`
-///
-/// For multi-fidelity optimization, a field of type `Step` tracks evaluation progress:
-///
-/// ```
-/// use tantale::macros::{Outcome};
-/// use tantale::core::Step;
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(Outcome, Debug, Serialize, Deserialize)]
-/// pub struct ProgressiveResult {
-///     #[maximize]
-///     pub loss: f64,
-///     #[step]
-///     pub epoch: Step,  // Tracks evaluation stage
-/// }
-/// ```
-///
-/// ## Spiking Neural Network Support
-///
-/// - The number of samples within the dataset can be tracked using the `#[samples]` attribute.
-/// - The number of spiking samples can be tracked using the `#[spiking]` attribute.
 #[proc_macro_derive(
     Outcome,
     attributes(maximize, minimize, constraint, cost, step, samples, spiking)
@@ -150,369 +204,154 @@ pub fn outcome(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     outcome::proc_outcome(input)
 }
 
-/// The `objective!` macro provides a high-level interface for defining both an optimization
-/// searchspace and an objective function in a single declaration. It automatically extracts the searchspace from
-/// the user-defined function body, and wrap this function into the `Objective` or `Stepped` objects.
+/// Defines a zero-argument objective function and extracts the search space
+/// from inline variable declarations.
 ///
-/// ## Purpose
+/// Each declaration has the form
+/// `[! name | ObjectiveDomain(args) | OptimizerDomain(args) !]`. The optimizer
+/// domain is optional; when omitted, the objective domain is used. The macro
+/// replaces each declaration with the corresponding value from the input.
+/// Declarations can be nested in the function body.
 ///
-/// When optimizing a function, you typically need:
-/// 1. A **searchspace** defining what variables to optimize
-/// 2. An **objective function** that evaluates those variables
+/// The function must return an outcome type implementing
+/// `tantale_core::Outcome` (including its serialization and recording
+/// requirements), or a pair `(Outcome, State)` for a multi-fidelity objective.
+/// In the latter form the state type must implement `tantale_core::FuncState`.
+/// The macro adds the objective-input parameter to the expanded function. For
+/// a multi-fidelity function it also adds fidelity and optional state
+/// parameters.
 ///
-/// The `objective!` macro combines both, keeping the definition close to the usage:
+/// The invocation emits `ObjType`, `OptType`, `indices`, `get_searchspace`,
+/// the objective function, `get_function`, `get_problem`, `FuncType<Info>`,
+/// and `PbType<Info>` in the surrounding module. These generated names mean
+/// multiple invocations should be placed in separate modules.
 ///
-/// ```ignore
-/// use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-/// use tantale::macros::{objective, Outcome};
+/// Supported special placeholders are:
 ///
-/// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
-/// struct OutExample {
-///     #[maximize]
-///     obj: f64,
-///     info: f64,
-/// }
+/// - `[! STATE !]` expands to the optional state supplied for the current
+///   evaluation; 
+/// - `[! FIDELITY !]` expands to its current fidelity value.
+/// - `[! MPI_RANK !]` and `[! MPI_SIZE !]` in MPI-enabled runs. They require
+///   the MPI runtime environment and initialized Tantale MPI values.
 ///
-/// objective!(
-///     pub fn example() -> OutExample {
-///         let _a = [! a | Int(0,100, Uniform) | !];
-///         let _b = [! b | Nat(0,100, Uniform) | !];
-///         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-///         let _d = [! d | Bool(Bernoulli(0.5)) | !];
-///         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-///         // ... more variables and computation ...
-///         OutExample{
-///             obj: e,
-///             info: [! f | Real(10.0,20.0, Uniform) | !],
+/// Search-space declarations may use homogeneous or mixed domains. For grid
+/// search, use `Grid<Domain(values, distribution)>` in each objective domain
+/// and omit each optimizer domain. Grid and non-grid declarations cannot be
+/// mixed. At least one variable declaration is required.
+///
+/// ```
+/// mod model {
+///     use serde::{Deserialize, Serialize};
+///     use tantale::core::{Real, Uniform};
+///     use tantale::macros::{Outcome, Recordable, Schema, objective};
+///
+///     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+///     pub struct Score {
+///         #[minimize]
+///         loss: f64,
+///     }
+///
+///     objective!(
+///         pub fn squared_error() -> Score {
+///             let x = [! x | Real(-2.0, 2.0, Uniform) | !];
+///             Score {
+///                 loss: (x - 0.25).powi(2),
+///             }
 ///         }
-///     }
-/// );
-/// ```
-///
-/// ## Special Keywords
-///
-/// * `[! MPI_RANK !]` - Get the current MPI process rank (for distributed optimization)
-/// * `[! MPI_SIZE !]` - Get the total number of MPI processes
-/// * `[! STATE !]` - Access the current evaluation state in multi-fidelity optimization
-///
-/// ## Alternative mode
-///
-/// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
-/// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
-///
-///
-/// ```ignore
-/// use tantale::core::{Bool, Cat, Int, Nat, Real, Bernoulli, Uniform};
-/// use tantale::macros::{objective, Outcome};
-///
-/// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
-/// struct OutExample {
-///     #[maximize]
-///     obj: f64,
-///     #[step]
-///     info: f64,
+///     );
 /// }
 ///
-/// objective!(
-///     pub fn example() -> OutExample {
-///         let _a = [! a | Grid<Int([-2, -1, 0, 1, 2], Uniform)> | !];
-///         let _b = [! b | Grid<Nat([0, 1, 2, 3, 4], Uniform)> | !];
-///         let _c = [! c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !];
-///         let _d = [! d | Grid<Bool(Bernoulli(0.5))> | !];
-///         let e = [! e | Grid<Real([1000.0, 2000.0, 3000.0, 4000.0], Uniform)> | !];
-///         // ... more variables and computation ...
-///         OutExample{
-///             obj: e,
-///             info: [! f | Grid<Real([10.0, 20.0], Uniform)> | !],
-///         }
-///     }
-/// );
-/// ```
-///
-/// ## Generated Output
-///
-/// The macro generates three public items:
-///
-/// ```ignore
-/// pub type ObjType = /* Mixed or single domain type */;
-/// pub type OptType = /* Mixed or single domain type */;
-/// pub fn get_searchspace() -> Sp<ObjType, OptType> { /* ... */ }
-/// pub fn get_function() -> Objective<Arc<[TypeDom<ObjType>]>, Output> { /* ... */ }
-/// ```
-///
-/// ## Multi-Fidelity Support
-///
-/// ```rust,ignore
-/// use tantale::core::{FuncState, Bool, Cat, Int, Nat, Real, Bernoulli, Uniform, Step};
-/// use tantale::macros::{objective, Outcome};
-///
-/// #[derive(Outcome, Debug, serde::Serialize, serde::Deserialize)]
-/// struct OutExample {
-///     #[maximize]
-///     obj: f64,
-///     info: f64,
-///     #[step]
-///     step: Step,
-/// }
-///
-/// #[derive(Serialize, Deserialize)]
-/// pub struct FnState {
-///     pub something: isize,
-/// }
-/// impl FuncState for FnState {
-///     fn save(&self, path: std::path::PathBuf) -> std::io::Result<()>{
-///     // Implement saving logic here (e.g., serialize to file)
-///     }
-///     fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
-///     // Implement loading logic here (e.g., deserialize from file)
-///     }
-/// }
-///
-/// objective!(
-///     pub fn example() -> (OutExample, FnState) {
-///         let _a = [! a | Int(0,100, Uniform) | !];
-///         let _b = [! b | Nat(0,100, Uniform) | !];
-///         let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-///         let _d = [! d | Bool(Bernoulli(0.5)) | !];
-///         let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-///         // ... more variables and computation ...
-///         
-///         // Manage the internal state
-///         state.something += 1;
-///         let evalstate = if state.something == 5 {Step::Evaluated} else{Step::Partially(state.something)};
-///         
-///         (
-///             OutExample{
-///                 obj: e,
-///                 info: [! f | Real(10.0,20.0, Uniform) | !],
-///                 step: evalstate,
-///             },
-///             state
-///         )
-///     }
-/// );
-/// ```
-///
-/// For multi-fidelity objectives (function returns `(Outcome, FuncState)`):
-/// ```ignore
-/// pub fn get_function() -> Stepped<Arc<[TypeDom<ObjType>]>, Output, State> { /* ... */ }
+/// let _problem = model::get_problem::<tantale::core::EmptyInfo>();
 /// ```
 #[proc_macro]
 pub fn objective(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     objective::obj(input)
 }
 
-/// The `hpo!` procedural macro provides a declarative way to define optimization searchspaces in Tantale.
-/// It generates a type-safe, dual-domain searchspace from a concise variable specification.
+/// Declares a search space without declaring an objective function. Each
+/// semicolon-terminated line has the form
+/// `name{count} | ObjectiveDomain(args) | OptimizerDomain(args);`.
+/// The count suffix is optional, as is the optimizer domain. If omitted,
+/// the objective domain is also used as the optimizer domain.
 ///
-/// ## Purpose
+/// The macro generates the public type aliases `ObjType` and `OptType`, an
+/// `indices` module, and `get_searchspace()`. Homogeneous domains use their
+/// domain type directly; heterogeneous domains use Tantale's mixed-domain
+/// types. Generated names are in the invocation module, so put multiple
+/// invocations in separate modules.
+/// Variable names must be unique within an invocation.
 ///
-/// AutoML problems involve optimizing functions across complex, mixed/heterogeneous domains where:
-/// - Objective functions may require specific types (integers, categories, booleans)
-/// - Optimizers migth work in its own defined space (e.g. within the unit hypercube)
-/// - Variables need custom sampling and mapping strategies
+/// Supported domain constructors include `Real`, `Nat`, `Int`, `Bool`, `Cat`,
+/// and `Unit`. To define finite grid values, wrap a domain in
+/// `Grid<Domain(values, distribution)>`; all variables in a grid search space
+/// must use grid domains, and optimizer domains must be omitted. `Log` in the
+/// optimizer-domain position selects a log-scaled optimizer domain for a
+/// bounded objective domain.
 ///
-/// The `hpo!` macro abstracts these details, allowing users to simplify variable definitions,
-/// while the macro generates the appropriate searchspace implementation.
+/// A repetition such as `neuron{3}` creates three numbered variables. Its
+/// generated `indices::NEURON` constant is a half-open `(start, end)` range;
+/// a non-repeated variable gets a single `usize` index.
 ///
-/// ## Syntax
-///
-/// ```ignore
-/// hpo!(
-///     var_name | ObjectiveDomain(args) | OptimizationDomain(args) ;
-///     // ... more variables ...
-/// );
 /// ```
-///
-/// ## Generated Output
-///
-/// Each `hpo!` invocation generates three public items:
-///
-/// ```ignore
-/// pub type ObjType = /* ... */;  // Objective domain (Mixed or single type)
-/// pub type OptType = /* ... */;  // Optimizer domain (Mixed or single type)
-/// pub fn get_searchspace() -> Sp<ObjType, OptType> { /* ... */ }
-/// ```
-///
-/// The resultant `Sp<ObjType, OptType>` is a `Searchspace` containing all variables.
-///
-/// ## Quick Example
-///
-/// ```ignore
+/// use tantale::core::{Bernoulli, Bool, Cat, Nat, Real, Uniform};
 /// use tantale::macros::hpo;
-/// use tantale::core::{Real, Nat, Cat, Bool, Uniform, Bernoulli};
 ///
 /// hpo!(
-///     learning_rate | Real(1e-5, 0.1, Uniform)      | ;
-///     batch_size    | Nat(16, 512, Uniform)         | ;
-///     optimizer     | Cat(["adam", "sgd"], Uniform) | ;
-///     dropout       | Bool(Bernoulli(0.5))          | ;
+///     learning_rate | Real(1e-5, 1e-1, Uniform) | ;
+///     batch_size | Nat(16, 512, Uniform) | ;
+///     activation | Cat(["relu", "tanh"], Uniform) | ;
+///     use_bias | Bool(Bernoulli(0.5)) | ;
 /// );
 ///
-/// // Now use the generated searchspace:
-/// let sp = get_searchspace();
-/// let mut rng = rand::rng();
-/// let solution = sp.sample_obj(&mut rng, info);
+/// let _searchspace = get_searchspace();
 /// ```
 ///
-/// ## Variable Definition
+/// A grid search space uses a `Grid` wrapper for every variable and leaves the
+/// optimizer-domain field empty:
 ///
-/// Each variable is defined as:
-/// ```ignore
-/// name{repetition} | ObjectiveDomain(args) | OptimizerDomain(args) ;
 /// ```
+/// use tantale::core::{Real, Uniform};
+/// use tantale::macros::hpo;
 ///
-/// - **name** : Variable name used for recording.
-/// - **{repetition}** : Optional integer count for replication (e.g., `decay{10}` -> `decay0..9`)
-/// - **ObjectiveDomain** : Required - the domain for objective function inputs
-///   - Supported types : `Real`, `Nat`, `Int`, `Bool`, `Cat`, `Unit`
-///     ** The domain types must have a `new(args)` constructor that takes the specified arguments.
-///     The macro automatically add new() after the type, to simplify notations and improve readability of the searchspace.**
-/// - **(args)**: Domain-specific arguments (bounds, options, samplers)
-/// - **OptimizerDomain** : Optional - domain for optimizer to search within
-///   **The domain types must have a `new(args)` constructor that takes the specified arguments. The macro automatically add new() after the type, to simplify notations and improve readability of the searchspace.**
-///   - If omitted, OptimizerDomain is set to NoDomain. Which will be further interpreted as using the ObjectiveDomain
-/// - **;** : Semicolon terminates the variable definition
-///
-/// ## Domain Types
-///
-/// | Domain | TypeDom | Use Case | Example |
-/// |--------|---------|----------|---------|
-/// | `Real` | `f64` | Continuous values | `Real(0.0, 100.0, Uniform)` |
-/// | `Nat` | `u32` | Natural numbers | `Nat(1, 20, Uniform)` |
-/// | `Int` | `i32` | Any integers | `Int(-10, 10, Uniform)` |
-/// | `Bool` | `bool` | Binary choices | `Bool(Bernoulli(0.5))` |
-/// | `Cat` | `&'static str` | Categorical | `Cat(["a", "b"], Uniform)` |
-/// | `Unit` | `f64` | Unit hypercube domain | `Unit(Uniform)` |
-/// | `GridReal` | `i32` | Grid domain over reals | `GridReal([-2, -1, 0, 1, 2], Uniform)` |
-/// | `GridNat` | `i32` | Grid domain over naturals | `GridNat([-2, -1, 0, 1, 2], Uniform)` |
-/// | `GridInt` | `i32` | Grid domain over integers | `GridInt([-2, -1, 0, 1, 2], Uniform)` |
-///
-/// ## Dual Domain Architecture
-///
-/// Each variable has two associated domains:
-///
-/// - **Objective Domain (`Obj`)**: The domain of values the objective function receives
-/// - **Optimizer Domain (`Opt`)**: The domain the optimizer searches within
-///
-/// ```ignore
-/// // Optimizer searches [0,1], objective gets integer [1,20]
-/// name | Nat(1, 20, Uniform) | Real(0.0, 1.0, Uniform) ;
-/// ```
-///
-/// This enables optimizers to work in normalized continuous spaces while objectives
-/// receive natural problem-specific types.
-///
-/// ## Mixed Domains
-///
-/// When variables have mixed/heterogeneous objective domains:
-/// ```ignore
 /// hpo!(
-///     x | Real(0.0, 1.0, Uniform) | ;
-///     y | Nat(0, 100, Uniform)    | ;
-///     z | Bool(Uniform)           | ;
+///     threshold | Grid<Real([-1.0, 0.0, 1.0], Uniform)> | ;
 /// );
-/// // ObjType = Mixed (enum for Real, Nat, Bool variants)
-/// ```
 ///
-/// When all objective domains are **the same type**, `Mixed` is not used:
-/// ```ignore
+/// let _grid = get_searchspace();
+/// ```
+/// 
+/// Log-scaled optimizer domains are specified with `Log` in the optimizer-domain position:
+/// 
+/// ```
+/// use tantale::core::{Real, Uniform};
+/// use tantale::macros::hpo;
+/// 
 /// hpo!(
-///     x | Real(0.0, 1.0, Uniform) | ;
-///     y | Real(-5.0, 5.0, Uniform) | ;
+///    learning_rate | Real(1e-5, 1e-1, Uniform) | Log ;
 /// );
-/// // ObjType = Real (not Mixed)
+/// 
+/// let _searchspace = get_searchspace();
 /// ```
-///
-/// ## Alternative modes
-///
-/// ### Grid Search
-///
-/// The macro also supports an alternative mode called `Grid`, allowing to define a grid search space with a similar syntax.
-/// In this cases the grid can only be defined within the objective domain; while the optimizer domain should remain empty.
-///
-/// #### Example
-///
-/// ```ignore
-/// use tantale::core::domain::{Bool, Cat, Int, Nat};
-///     use tantale::core::sampler::{Bernoulli, Uniform};
-///     use tantale::macros::hpo;
-/// hpo!(
-///         a | Grid<Int([-2_i64,-1,0,1,2], Uniform)>              | ;
-///         b | Grid<Nat([1_u64,2,3], Uniform)>                    | ;
-///         c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform) >   | ;
-///         d | Grid<Bool(Bernoulli(0.5))>                         | ;
-///     );
-/// ```
-///
-/// ### Log-Scale Optimizer Domain
-///
-/// A Bounded domain (Real, Nat, Int) can be defined with a log-scale optimizer domain by adding the `Log` keyword after the objective domain.
-///
-/// ```ignore
-/// hpo!(
-///     learning_rate | Real(1e-4, 1e-2, Uniform) | Log ;
-///     momentum      | Real(0.7, 0.99, Uniform)  |     ;
-///     weight_decay  | Real(0.0, 0.01, Uniform)  |     ;
-/// );
-/// ```
-///
-/// ## Variable Replication
-///
-/// Create multiple similar variables using `{count}` syntax:
-///
-/// ```ignore
-/// hpo!(
-///     // Creates: decay0, decay1, ..., decay9
-///     decay{10} | Real(-1.0, 1.0, Uniform) | ;
-/// );
-/// ```
-///
-/// Each replicated variable gets a numeric suffix starting from 0.
-///
-/// ## Examples
-///
-/// ### Example 1: Simple Hyperparameter Search
-/// ```ignore
-/// hpo!(
-///     learning_rate | Real(1e-4, 1e-2, Uniform) | ;
-///     momentum      | Real(0.7, 0.99, Uniform)  | ;
-///     weight_decay  | Real(0.0, 0.01, Uniform)  | ;
-/// );
-/// ```
-///
-/// ### Example 2: Mixed/Heterogeneous Objective Domains
-/// ```ignore
-/// hpo!(
-///     num_layers | Nat(1, 10, Uniform)                       | ;
-///     dropout    | Real(0.0, 0.5, Uniform)                   | ;
-///     activation | Cat(["relu", "tanh", "sigmoid"], Uniform) | ;
-/// );
-/// // ObjType = Mixed (enum for Nat, Real, Cat variants)
-/// ```
-///
-/// ### Example 3: Different Objective and Optimizer Domains
-/// ```ignore
-/// hpo!(
-///     layer_size    | Nat(10, 512, Uniform)    | Real(10.0, 20.0, Uniform) ;
-///     learning_rate | Real(1e-5, 0.1, Uniform) |                         ;
-///     depth         | Nat(1, 100, Uniform)     | Real(0.0, 100.0, Uniform) ;
-/// );
-/// ```
-///
-/// ### Example 4: Replications
-/// ```ignore
-/// hpo!(
-///     decay_layer{3}   | Unit(Uniform) | ;
-///     dropout_layer{4} | Unit(Uniform) | ;
-/// );
-/// // Total: 3 + 4 = 7 variables
-/// ```
+/// This creates a log-scaled Real domain for the optimizer by applying the log function to the objective domain's bounds.
+/// The mapping between the objective domain and optimizer log-domain is handled automatically by the `Onto` machinery.
 #[proc_macro]
 pub fn hpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     hpo::hpo(input)
 }
 
+/// Adds standard single-fidelity problem bounds to a generic struct, enum,
+/// trait, function, or `impl`.
+///
+/// The first argument is the problem type parameter; an optional second
+/// argument names the optimizer domain:
+///
+/// ```ignore
+/// #[basic_bounds(P, Unit)]
+/// impl<P> Sampler<P, Unit> for MySampler { /* ... */ }
+/// ```
+///
+/// This helper augments the annotated item's `where` clause and is primarily
+/// intended for Tantale's generic algorithm implementations.
 #[proc_macro_attribute]
 pub fn basic_bounds(
     attr: proc_macro::TokenStream,
@@ -521,6 +360,14 @@ pub fn basic_bounds(
     basic_bounds::basic_bounds(attr, item)
 }
 
+/// Adds standard multi-fidelity problem bounds to a generic struct, enum,
+/// trait, function, or `impl`.
+///
+/// The arguments are the problem type parameter and, optionally, the optimizer
+/// domain. The attribute augments the annotated item's `where` clause with the
+/// fidelity, step, and outcome bounds expected by Tantale's multi-fidelity
+/// algorithms. It is primarily an internal helper for generic algorithm
+/// implementations.
 #[proc_macro_attribute]
 pub fn fidelity_bounds(
     attr: proc_macro::TokenStream,
@@ -530,157 +377,67 @@ pub fn fidelity_bounds(
 }
 
 #[cfg(all(feature = "py", not(feature = "mpi")))]
-/// Similar to [`hpo!`](crate::hpo!), but generates a Python-compatible searchspace and exposes it via PyO3.
+/// Declares a search space using the same syntax as [`hpo!`], and emits the
+/// PyO3 module scaffolding used to expose it to Python.
+///
+/// Requires the `py` feature and the Python integration from the `tantale`
+/// facade crate. The generated `pytantale` module exports the generated
+/// indices and `PyStep`.
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     pyhpo::pyhpo(input)
 }
 
 #[cfg(all(feature = "py", feature = "mpi"))]
-/// Similar to [`hpo!`](crate::hpo!), but generates a Python-compatible searchspace and exposes it via PyO3.
+/// Declares a search space using the same syntax as [`hpo!`], and emits the
+/// PyO3 module scaffolding used to expose it to Python.
+///
+/// Requires the `py` feature and the Python integration from the `tantale`
+/// facade crate. The generated `pytantale` module exports the generated
+/// indices and `PyStep`.
 #[proc_macro]
 pub fn pyhpo(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     pyhpo::pyhpo(input)
 }
 
-/// The `Schema` derive macro implements the `Schema` trait.
+/// Derives `tantale_core::Schema<()>` for a named-field struct.
 ///
-/// ## Purpose
+/// The generated column names are the field names in declaration order.
+/// Supported field types are `isize`, `i32`, `i64`, `f32`, `f64`, `usize`,
+/// `u32`, `u64`, `String`, `bool`, `Vec<_>`, and `tantale::core::Step`. Other
+/// field types and tuple/unit structs are not supported by this derive.
 ///
-/// `Schema` provides a structured way to retrieve columns names (headers) of a struct.
-///
-/// ## Quick Example
-///
-/// ```ignore
+/// ```
 /// use tantale::macros::Schema;
 ///
 /// #[derive(Schema)]
-/// pub struct ModelResult {
-///     pub train_loss: f64,
-///     pub val_loss: f64,
-///     pub accuracy: f64,
+/// struct Metrics {
+///     loss: f64,
+///     samples: Vec<f64>,
 /// }
 /// ```
-///
-/// Generated:
-/// - `impl Schema` - Enables automatic header generation.
-///   - Headers: `["train_loss", "val_loss", "accuracy"]`
-///
-/// ## Output Format
-///
-/// The macro implements `Schema` for the struct, providing its headers:
-///
-/// ```ignore
-/// #[derive(Schema)]
-/// pub struct Metrics {
-///     pub rmse: f64,
-///     pub mae: f64,
-///     pub r2: f64,
-/// }
-///
-/// // Generates:
-/// // columns(&(), ()) -> ["rmse", "mae", "r2"]
-/// ```
-///
-/// The header is derived automatically from field names.
-///
-/// ## Fields with Vectors
-///
-/// Vec fields are serialized using debug format for multi-valued results:
-///
-/// ```ignore
-/// #[derive(Schema)]
-/// pub struct PredictionResult {
-///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
-///     pub error: f64,              // 0.05
-/// }
-///
-/// // Generates:
-/// // columns(&(), ()) -> ["predictions", "error"]
-/// ```
-///
-/// ## Field Naming
-///
-/// Field names automatically become column headers:
-///
-/// ```ignore
-/// #[derive(Schema)]
-/// pub struct Metrics {
-///     pub train_loss: f64,     // header: "train_loss"
-///     pub val_loss: f64,       // header: "val_loss"
-///     pub fit_time_ms: u32,    // header: "fit_time_ms"
-/// }
-/// ```
-///
-/// ## Limitations
-///
-/// 1. **Supported types only** - Custom types require implementing Schema manually
-/// 2. **Field order preserved** - Columns match struct field order
 #[proc_macro_derive(Schema)]
 pub fn schema(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     schema::proc_schema(input)
 }
 
-/// The `Recordable` derive macro implements the `Recordable` tait.
+/// Derives `tantale_core::Recordable<()>` for a named-field struct.
 ///
-/// ## Purpose
+/// Values are returned as `Vec<String>` in field declaration order. Supported
+/// field types are `isize`, `i32`, `i64`, `f32`, `f64`, `usize`, `u32`, `u64`,
+/// `String`, `bool`, `Vec<_>`, and `tantale::core::Step`. Primitive values use
+/// `to_string()`; vectors and `Step` use debug formatting. Other field types
+/// and tuple/unit structs are not supported by this derive.
 ///
-/// `Recordable` provides a structured way to write objects values to a `Vec<String>`.
-///
-/// ## Quick Example
-///
-/// ```ignore
+/// ```
 /// use tantale::macros::Recordable;
 ///
 /// #[derive(Recordable)]
-/// pub struct ModelResult {
-///     pub train_loss: f64,
-///     pub val_loss: f64,
-///     pub accuracy: f64,
+/// struct Metrics {
+///     loss: f64,
+///     labels: Vec<String>,
 /// }
 /// ```
-///
-/// Generated:
-/// - `impl Recordable` - Enables automatic header generation.
-///   - Headers: `["train_loss", "val_loss", "accuracy"]`
-///
-/// ## Output Format
-///
-/// The macro implements `Recordable` for the struct, providing its headers:
-///
-/// ```ignore
-/// #[derive(Recordable)]
-/// pub struct Metrics {
-///     pub rmse: f64,
-///     pub mae: f64,
-///     pub r2: f64,
-/// }
-///
-/// // Generates:
-/// // columns(&(), ()) -> ["rmse", "mae", "r2"]
-/// ```
-///
-/// The header is derived automatically from field names.
-///
-/// ## Fields with Vectors
-///
-/// Vec fields are serialized using debug format for multi-valued results:
-///
-/// ```ignore
-/// #[derive(Recordable)]
-/// pub struct PredictionResult {
-///     pub predictions: Vec<f64>,  // [0.1, 0.2, 0.3, ...]
-///     pub error: f64,              // 0.05
-/// }
-///
-/// // Generates:
-/// // columns(&(), ()) -> ["predictions", "error"]
-/// ```
-///
-/// ## Limitations
-///
-/// 1. **Supported types only** - Custom types require implementing Recordable manually
-/// 2. **Field order preserved** - Columns match struct field order
 #[proc_macro_derive(Recordable)]
 pub fn recordable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     recordable::proc_recordable(input)

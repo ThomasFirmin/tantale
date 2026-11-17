@@ -1,403 +1,251 @@
 # Quick start
 
-We consider a **maximization** problem defined by:
-$$ x^\star \in \arg\max_{x \in \mathcal{X}} f(x) \enspace,$$
-where $x^\star$ is the optimal [`Solution`](crate::core::Solution), $\mathcal{X}$ is the [`Searchspace`](crate::core::Searchspace), 
-and $f$ is the [`Objective`](crate::core::Objective).
+Tantale optimizes a problem consisting of a search space and an objective.
+An objective returns an outcome, while the outcome's codomain identifies the
+metrics and directions to optimize. Additional outcome fields can hold
+information that is recorded but not optimized.
 
-The objective function $f$ can be written as:
-$$ f: \mathcal{X} \to \mathcal{O} \enspace,$$
-where $\mathcal{O}$ is the [`Outcome`](crate::core::Outcome) such that $\mathcal{Y} \subseteq \mathcal{O}$. With $\mathcal{Y}$ the [`Codomain`](crate::core::Codomain) of the optimization problem.
-We differentiate the [`Outcome`](crate::core::Outcome) containing extra information/meta-data, and the [`Codomain`](crate::core::Codomain) containing only the metrics to optimize, constraints, costs...
+The `objective!` macro defines the objective and its search space together.
+Each variable uses the form
+`[! name | ObjectiveDomain | OptimizerDomain !]`. Leaving the optimizer domain
+empty tells the optimizer to search the objective domain directly. A different
+optimizer domain can be used to map the candidates onto the objective domain.
 
-In Tantale the [`Codomain`](crate::core::Codomain) is an associated type of the [`Outcome`](crate::core::Outcome), and it can be automatically defined using the corresponding [derive macro](crate::macros::Outcome).
-
-To reach this optimal solution $x^\star$, or at least a good solution, we need an [`Optimizer`](crate::core::Optimizer) generating candidate solutions in the search space $\mathcal{X}$.
-
-## Define the objective function within a separate module
-
-The [`objective!`](crate::macros::objective) macro allows to define an objective function and its search space together.
-The searchspace is defined by `[ name | ObjectiveDomain | OptimizerDomain ]`.
-
-See [`hpo!`](crate::macros::hpo) macro for more details on the syntax of the search space definition.
-
-Then, the macro automatically extract the search space from the function body and generate the necessary types and helper functions for optimization.
-It must be called within a separate module/file. Here for example, we define an objective function `example` in a module `searchspace`:
-
-The procedural macro generate the following items:
-- `example::get_searchspace()`: returns a `Searchspace` object containing all variables defined in the function body.
-- `example::get_function()`: returns the user-defined function wrapped in an [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped) object.
-
-Here `example` is wrapped in an [`Objective`](crate::core::Objective).
-- `example::ObjType`: the type of the solution used in the objective function.
-
-Here the [`Searchspace`](crate::core::Searchspace) is made of 4 variables of different types 
-([`Real`](crate::core::Real), [`Int`](crate::core::Int), [`Cat`](crate::core::Cat), [`Bool`](crate::core::Bool) ,[`Unit`](crate::core::Unit)).
-So the domain of the objective function is of mixed types, and `example::ObjType` is an alias for [`Mixed`](crate::core::Mixed).
-- `example::OptType`: the type of the search space used for optimization.
-
-Here the right-hand side of the variable definitions are empty (replaced by a [`NoDomain`](crate::core::NoDomain) under the hood).
-This indicate that the optimizer will search over the domain of the objective function (left-hand side of the variable definitions).
-So the domain of the optimizer is the same as the domain of the objective function, and `example::OptType` is an alias for `example::ObjType` (which is [`Mixed`](crate::core::Mixed)).
-
-### Mapping between objective and optimizer domains
-
-The previous `Obj`-`Opt` dual definition allows to have the hand on the objective and optimizer domains without any hidden relaxation.
-See [`Onto`](crate::core::Onto) for more details on the mapping between optimizer and objective domains.
-
-### Example
+## Define a problem
 
 ```rust
 mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome, CSVWritable};
     use serde::{Deserialize, Serialize};
+    use tantale::core::{Real, Uniform};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-    pub struct OutExample {
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct Evaluation {
         #[maximize]
-        pub obj: f64,
-        pub info: f64,
+        pub score: f64,
+        pub extra: f64,
     }
 
     objective!(
-        pub fn example() -> OutExample {
-            let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
-            let _b = [! b | Nat(0,100, Uniform) | !];
-            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-            let _d = [! d | Bool(Bernoulli(0.5)) | !];
-            let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-            let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
+        pub fn tune() -> Evaluation {
+            let x = [! x | Real(0.0, 1.0, Uniform) | !];
+            let y = [! y | Real(0.0, 1.0, Uniform) | !];
 
-            // ... more variables and computation ...
-
-            OutExample{
-                obj: e, // In practice put your accuracy, MSE... here
-                info: [! f | Unit(Uniform) | !],
+            Evaluation {
+                score: 1.0 - (x - 0.25).abs() - (y - 0.75).abs(),
+                extra: x + y,
             }
         }
     );
-    // The macro expands to helpers like:
-    // let sp = example::get_searchspace();
-    // let obj = example::get_function();
 }
 ```
 
-## Define the optimization loop
+The outcome derives have distinct roles. `Outcome` derives the optimization
+codomain from field attributes such as `#[maximize]` and `#[minimize]`.
+`Schema` and `Recordable` describe recorded columns and row values. Serde
+derives support serialization used by the experiment infrastructure.
 
-An optimization experiment is made of 7 components:
-- A [`FuncWrapper`](crate::core::FuncWrapper): [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped).
-  It contains the function to optimize.
-- A [`Searchspace`](crate::core::Searchspace): it contains the variables [`Var`](crate::core::Var) and their domains.
-- A [`Codomain`](crate::core::Codomain): it extracts the different metrics from an [`Outcome`](crate::core::Outcome), which will be optimized.
-* A [`Codomain`](crate::core::Codomain) defines [`Single`](crate::core::Single)-objective, [`Constrained`](crate::core::Constrained), [`Multi`](crate::core::Multi)-objectives, [`Cost`](crate::core::Cost)-aware optimization problems.
-- An [`Optimizer`](crate::core::Optimizer): defines a single step of the optimization process.
-  We distinguish between 2 types of optimizers:
-  * [`BatchOptimizer`](crate::core::BatchOptimizer): generates a [`Batch`](crate::core::Batch) of solutions at each optimization step.
-  * [`SingleOptimizer`](crate::core::SingleOptimizer): generates a single solution at each optimization step.
-- A [`Stop`](crate::core::Stop): defines the stopping criterion of the optimization process.
-- Optional [`Recorder`](crate::core::Recorder): defines how to log the optimization process.
-- Optional [`Checkpointer`](crate::core::Checkpointer): defines how to checkpoint the optimization process.
+Use multiple `#[maximize]` or `#[minimize]` fields for multi-objective
+problems. `#[constraint]` and `#[cost]` mark constraint and evaluation-cost
+fields. For a multi-fidelity outcome, `#[step]` marks the `Step` field. The
+`hpo!` macro can define a search space without declaring an objective function
+in the same invocation.
 
-These 7 components are then assembled together in an optimization loop using different execution strategies:
-- Mono-threaded - [`mono`](crate::core::mono): for mono-threaded execution.
-- Multi-threaded - [`threaded`](crate::core::threaded): for multi-threaded execution on a single machine. 
-- Distributed - [`distributed`](crate::core::distributed): for MPI-distributed execution on multiple machines.
+The macro generates `get_searchspace`, `get_function`, and `get_problem`
+helpers, along with types used by the generated function. Keep each invocation
+in its own module to avoid collisions between generated helper names.
 
-### Parallelization 
-The parallelization philosophy is defined by the optimizer and by the user via [`mono`](crate::core::mono), [`threaded`](crate::core::threaded) or [`distributed`](crate::core::distributed):
-* Synchronous: For [`BatchOptimizer`](crate::core::BatchOptimizer) where [`Batch`](crate::core::Batch)es of solutions are evaluated in parallel, but the optimization steps are executed sequentially.
-* Asynchronous: For [`SingleOptimizer`](crate::core::SingleOptimizer) where the optimizer generates on-demand new solutions as soon as one thread is free.
-<!-- * Hybrid **(not yet implemented)**: For [`HybridOptimizer`](crate::core::HybridOptimizer) where the optimizer can generate [`Batch`](crate::core::Batch)es of solutions on demand and of variable sizes. -->
+For multi-fidelity objectives, return `(Outcome, State)` and use the
+`[! FIDELITY !]` and `[! STATE !]` placeholders inside the objective body. The
+outcome's `#[step]` field communicates whether an evaluation is partial,
+complete, pending, or discarded.
 
-### Example
+## Run an experiment
 
 ```rust
 # mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-#     use tantale::macros::{objective, Outcome, CSVWritable};
 #     use serde::{Deserialize, Serialize};
-# 
-#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-#     pub struct OutExample {
+#     use tantale::core::{Real, Uniform};
+#     use tantale::macros::{Outcome, Recordable, Schema, objective};
+#
+#     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+#     pub struct Evaluation {
 #         #[maximize]
-#         pub obj: f64,
-#         pub info: f64,
+#         pub score: f64,
+#         pub extra: f64,
 #     }
-# 
+#
 #     objective!(
-#         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
-#             let _b = [! b | Nat(0,100, Uniform) | !];
-#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
-#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
-# 
-#             // ... more variables and computation ...
-# 
-#             OutExample{
-#                 obj: e, // In practice put your accuracy, MSE... here
-#                 info: [! f | Unit(Uniform) | !],
+#         pub fn tune() -> Evaluation {
+#             let x = [! x | Real(0.0, 1.0, Uniform) | !];
+#             let y = [! y | Real(0.0, 1.0, Uniform) | !];
+#             Evaluation {
+#                 score: 1.0 - (x - 0.25).abs() - (y - 0.75).abs(),
+#                 extra: x + y,
 #             }
 #         }
 #     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
 # }
-# 
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-
+use searchspace::get_problem;
+use tantale::algos::RandomSearch;
 use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{Runable, mono},
-    stop::Calls,
+    CSVRecorder, Experiment, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+    experiment::Runable, stop::Evaluated,
 };
-use tantale::algos::BatchRandomSearch;
-use searchspace::{get_function, get_searchspace};
 
-use std::sync::Arc;
+fn main() {
+    let problem = get_problem();
+    let sampler = RandomSearch::new();
+    let stop = Evaluated::new(50);
 
-# drop(Cleaner {
-#     path: String::from("tmp_run_batch1"),
-# });
-# let _clean = Cleaner {
-#     path: String::from("tmp_run_batch1"),
-# };
+    let config = FolderConfig::new("tmp_quick_start");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
 
-let sp = get_searchspace();
-let obj = get_function();
-let opt = BatchRandomSearch::new(7);
-
-let stop = Calls::new(50);
-let config = Arc::new(FolderConfig::new("tmp_run_batch1"));
-let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-let check = MessagePack::new(config);
-
-let exp = mono(sp, obj, opt, stop, (rec, check));
-let accumulator = exp.run();
-let best = accumulator.get().unwrap().get_sobj();
-println!(
-    "Best solution found: f({:?}) ={}",
-    best.ref_x(),
-    best.y().value
-);
-```
-
-
-### Multi-threaded example
-
-```rust
-# mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-#     use tantale::macros::{objective, Outcome, CSVWritable};
-#     use serde::{Deserialize, Serialize};
-# 
-#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-#     pub struct OutExample {
-#         #[maximize]
-#         pub obj: f64,
-#         pub info: f64,
-#     }
-# 
-#     objective!(
-#         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
-#             let _b = [! b | Nat(0,100, Uniform) | !];
-#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
-#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
-# 
-#             // ... more variables and computation ...
-# 
-#             OutExample{
-#                 obj: e, // In practice put your accuracy, MSE... here
-#                 info: [! f | Unit(Uniform) | !],
-#             }
-#         }
-#     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
-# }
-# 
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-# 
-# use tantale::core::{
-#     CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-#     experiment::{Runable, threaded},
-#     stop::Calls,
-# };
-# use tantale::algos::BatchRandomSearch;
-# use searchspace::{get_function, get_searchspace};
-# 
-# use std::sync::Arc;
-# 
-# drop(Cleaner {
-#     path: String::from("tmp_run_batch2"),
-# });
-# let _clean = Cleaner {
-#     path: String::from("tmp_run_batch2"),
-# };
-# 
-# let sp = get_searchspace();
-# let obj = get_function();
-# let opt = BatchRandomSearch::new(7);
-# 
-# let stop = Calls::new(50);
-# let config = Arc::new(FolderConfig::new("tmp_run_batch2"));
-# let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-# let check = MessagePack::new(config);
-# 
-let exp = threaded(sp, obj, opt, stop, (rec, check));
-let accumulator = exp.run();
-let best = accumulator.get().unwrap().get_sobj();
-println!("Best solution found: f({:?}) ={}",best.ref_x(), best.y().value);
-```
-
-
-### MPI-distributed example
-
-To run the MPI distributed example, you'll need first to install a distribution of [MPI](https://www.open-mpi.org/), make sure [rust mpi](https://docs.rs/mpi/latest/mpi/) works. The installation might be tricky, you might face issues with FFI and [libffi](https://github.com/libffi-rs/libffi-rs).
-
-Then you can add `tantale` with the feature `mpi` to your project:
-```console
-foo@bar:~$ cargo add tantale --features mpi
-```
-
-```rust,ignore
-# mod searchspace {
-#     use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-#     use tantale::macros::{objective, Outcome, CSVWritable};
-#     use serde::{Deserialize, Serialize};
-# 
-#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-#     pub struct OutExample {
-#         #[maximize]
-#         pub obj: f64,
-#         pub info: f64,
-#     }
-# 
-#     objective!(
-#         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a i64
-#             let _b = [! b | Nat(0,100, Uniform) | !];
-#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
-#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-#             let _log_dom = [! f | Real(1e-4, 1.0, Uniform) |  Log !]; // Convert an Obj bounded domain to a Log-scaled Opt domain
-# 
-#             // ... more variables and computation ...
-# 
-#             OutExample{
-#                 obj: e, // In practice put your accuracy, MSE... here
-#                 info: [! f | Unit(Uniform) | !],
-#             }
-#         }
-#     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
-# }
-# 
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-# 
-use tantale::core::{
-    CSVRecorder, DistSaverConfig, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{distributed, mpi::utils::MPIProcess},
-    stop::Calls,
-};
-use searchspace::{get_function, get_searchspace};
-use tantale::algos::BatchRandomSearch;
-
-if std::env::var("OMPI_COMM_WORLD_SIZE").is_err() {
-    eprintln!("Skipping MPI test (not under mpirun)");
-    return;
-}
-
-let proc = MPIProcess::new();
-# 
-# if proc.rank == 0 {
-#     drop(Cleaner {
-#         path: String::from("tmp_run_batch3"),
-#     });
-#     let _clean = Cleaner {
-#         path: String::from("tmp_run_batch3"),
-#     };
-# }
-
-let sp = get_searchspace();
-let obj = get_function();
-let opt = BatchRandomSearch::new(7);
-
-let stop = Calls::new(50);
-let config = FolderConfig::new("tmp_run_batch3").init(&proc); // <======= /!\ Be careful to the .init(&proc) here /!\
-let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-let check = MessagePack::new(config);
-
-let exp = distributed(&proc, sp, obj, opt, stop, (rec, check));
-let accumulator = exp.run();
-if let Some(acc) = accumulator { // <==== Because workers return None !
-    let best = acc.get().unwrap().get_sobj();
-    println!(
-        "Best solution found: f({:?}) ={}",
-        best.ref_x(),
-        best.y().value
+    let experiment = Experiment::new(
+        problem,
+        sampler,
+        stop,
+        recorder,
+        checkpointer,
     );
+    let accumulator = experiment.run();
+    if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
+        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+    }
+    # let _ = std::fs::remove_dir_all("tmp_quick_start");
 }
 ```
 
-Then you have to run the binaries obtained from `cargo build` with `mpirun` or `mpiexec`.
-The following example uses 4 distributed processes:
+`Experiment` is the single-process runner. Its type parameters are inferred
+from the problem, sampler, stop rule, recorder, and checkpointer. `Evaluated`
+counts complete evaluations; `Evaluated` counts fully evaluated
+solutions only.
+
+`CSVRecorder::new` and `MessagePack::new` return `Option`. Pass `Some(value)`
+to require the component, or `None` to intentionally disable it. Handle
+construction failure explicitly when recording or checkpointing is required.
+`FolderConfig::new` computes paths. However `FolderConfig` does not itself create output
+directories, this is done by the `init` functions of the recorder and checkpointer.
+
+## Parallel execution
+
+Use `ParExperiment` for parallel work. The following two excerpts reuse the
+`searchspace` module defined above; each is an alternative `main`, not an
+additional block in the same program.
+
+### Threaded
+
+```rust
+# mod searchspace {
+#     use serde::{Deserialize, Serialize};
+#     use tantale::core::{Real, Uniform};
+#     use tantale::macros::{Outcome, Recordable, Schema, objective};
+#
+#     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+#     pub struct Evaluation {
+#         #[maximize]
+#         pub score: f64,
+#         pub extra: f64,
+#     }
+#
+#     objective!(
+#         pub fn tune() -> Evaluation {
+#             let x = [! x | Real(0.0, 1.0, Uniform) | !];
+#             let y = [! y | Real(0.0, 1.0, Uniform) | !];
+#             Evaluation {
+#                 score: 1.0 - (x - 0.25).abs() - (y - 0.75).abs(),
+#                 extra: x + y,
+#             }
+#         }
+#     );
+# }
+
+use tantale::algos::RandomSearch;
+use tantale::core::{
+    CSVRecorder, Evaluated, FolderConfig, HasX, HasY, MessagePack, ParExperiment,
+    SolutionShape, ThreadCommunicator,
+};
+
+fn main() {
+    let problem = searchspace::get_problem();
+    let config = FolderConfig::new("tmp_threaded_run");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
+    let experiment = ParExperiment::new(
+        problem, RandomSearch::new(), Evaluated::new(50),
+        recorder, checkpointer, ThreadCommunicator::new(),
+    );
+    if let Some(accumulator) = experiment.run() {
+        if let Some(best) = accumulator.get() {
+            println!("{:?}: {}", best.get_sobj().ref_x(), best.y().value);
+        }
+    }
+    # let _ = std::fs::remove_dir_all("tmp_threaded_run");
+}
+```
+
+`ThreadCommunicator::new()` uses the detected CPU count, with rank 0 acting as
+the master and remaining ranks as workers. A machine needs at least one worker
+in addition to the master. Run the workspace's complete example with:
 
 ```console
-foo@bar:~$ mpirun -n 4 <PATH_TO_BINARIES>/my_mpi_example
+cargo run -p tantale_examples --example quick_start_threaded
 ```
 
-### Managing in-memory function states for multi-fidelity optimization
+### MPI
 
-For multi-fidelity optimization, [`Stepped`](crate::core::Stepped) functions are used. Such a mode implies managing [`FuncState`](crate::core::FuncState), e.g. weights and biases of a neural network after an epoch. A [`Pool`](crate::core::Pool) of [`FuncState`](crate::core::FuncState) is dedicated to retrieve and remove these states. 
-In some cases keeping simultaneously multiple states in-memory is untractable. You can decide to load [`FuncState`](crate::core::FuncState)s from volatile or persitent memory using [`PoolMode`](crate::core::PoolMode). To do so alternative experiment constructor and loader functions are available:
+Enable the `mpi` feature and install an MPI implementation. Run the same
+program on every MPI rank; the communicator assigns the master and workers.
+Only the master receives `Some(accumulator)`. By default we suppose a Parallel File System (PFS),
+you can change this asumption with `.with_pfs(false)`.
+The file system is mainly used by worker for function state management,
+and by the master for recording and checkpointing.
+
 ```rust,ignore
-let exp = mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
-let exp = threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
-// When the `mpi` feature flag is used
-let exp = distributed_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
-```
-Moreover, the `load!` macro also has alternative mode:
-```rust,ignore
-load!(mono, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
-load!(threaded, PoolMode::Persistent, OptimizerType, StopType, space, objective, saver)
-// When the `mpi` feature flag is used
-load!(distributed, PoolMode::Persistent, mpi_proc, OptimizerType, StopType, space, objective, saver)  // MPI feature only
+use tantale::algos::RandomSearch;
+use tantale::core::{
+    CSVRecorder, Evaluated, FolderConfig, HasX, HasY, MessagePack, MPICommunicator,
+    ParExperiment, SolutionShape,
+};
+
+fn main() {
+    let problem = searchspace::get_problem();
+    let communicator = MPICommunicator::new(&problem);
+    let config = FolderConfig::new("tmp_mpi_run");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
+    let experiment = ParExperiment::new(
+        problem, RandomSearch::new(), Evaluated::new(50),
+        recorder, checkpointer, communicator,
+    );
+    if let Some(accumulator) = experiment.run() {
+        if let Some(best) = accumulator.get() {
+            println!("{:?}: {}", best.get_sobj().ref_x(), best.y().value);
+        }
+    }
+    # let _ = std::fs::remove_dir_all("tmp_mpi_run");
+}
 ```
 
-#### Note
+For the workspace example, build once and launch at least two processes:
 
-By default [`PoolMode::InMemory`](crate::core::PoolMode::InMemory) is used to keep [`FuncState`](crate::core::FuncState) within the volatile memory.
+```console
+cargo build -p tantale_examples --example mpi_quick_start
+mpiexec -n 4 target/debug/examples/mpi_quick_start
+```
+
+The workspace example checks `OMPI_COMM_WORLD_SIZE`, so this particular
+command assumes Open MPI; it skips execution if that variable is absent.
+Other MPI implementations may use different environment variables and
+launcher options. For a separate project, build with `--features mpi`, then
+launch the resulting binary with `mpiexec -n 4` (or your cluster's MPI
+launcher). Choose a fresh output directory for each run. Both excerpts above
+have been compiled and run in an isolated project, but are not RustDoc tests.
+
+## Further examples
+
+- [Random search and batching](rs_example.md)
+- [Finite grid search](gs_example.md)
+- [Multi-fidelity, multi-objective MO-ASHA](mo_example.md)
+- [Python objective integration](python_integration.md)

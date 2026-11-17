@@ -12,4 +12,4 @@
 //! and experiment runners.
 
 pub mod opt;
-pub use opt::{EmptyInfo, Prunable, Pruner, Sampler};
+pub use opt::{EmptyInfo, Prunable, Pruner, Sampler, Batched, MultiInstanceSampler};
