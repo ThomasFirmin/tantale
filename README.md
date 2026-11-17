@@ -128,4 +128,4 @@ cargo run -p tantale_examples --example quick_start
 The detailed tutorials and current architecture are documented in the
 [Quick start](src/quick_start.md), [random search](src/rs_example.md),
 [grid search](src/gs_example.md), [MO-ASHA](src/mo_example.md), and
-[custom sampler](src/create_seq_optimizer.md) guides.
+[custom sampler](src/create_single_optimizer.md) guides.
