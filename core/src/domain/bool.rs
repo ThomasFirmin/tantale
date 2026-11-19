@@ -1,15 +1,16 @@
+//! A [`Bool`] domain defines a [`Domain`] for which values are in $\\{\texttt{false}, \texttt{true}\\}$.
 use crate::{
     Grid,
+    distribution::{BoolDistribution, Distribution},
     domain::{
-        CategoricalDomain, Domain, PreDomain, TypeDom,
+        CategoricalDomain, Domain, PreDomain,
         bounded::{Bounded, BoundedBounds},
         mixed::{Mixed, MixedTypeDom},
         onto::{Onto, OntoDom},
         unit::Unit,
     },
     errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoolDistribution, DomainSampler},
+    utils::aliases::Elem,
 };
 
 use num::cast::AsPrimitive;
@@ -33,11 +34,11 @@ use std::fmt;
 pub struct Bool(pub BoolDistribution);
 impl Bool {
     /// Fabric for a [`Bool`].
-    pub fn new<S: DomainSampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
+    pub fn new<S: Distribution<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
         Bool(sampler.into())
     }
     // Fabric for a [`Bool`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
-    pub fn grid<S: DomainSampler<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
+    pub fn grid<S: Distribution<Self> + Into<BoolDistribution>>(sampler: S) -> Bool {
         Bool(sampler.into())
     }
 }
@@ -50,10 +51,10 @@ impl PartialEq for Bool {
 
 impl PreDomain for Bool {}
 impl Domain for Bool {
-    type TypeDom = bool;
+    type Element = bool;
 
     /// Sample a `bool` using the inner [`BoolDistribution`] of [`Bool`].
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element {
         self.0.sample(self, rng)
     }
 
@@ -61,7 +62,7 @@ impl Domain for Bool {
     ///
     /// # Parameters
     ///
-    /// * `point` : `&`[`TypeDom`](Domain::TypeDom) - a borrowed sample from a [`Bool`].
+    /// * `point` : `&`[`Element`](Domain::Element) - a borrowed sample from a [`Bool`].
     ///
     /// # Example
     ///
@@ -73,7 +74,7 @@ impl Domain for Bool {
     /// let sample = dom.sample(&mut rng);
     /// assert!(dom.contains(&sample));
     /// ```
-    fn contains(&self, _point: &Self::TypeDom) -> bool {
+    fn contains(&self, _point: &Self::Element) -> bool {
         true
     }
 }
@@ -83,7 +84,7 @@ impl CategoricalDomain for Bool {
         2
     }
 
-    fn get_features(&self) -> &[Self::TypeDom] {
+    fn get_features(&self) -> &[Self::Element] {
         &[false, true]
     }
 }
@@ -104,13 +105,13 @@ where
     Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
-    type Item = TypeDom<Bool>;
-    type TargetItem = TypeDom<Bounded<Out>>;
+    type Item = Elem<Bool>;
+    type TargetItem = Elem<Bounded<Out>>;
     /// [`Onto`] function between a [`Bool`] and a [`Bounded`] [`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Bounded`] - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -147,13 +148,13 @@ where
 }
 
 impl Onto<Unit> for Bool {
-    type Item = TypeDom<Bool>;
-    type TargetItem = TypeDom<Unit>;
+    type Item = Elem<Bool>;
+    type TargetItem = Elem<Unit>;
     /// [`Onto`] function between a [`Bool`] and a [`Unit`] [`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Unit`] - A borrowed targetted [`Unit`].
     ///
     /// # Errors
@@ -177,15 +178,15 @@ impl Onto<Unit> for Bool {
 impl OntoDom<Unit> for Bool {}
 
 impl Onto<Mixed> for Bool {
-    type Item = TypeDom<Bool>;
-    type TargetItem = TypeDom<Mixed>;
+    type Item = Elem<Bool>;
+    type TargetItem = Elem<Mixed>;
     /// [`Onto`] function between a [`Bool`] and a [`Mixed`] [`Domain`].
     ///
     /// Uses the respective [`onto`](Onto::onto) functions for each possible target [`Domain`] inside the [`Mixed`].
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Mixed`] - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
@@ -206,13 +207,13 @@ impl Onto<Mixed> for Bool {
 impl OntoDom<Mixed> for Bool {}
 
 impl Onto<Bool> for Bool {
-    type Item = TypeDom<Bool>;
-    type TargetItem = TypeDom<Bool>;
+    type Item = Elem<Bool>;
+    type TargetItem = Elem<Bool>;
     /// [`Onto`] function between a [`Bool`] and another [`Bool`] [`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` : [`bool`] - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bool`].
+    /// * `item` : [`bool`] - A borrowed [`Element`](Domain::Element) from the [`Bool`].
     /// * `target` : `&`[`Bool`] - A borrowed targetted [`Bool`].
     fn onto(&self, item: &Self::Item, _target: &Bool) -> Result<Self::TargetItem, OntoError> {
         Ok(*item)
@@ -235,15 +236,5 @@ impl From<Grid> for Bool {
             Grid::Bool(d) => d,
             _ => unreachable!("Can only From<Grid> with Bool."),
         }
-    }
-}
-
-impl CSVWritable<(), bool> for Bool {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &bool) -> Vec<String> {
-        Vec::from([comp.to_string()])
     }
 }

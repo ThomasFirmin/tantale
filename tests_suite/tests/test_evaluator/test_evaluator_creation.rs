@@ -1,6 +1,6 @@
 use tantale::algos::{BatchRandomSearch, RSInfo, random_search::RandomSearch};
 use tantale::core::{
-    BaseSol, Codomain, EmptyInfo, HasId, Mixed, MixedTypeDom, Objective, SId, Searchspace,
+    BaseSol, Codomain, EmptyInfo, HasId, Mixed, MixedTypeDom, OneStep, SId, Searchspace,
     SingleCodomain, Sp,
     domain::NoDomain,
     experiment::{
@@ -27,7 +27,7 @@ fn test_batchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(Objective::new(func));
+    let obj = Arc::new(OneStep::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -63,7 +63,7 @@ fn test_batchevaluator() {
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
-        Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+        OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _>,
     >>::evaluate(&mut eval, &obj, &cod, &mut stop, &mut acc);
 
@@ -150,7 +150,7 @@ fn test_thrbatchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));
-    let obj = Arc::new(Objective::new(func));
+    let obj = Arc::new(OneStep::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -186,7 +186,7 @@ fn test_thrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
-        Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+        OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _>,
     >>::evaluate(
         &mut eval,
@@ -284,7 +284,7 @@ fn test_seqevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Arc::new(Objective::new(func));
+    let obj = Arc::new(OneStep::new(func));
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
     let mut acc = SingleCodomain::new_accumulator();
@@ -310,7 +310,7 @@ fn test_seqevaluator() {
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
-        Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+        OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutShapeEvaluate<
             SId,
             EmptyInfo,

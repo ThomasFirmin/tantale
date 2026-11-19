@@ -1,17 +1,24 @@
 mod test {
     use rand::rngs::ThreadRng;
     use serde::{Deserialize, Serialize};
-    use tantale::core::{HasX, domain::TypeDom};
+    use tantale::{
+        core::{
+            HasX, OneStep, Problem,
+            aliases::{Elem, Shape},
+            problem::Pb,
+        },
+        macros::{Recordable, Schema},
+    };
 
     #[test]
     pub fn main() {
         use std::sync::Arc;
         use tantale::core::{
             BaseSol, Bool, Cat, EmptyInfo, Nat, Real, SId, Searchspace, Sp,
-            sampler::{Bernoulli, Uniform},
+            distribution::{Bernoulli, Uniform},
             solution::shape::SolutionShape,
         };
-        use tantale::macros::hpo;
+        use tantale::macros::{Outcome, hpo};
 
         hpo!(
             a | Real(0.0,1.0,Uniform)                          |               ;
@@ -20,16 +27,25 @@ mod test {
             d | Bool(Bernoulli(0.5))                           | Real(0.0,1.0,Uniform) ;
         );
 
+        #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+        pub struct OutStruct {
+            #[maximize]
+            out: f64,
+        }
+
+        fn example(_tantale_in: Arc<[Elem<ObjType>]>) -> OutStruct {
+            OutStruct { out: 42.0 }
+        }
+
         let mut rng = rand::rng();
         let sp: Sp<ObjType, OptType> = get_searchspace();
+        let func: OneStep<BaseSol<SId, Mixed, EmptyInfo>, OutStruct> = OneStep::new(example);
 
-        fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
-        where
-            Scp: Searchspace<BaseSol<SId, OptType, EmptyInfo>, SId, EmptyInfo, Opt = OptType>,
-        {
-            let info = std::sync::Arc::new(EmptyInfo {});
-            let obj = sp.sample_obj(rng, info);
-            let pair = sp.onto_opt(obj); // Paired solutions have the same ID
+        let pb = Pb::new(sp, func);
+
+        fn get_pair<P: Problem<Info = EmptyInfo>>(p: &P, rng: &mut ThreadRng) -> Shape<P> {
+            let obj = p.get_searchspace().sample_obj(rng);
+            let pair = p.get_searchspace().onto_opt(obj); // Paired solutions have the same ID
             println!(
                 "Obj {:?}:  <=> Opt {:?} : ",
                 pair.get_sobj(),
@@ -38,18 +54,10 @@ mod test {
             pair
         }
 
-        let pair = get_pair(&sp, &mut rng);
-
-        use tantale::macros::Outcome;
-
-        #[derive(Outcome, Debug, Serialize, Deserialize)]
-        pub struct OutStruct {
-            #[maximize]
-            out: f64,
-        }
+        let pair = get_pair(&pb, &mut rng);
 
         // _TantaleMixedObj is automatically created by sp!
-        fn compute_obj(tantale_in: Arc<[TypeDom<Mixed>]>) -> OutStruct {
+        fn compute_obj(tantale_in: Arc<[Elem<Mixed>]>) -> OutStruct {
             let a = match tantale_in[0] {
                 MixedTypeDom::Real(value) => value,
                 _ => unreachable!(""),

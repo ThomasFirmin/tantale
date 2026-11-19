@@ -27,10 +27,10 @@ class MyOutcome:
         self.step = step
 
     @staticmethod
-    def csv_header():
+    def header():
         return ["obj1", "obj2", "info", "step"]
     
-    def csv_write(self):
+    def record(self):
         return [str(self.obj1), str(self.obj2), str(self.info), str(self.step)]
 
 def objective(x: list, fid: float, state : State | None) -> tuple[MyOutcome, State]:
@@ -48,7 +48,6 @@ def objective(x: list, fid: float, state : State | None) -> tuple[MyOutcome, Sta
     obj2 = c + d
     info = 42
     state.counter += 1
-    step = tnt.PyStep.evaluated() if fid == 5 else tnt.PyStep.partially(state.counter)
+    step = tnt.PyStep.evaluated() if fid == 4 else tnt.PyStep.partially(state.counter)
     
     return (MyOutcome(obj1, obj2, info, step), state)
-

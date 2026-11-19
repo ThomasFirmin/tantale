@@ -1,116 +1,88 @@
 //! # Tantale
 //!
-//! *This is an early version of the Tantale library.
-//! It is a core library with very few algorithms, but it contains all the necessary building blocks to create your own optimizers, search spaces, and experiments.
-//! The library is designed to be flexible and extensible, allowing users to easily create their own custom components.*
+//! Tantale is a Rust framework for defining and running hyperparameter
+//! optimization problems. The facade re-exports the core problem and
+//! experiment APIs, optimization algorithms, and procedural macros.
 //!
-//! Tantale is a library dedicated to AutoML containing utilitaries to build search spaces, objective functions, algorithms, and parallelization. It is a core library with very few algorithms.
+//! A typical workflow defines an outcome and search space, creates a problem,
+//! selects a sampler and stopping rule, and runs an experiment. The
+//! `objective!` macro can generate the problem helpers from an objective
+//! function and its domain declarations. For an introduction, see the
+//! [Quick start](crate::docs::QuickStart).
 //!
 //! ## Tutorials
-//! * [Quick start](crate::docs::QuickStart)
-//! * [Random Search example](crate::docs::RSExample)
-//! * [Grid Search example](crate::docs::GSExample)
-//! * [Multi-fidelity, Multi-objective optimization with MO-ASHA](crate::docs::MOExample)
-//! * [Tantale $\times$ Burn](crate::docs::TantaleBurnExample)
-//! * [Tantale $\times$ PyTorch](crate::docs::TantalePyTorchExample)
+//!
+//! - [Quick start](crate::docs::QuickStart)
+//! - [Random search and batching](crate::docs::RandomSearch)
+//! - [Grid search](crate::docs::GridSearch)
+//! - [Multi-fidelity, multi-objective MO-ASHA](crate::docs::MOASHA)
+//! - [Python objective integration](crate::docs::PythonIntegration)
+//! - [MO-ASHA with Burn](crate::docs::TantaleBurnExample)
+//! - [MO-ASHA with PyTorch](crate::docs::TantalePyTorchExample)
 //!
 //! ## Advanced guides
-//! * [Create your batched optimizer](crate::docs::CreateBatchOptimizer)
-//! * [Create your sequential optimizer](crate::docs::CreateSingleOptimizer)
-//! * [Create your domain](crate::docs::CreateDomain) (Coming soon)
-//! * [Create your search space](crate::docs::CreateSearchSpace) (Coming soon)
-//! * [Create your solution](crate::docs::CreateSolution) (Coming soon)
-//! * [Create your experiment](crate::docs::CreateExperiment) (Coming soon)
-//! * [Create your stop criterion](crate::docs::CreateStopCriterion) (Coming soon)
-//! * [Create your recorder](crate::docs::CreateRecorder) (Coming soon)
-//! * [Create your checkpointer](crate::docs::CreateCheckpointer) (Coming soon)
 //!
-//! # Features
-//! * `py`: Enable Python bindings and utilities. This is required to use the [`python`] module,
-//!   which provides utilities to interface Tantale with Python code, including the [`init_python!`](crate::python::init_python) macro
-//!   for wiring Python objective functions into Tantale experiments.
-//! * `mpi`: Enable MPI-based distributed optimization. This is required to use the MPI-specific execution helpers [`distributed`](crate::core::distributed).
+//! - [Implementing a sequential sampler](crate::docs::CreateSingleSolutionSampler)
+//! - [Implementing a batched sampler](crate::docs::CreateBatchedSampler)
 //!
-//! # Notes on future releases
+//! ## Crate re-exports
 //!
-//! * The library is in its early stages and is expected to evolve.
+//! - [`core`] contains problems, domains, outcomes, experiments, recorders,
+//!   checkpointing, and stopping criteria.
+//! - [`algos`] contains random and grid search, multi-fidelity samplers and
+//!   pruners, and the optional Bayesian algorithms.
+//! - [`macros`] contains the objective, search-space, and derive macros.
+//! - `tantale::python` is available with the `py` or `pyspikes` feature.
 //!
-//! Interfacing Tantale with a Python API is currently under study.
+//! ## Features
 //!
-//! Seven algorithms are currently implemented:
-//! - [`random_search`](mod@crate::algos::random_search) - A simple random search algorithm that can be used in sequential or batch mode.
-//! - [`grid_search`](mod@crate::algos::grid_search) - A simple grid search algorithm that can be used in sequential.
-//! - [`sha`](mod@crate::algos::sha) - A simple batched implementation of the SHA algorithm for multi-fidelity optimization.
-//! - [`asha`](mod@crate::algos::asha) - A simple sequential implementation of the ASHA algorithm for multi-fidelity optimization.
-//! - [`moasha`](mod@crate::algos::moasha) - The multi-objective version of the ASHA algorithm.
-//! - [`hyperband`](mod@crate::algos::hyperband) - A simple implementation of the Hyperband algorithm for multi-fidelity optimization.
-//!   It can be combined combined with the SHA or ASHA algorithms.
-//! - [`tpe`](mod@crate::algos::tpe) - A simple implementation of the TPE algorithm for single- and multi- objective optimization.
+//! - `mpi` enables MPI communication for parallel experiments.
+//! - `py` enables Python objective integration.
+//! - `bayes` enables Bayesian optimization algorithms.
 //!
-//! Tantale handle simple [`Objective`](crate::core::Objective) functions, but also [`Stepped`](crate::core::Stepped) functions,
-//! which are functions that can be evaluated at different fidelity levels. This is useful for multi-fidelity optimization algorithms such as ASHA and SHA.
-//!
-//! For now Tantale mostly handles HyperParameter Optimization (HPO) problems,
-//! but it is designed to be flexible and extensible enough to also handle Neural Architecture Search (NAS) problems.
-//! **NAS is planned for a future release.**
-//!
-//! For now recording results is only possible in CSV format, but the library is designed to be flexible and extensible enough to also handle other formats or strategies such as JSON or SQLite.
-//! **More recording strategies are planned for a future release.**
-//!
-//! For now checkpointing is only possible using the MessagePack format, but the library is designed to be flexible and extensible enough to also handle other formats.
-//! **More checkpointing strategies are planned for a future release.**
+//! See the `core`, `algos`, and `macros` module documentation for the
+//! corresponding API details.
 
 pub mod docs {
-    //! This module is used to include the documentation for the tutorials and advanced guides in the crate-level documentation.
+    //! Tutorials and advanced guides included in the crate-level documentation.
     #[doc = include_str!("quick_start.md")]
     #[allow(non_snake_case)]
     pub mod QuickStart {}
-    #[doc = include_str!("create_batch_optimizer.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateBatchOptimizer {}
-    #[doc = include_str!("create_seq_optimizer.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateSingleOptimizer {}
-    #[doc = include_str!("create_domain.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateDomain {}
-    #[doc = include_str!("create_searchspace.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateSearchSpace {}
-    #[doc = include_str!("create_solution.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateSolution {}
-    #[doc = include_str!("create_experiment.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateExperiment {}
-    #[doc = include_str!("create_stop_criterion.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateStopCriterion {}
-    #[doc = include_str!("create_recorder.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateRecorder {}
-    #[doc = include_str!("create_checkpointer.md")]
-    #[allow(non_snake_case)]
-    pub mod CreateCheckpointer {}
     #[doc = include_str!("rs_example.md")]
     #[allow(non_snake_case)]
-    pub mod RSExample {}
+    pub mod RandomSearch {}
     #[doc = include_str!("gs_example.md")]
     #[allow(non_snake_case)]
-    pub mod GSExample {}
+    pub mod GridSearch {}
     #[doc = include_str!("mo_example.md")]
     #[allow(non_snake_case)]
-    pub mod MOExample {}
+    pub mod MOASHA {}
+    #[doc = include_str!("create_single_optimizer.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateSingleSolutionSampler {}
+    #[doc = include_str!("create_batch_optimizer.md")]
+    #[allow(non_snake_case)]
+    pub mod CreateBatchedSampler {}
+    #[doc = include_str!("python_integration.md")]
+    #[allow(non_snake_case)]
+    pub mod PythonIntegration {}
     #[doc = include_str!("tantale_x_burn.md")]
     #[allow(non_snake_case)]
     pub mod TantaleBurnExample {}
     #[doc = include_str!("tantale_x_pytorch.md")]
     #[allow(non_snake_case)]
     pub mod TantalePyTorchExample {}
+    #[doc = include_str!("expanded_macros.md")]
+    #[allow(non_snake_case)]
+    pub mod ExpandedMacros {}
 }
 
 #[doc(inline)]
 pub use macros::Outcome;
+#[doc(inline)]
+pub use macros::basic_bounds;
+#[doc(inline)]
+pub use macros::fidelity_bounds;
 #[doc(inline)]
 pub use macros::hpo;
 #[doc(inline)]
@@ -121,6 +93,6 @@ pub use tantale_algos as algos;
 pub use tantale_core as core;
 #[doc(inline)]
 pub use tantale_macros as macros;
-#[cfg(any(feature = "py", feature = "pyspikes"))]
+#[cfg(feature = "py")]
 #[doc(inline)]
 pub use tantale_python as python;

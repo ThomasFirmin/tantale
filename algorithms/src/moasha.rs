@@ -1,84 +1,104 @@
-//! The multi-objective version of [`Asynchronous Successive Halving`](crate::Asha) algorithm for multi-objective and multi-fidelity hyperparameter optimization.
+//! # Multi-objective Asynchronous Successive Halving
 //!
-//! # Overview
+//! MO-ASHA extends ASHA to multiple objectives. It stores completed solutions
+//! in fidelity rungs and uses [`CandidateSelector`]
+//! to choose candidates for promotion. The computed solution type must
+//! implement [`Dominate`]. The bundled
+//! [`NSGA2Selector`](crate::mo::NSGA2Selector) ranks non-dominated fronts and
+//! uses crowding distance when it must select only part of a front.
 //!
-//! The objective of MO-ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
-//! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive halving
-//! strategy of eliminating poor performers at increasing fidelity levels.
+//! [`MoAsha::new`] takes an inner sampler, selector, minimum budget, maximum
+//! budget, and scaling factor. Budget parameters follow the same constraints
+//! as [`Asha`](crate::Asha): budgets are finite and positive, the maximum is
+//! greater than or equal to the minimum, and scaling is finite and greater
+//! than `1.0`.
 //!
-//! [`Computed`](tantale_core::Computed) solutions implements the [`Dominate`] trait,
-//! allowing [non-dominating sorting](tantale_core::NonDominatedSorting).
+//! [`MoAsha::into_hyperband`] returns `BrackettedMoAsha`, a separate
+//! multi-bracket type.
 //!
-//! # Note
+//! # Reference
 //!
-//! Solutions are not discarded by default.
-//! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-//!
-//! # References
-//!
-//! Multi-objective Asynchronous Successive Halving is based on the work of [Schmucker et al. (2021)](https://arxiv.org/pdf/2106.12639).
+//! Schmucker et al., [*Multi-objective Asynchronous Successive Halving*](https://arxiv.org/abs/2106.12639).
 
+use log::warn;
 use tantale_core::{
-    CompShape, Dominate, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep,
-    LinkOpt, Multi, OptState, Optimizer, RawObj, Searchspace, SingleOptimizer, SingleSampler,
-    SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
-    solution::IntoComputedShape,
+    Domain, Dominate, HasFidelity, HasInfo, HasState, HasStep, Problem, Sampled, Sampler, SolInfo,
+    State, Step,
+    aliases::{Accum, CompShape, Opt, Shape},
+    optimizer::opt::{Prunable, Pruner},
+    solution::shape::IntoComputedShape,
+    utils::WrappedInfo,
 };
 
-use rand::rngs::StdRng;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, Visitor},
     ser::SerializeStruct,
 };
-use std::{cell::RefCell, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
+use tantale_macros::fidelity_bounds;
 
 use crate::{
-    mo::CandidateSelector,
-    utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter},
+    mo::{CandidateSelector, SelectorError},
+    utils::{
+        BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets,
+        build_halving_budgets_with_levels,
+    },
 };
 
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
-
-/// A helper macro to simplify the type signature of [`MoAsha`].
-/// You can write:
-/// ```rust,ignore
-/// let exp = load!(mono, moasha!(RandomSearch, NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
-/// or even:
-/// ```rust,ignore
-/// let exp = load!(mono, moasha!(tpe!(Univariate, UniformWeighter, LinearSplit), NSGA2Selector), Evaluated, (sp, cod), obj, (rec, check));
+/// A helper macro for the `MoAsha<Sampler, Selector, Problem>` type.
+///
+/// # Example
+/// ```ignore
+/// moasha!(RandomSearch, NSGA2Selector) // expands to MoAsha<RandomSearch, NSGA2Selector, _>
 /// ```
 #[macro_export]
 macro_rules! moasha {
     ($sampler : ident, $selector : ident) => {
-        MoAsha<$sampler, $selector, _, _, _, _>
+        MoAsha<$sampler, $selector, _>
     };
     ($sampler : ty, $selector: ident) => {
-        MoAsha<$sampler, $selector, _, _, _, _>
+        MoAsha<$sampler, $selector, _>
     };
 }
 
-type MoAshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
-
-/// Internal state of the [`MoAsha`] optimizer.
+/// A helper macro to simplify the type signature of [`BrackettedMoAsha`].*
 ///
-/// This structure maintains all essential information needed to resume an optimization
-/// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-pub struct MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+/// # Example
+/// ```ignore
+/// bracketted_moasha!(RandomSearch, NSGA2Selector) // expands to BrackettedMoAsha<RandomSearch, NSGA2Selector, _>
+/// ```
+#[macro_export]
+macro_rules! bracketted_moasha {
+    ($sampler : ident, $selector : ident) => {
+        BrackettedMoAsha<$sampler, $selector, _>
+    };
+    ($sampler : ty, $selector: ident) => {
+        BrackettedMoAsha<$sampler, $selector, _>
+    };
+}
+
+/// Multi-objective asynchronous Successive Halving optimizer.
+///
+/// # Overview
+///
+/// MO-ASHA uses its candidate selector to promote completed candidates from
+/// lower fidelity rungs when possible. If no candidate is eligible, its inner
+/// sampler proposes a new candidate at the minimum budget. Selection can be
+/// customized with any [`CandidateSelector`].
+///
+///
+/// # Type Parameters
+///
+/// The problem must support multi-fidelity evaluation, expose multiple
+/// objectives, and use computed solutions that implement
+/// [`Dominate`]. The inner sampler must implement [`Prunable`].
+pub struct MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
     /// The sampler used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
@@ -90,176 +110,120 @@ where
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rung: MoAshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
+    pub rungs: Rungs<P>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
-    _fn: PhantomData<Fn>,
 }
-impl<Smpl, Selector, Scp, PSol, Out, Fn> OptState
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+
+impl<Smpl, Selector, P> Debug for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MoAsha")
+            .field("sampler", &self.sampler)
+            .field("selector", &self.selector)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("current_budget", &self.current_budget)
+            .finish()
+    }
+}
+
+impl<Smpl, Selector, P> Clone for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sampler: self.sampler.clone(),
+            selector: self.selector.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
+            current_budget: self.current_budget,
+        }
+    }
+}
+
+impl<Smpl, Selector, P> State for MoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
 }
 
-/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639) multi-fidelity and multi-objective optimizer.
-///
-/// A [`SingleOptimizer`] implementing the
-/// [Multi-objective Asynchronous Successive Halving](https://arxiv.org/pdf/2106.12639)  algorithm for multi-fidelity evaluations.
-///
-/// # Overview
-///
-/// [`MoAsha`] manages the optimization process through on-demand generation of candidates :
-/// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
-/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting pareto-optimal candidates with a [`CandidateSelector`], if the rung has enough candidates.
-/// - If not, it continues down the rungs until it finds candidates to promote or defaults to random sampling at the lowest budget level.
-///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +------------------------------+
-///  | Provide a Computed solution? |
-///  +------------------------------+
-///     Yes /     \ No
-///        /       \
-///       v         v
-///  +--------+   +---------------------+
-///  | Add to |   | Start from highest  |
-///  | rung   |-->| budget rung         |
-///  +--------+   +---------------------+
-///                    |
-///                    v
-///         +-------------+
-///         | Rung has k  |  Yes
-///  +----->| candidates? | --------+
-///  |      +-------------+         |
-///  |             | No             |
-///  |             v                v
-///  |        +----------+     +---------------+
-///  |        | Move to  |     | Select        |
-///  |        | next     |     | configs with  |
-///  |        | rung     |     | a candidate   |
-///  |        +----------+     | selector      |
-///  |             |           +---------------+
-///  |             v              |
-///  |       +----------+         +-->Return configs
-///  |      /            \        |    to worker
-///  |  No /  At lowest   \ Yes +--------------+
-///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random configs|
-///          +----------+       +--------------+  
-/// ```
-///
-/// # Type Parameters
-///
-/// This optimizer is generic over:
-/// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion.
-/// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
-/// - **Function State**: Must implement [`FuncState`] for managing
-///   evaluation state across fidelity levels
-/// - [`Stepped`](tantale_core::Stepped) functions
-///
-/// # Internal State
-///
-/// - [`MoAsha`]: Checkpointable state including budget, scaling factor, and iteration count
-pub struct MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>(
-    pub MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>,
-)
+impl<Smpl, Selector, P> HasState for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate;
-
-impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAsha<Smpl, Selector, Scp, PSol, Out, Fn>
-where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    TypeCodom<Out>: Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    type State = Self;
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+#[fidelity_bounds(P)]
+impl<Smpl, Selector, P> MoAsha<Smpl, Selector, P>
+where
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
     /// Creates a new [`MoAsha`] optimizer with the specified parameters.
     ///
     /// # Parameters
     ///
-    /// * `sampler` - A [`SingleSampler`] used to sample random configuration.
-    /// * `selector` - The candidate selection strategy used for promoting candidates between rungs.
-    ///   This is a key component of the algorithm, as it determines how candidates are selected for promotion, based
-    ///   on their performance and diversity.
-    /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
-    ///   fidelity level, typically 1 epoch or similar.
-    /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
-    ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
-    ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
+    /// * `sampler` - Inner sampler used for candidates at the minimum budget.
+    /// * `selector` - Strategy for selecting multi-objective candidates for
+    ///   promotion.
+    /// * `budget_min` - Finite, positive fidelity of the first rung.
+    /// * `budget_max` - Finite maximum fidelity, greater than or equal to
+    ///   `budget_min`.
+    /// * `scaling` - Finite budget multiplier greater than `1.0`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if:
-    /// - `budget_min <= 0.0`
-    /// - `budget_max <= budget_min`
-    /// - `scaling < 1.0`
+    /// Returns an error if the scaling factor or budget range is invalid.
     pub fn new(
         sampler: Smpl,
         selector: Selector,
         budget_min: f64,
         budget_max: f64,
         scaling: f64,
-    ) -> Self {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        assert!(budget_min > 0.0, "Minimum budget must be > 0.0");
-        assert!(
-            budget_max > budget_min,
-            "Maximum budget must be > minimum budget"
-        );
-        let mut budgets: Vec<f64> = (0..)
-            .map(|i| budget_min * scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *budgets.last().unwrap() != budget_max {
-            let last = budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
+    ) -> Result<Self, PrunerError> {
+        let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
 
         let length = budgets.len();
         let current_budget = budgets[0];
-        MoAsha(MoAshaState {
+        Ok(MoAsha {
             sampler,
             selector,
             budgets,
             scaling,
-            rung: (0..length).map(|_| Vec::new()).collect(),
+            rungs: (0..length).map(|_| Vec::new()).collect(),
             current_budget,
-            _fn: PhantomData,
         })
     }
 
@@ -267,212 +231,67 @@ where
     /// This method is called during the optimization step to determine which candidates should be promoted to the next fidelity level.
     /// The selection is based on the [`CandidateSelector`] strategy defined in the optimizer state,
     /// which can be customized to implement different selection criteria (e.g., [`NSGA2Selector`](crate::utils::mo::NSGA2Selector)).
-    pub fn select(&mut self, index: usize, n: usize) -> Vec<usize> {
-        self.0
-            .selector
-            .arg_select_candidates(&self.0.rung[index], n)
-    }
-
-    pub fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
-    }
-}
-
-/// Implementation of the [`Optimizer`] trait for Successive Halving.
-///
-/// Defines the state management and codomain configuration for Successive Halving.
-impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
-where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
-    Selector: CandidateSelector,
-{
-    type State =
-        MoAshaState<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
-    type SInfo = SInfo;
-
-    /// Returns a reference to the current optimizer state.
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    /// Returns a mutable reference to the current optimizer state.
-    fn get_mut_state(&mut self) -> &Self::State {
-        &mut self.0
-    }
-
-    /// Reconstructs the [`MoAsha`] optimizer from a saved state.
     ///
-    /// Used for checkpointing and resuming optimization experiments.
-    /// Creates a fresh random number generator for the reconstructed optimizer.
-    fn from_state(state: Self::State) -> Self {
-        MoAsha(state)
+    /// Returns the indices, within the rung, of the selected candidates.
+    pub fn select(&self, index: usize, n: usize) -> Result<Vec<usize>, SelectorError> {
+        let selected = self.selector.arg_select_candidates(&self.rungs[index], n)?;
+        let promotable = selected
+            .into_iter()
+            .filter(|&i| !self.rungs[index][i].is_promoted())
+            .collect::<Vec<usize>>();
+        Ok(promotable)
+    }
+
+    pub fn into_hyperband(self) -> BrackettedMoAsha<Smpl, Selector, P> {
+        let (budget_min, budget_max) = self.get_budgets();
+        let sampler = self.sampler;
+        let selector = self.selector;
+        let scaling = self.scaling;
+
+        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+        let num_brackets = s_max + 1;
+        let admissions = vec![0; num_brackets];
+
+        let mut max_admissions = Vec::with_capacity(num_brackets);
+        let mut budgets = Vec::with_capacity(num_brackets);
+        let mut rungs = Vec::with_capacity(num_brackets);
+
+        (0..num_brackets).rev().for_each(|s| {
+            let admission =
+                (num_brackets as f64 * scaling.powi(s as i32) / ((s + 1) as f64)).ceil() as usize;
+            let bmin = budget_max * scaling.powi(-(s as i32));
+            let bracket_budgets =
+                build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
+            let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
+            max_admissions.push(admission);
+            budgets.push(bracket_budgets);
+            rungs.push(bracket_rungs);
+        });
+
+        BrackettedMoAsha {
+            sampler,
+            selector,
+            budgets,
+            scaling,
+            rungs,
+            admissions,
+            max_admissions,
+            num_brackets,
+        }
     }
 }
 
-impl<Smpl, Selector, Out, Scp, SInfo, Fn>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for MoAsha<Smpl, Selector, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
+/// Implements the core [`Sampler`] interface for MO-ASHA.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Sampler<P, Opt> for MoAsha<Smpl, Selector, P>
 where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    Opt: Domain,
+    Smpl: Sampler<P, Opt> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
-    /// Reinitializes the budget parameters for this optimizer.
-    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
-    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
-    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budgets = (0..)
-            .map(|i| budget_min * self.0.scaling.powi(i))
-            .take_while(|&b| b <= budget_max)
-            .collect();
-        //If final budget is not budget_max, modify final budget to be budget_max
-        if *self.0.budgets.last().unwrap() != budget_max {
-            let last = self.0.budgets.last_mut().unwrap();
-            *last = budget_max;
-        }
-        self.0.current_budget = self.0.budgets[0];
-    }
+    type Info = Smpl::Info;
 
-    /// Returns the current minimum and maximum budgets of this optimizer.
-    fn get_budgets(&self) -> (f64, f64) {
-        (
-            *self.0.budgets.first().unwrap(),
-            *self.0.budgets.last().unwrap(),
-        )
-    }
-
-    /// Updates the scaling factor for this optimizer.
-    fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        self.0.scaling = scaling;
-    }
-
-    /// Returns the current scaling factor for this optimizer.
-    fn get_scaling(&self) -> f64 {
-        self.0.scaling
-    }
-
-    /// Sets the current budget level used by the optimizer for pruning candidates.
-    fn set_current_budget(&mut self, budget: f64) {
-        assert!(
-            budget >= self.0.budgets[0] && budget <= self.0.budgets[self.0.budgets.len() - 1],
-            "Current budget must be within the range of defined budgets"
-        );
-        self.0.current_budget = budget;
-    }
-
-    fn get_current_budget(&self) -> f64 {
-        self.0.current_budget
-    }
-
-    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
-    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
-    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Scp::SolShape> {
-        let clear = self
-            .0
-            .rung
-            .drain(..)
-            .flatten()
-            .map(|comp| {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                sol
-            })
-            .collect();
-        self.0.rung = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
-        clear
-    }
-
-    fn drain_one(&mut self) -> Option<Scp::SolShape> {
-        for rung in self.0.rung.iter_mut() {
-            if let Some(comp) = rung.pop() {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                return Some(sol);
-            }
-        }
-        None
-    }
-}
-
-/// Implementation of the [`SingleOptimizer`] trait for Successive Halving.
-///
-/// Implements the core optimization logic: initial batch generation and successive halving
-/// with fidelity-based candidate elimination.
-impl<Smpl, Selector, Out, Scp, SInfo, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, SInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
-    for MoAsha<
-        Smpl,
-        Selector,
-        Scp,
-        FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-        Out,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
-where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-            SInfo = SInfo,
-        >,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Dominate,
-    SInfo: SolInfo,
-    FnState: FuncState,
-    Selector: CandidateSelector,
-{
     /// Executes one iteration of [`MoAsha`].
     ///
     /// This method implements the core algorithm:
@@ -484,26 +303,9 @@ where
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
     ///
-    /// # Note on function states management
-    ///
-    /// Solutions are not discarded by default.
-    /// They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-    /// This allows for asynchronous evaluation without waiting for all candidates to complete before proceeding to the next round.
-    ///
-    /// In Tantale, states are stored internally (in RAM or written in a file via checkpointing),
-    /// until a solution is [`Discarded`](tantale_core::Step::Discard),
-    /// [`Evaluated`](tantale_core::Step::Evaluated) or [`Errored`](tantale_core::Step::Error).
-    ///
-    /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
-    /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
-    /// So when using MO-ASHA a total of:
-    /// - 16 states at rung 0 (budget level 0)
-    /// - 4 states at rung 1 (budget level 1)
-    /// - 1 state at rung 2 (budget level 2)
-    ///   are stored in memory until the next generation step, where they will be promoted or discarded.
-    ///
-    /// So memory management is crucial when using MO-ASHA,
-    /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
+    /// Completed candidates are retained in their rungs until promotion or
+    /// rung cleanup. The amount of retained state depends on candidate
+    /// throughput, rung thresholds, and the number of budget levels.
     ///
     /// In MPI-distributed optimization:
     /// - If there is no Parallel File Sytems, function states and worker states are stored within the worker local memory, and are not shared across workers.
@@ -513,43 +315,134 @@ where
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
     ///
-    fn step(
+    fn sample_info(
         &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        if let Some(comp) = x {
-            if let Step::Partially(_s) = comp.step() {
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
-                if let Some(i) = idx {
-                    self.0.rung[i + 1].push(comp);
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut i = self.budgets.len() - 1;
+        while i > 0 {
+            let length = self.rungs[i].len();
+            let k = (length as f64 / self.scaling) as usize;
+            if k > 0 {
+                let selected = self.select(i, k);
+                if let Ok(candidates) = selected
+                    && !candidates.is_empty()
+                {
+                    let candidate = &mut self.rungs[i][candidates[0]];
+                    candidate.promote();
+                    let mut sol: Shape<P> = IntoComputedShape::extract(candidate.result.clone()).0;
+                    self.current_budget = self.budgets[i];
+                    sol.set_fidelity(self.current_budget);
+                    return Some((sol, Sampled::Reused));
                 }
             }
-
-            let mut i = self.0.budgets.len() - 1;
-            let mut k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            while k == 0 && i > 0 {
-                i -= 1;
-                k = (self.0.rung[i].len() as f64 / self.0.scaling) as usize;
-            }
-            if k == 0 {
-                self.0.current_budget = self.0.budgets[0];
-                self.0
-                    .sampler
-                    .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
-            } else {
-                let idx = self.select(i, k)[0];
-                self.0.current_budget = self.0.budgets[i];
-                let sol = IntoComputedShape::extract(self.0.rung[i].remove(idx)).0;
-                fidelity_setter(sol, self.0.current_budget)
-            }
-        } else {
-            self.0.current_budget = self.0.budgets[0];
-            self.0
-                .sampler
-                .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+            i -= 1;
         }
+
+        self.current_budget = self.budgets[0];
+        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+            sol.set_fidelity(self.current_budget);
+            (sol, info)
+        })
+    }
+
+    fn update(&mut self, x: &CompShape<P>, scp: &P::Scp, acc: &Accum<P>) {
+        match x.step() {
+            Step::Partially(s) => {
+                let fid = x.fidelity().0;
+                if fid >= self.get_budget_max() {
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid,
+                        self.get_budget_max(),
+                        s
+                    );
+                }
+                let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs.len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+                self.sampler.update(x, scp, acc)
+            }
+            Step::Evaluated => {
+                let fid = x.fidelity().0;
+                if fid < self.get_budget_max() {
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid,
+                        self.get_budget_max()
+                    );
+                }
+                self.sampler.update(x, scp, acc)
+            }
+            _ => (),
+        }
+    }
+}
+
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Pruner<P, Opt> for MoAsha<Smpl, Selector, P>
+where
+    Opt: Domain,
+    Smpl: Sampler<P, Opt> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    /// Reinitializes the budget parameters for this optimizer.
+    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
+    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
+    fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
+        self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
+        self.current_budget = self.budgets[0];
+        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
+    }
+
+    /// Returns the current minimum and maximum budgets of this optimizer.
+    fn get_budgets(&self) -> (f64, f64) {
+        (
+            *self.budgets.first().unwrap(),
+            *self.budgets.last().unwrap(),
+        )
+    }
+
+    /// Updates the scaling factor for this optimizer.
+    fn set_scaling(&mut self, scaling: f64) {
+        assert!(scaling > 1.0, "Scaling factor must be >= 1.0");
+        self.scaling = scaling;
+    }
+
+    /// Returns the current scaling factor for this optimizer.
+    fn get_scaling(&self) -> f64 {
+        self.scaling
+    }
+
+    /// Sets the current budget level used by the optimizer for pruning candidates.
+    fn set_current_budget(&mut self, budget: f64) {
+        assert!(
+            budget >= self.budgets[0] && budget <= self.budgets[self.budgets.len() - 1],
+            "Current budget must be within the range of defined budgets"
+        );
+        self.current_budget = budget;
+    }
+
+    fn get_current_budget(&self) -> f64 {
+        self.current_budget
     }
 }
 
@@ -557,25 +450,12 @@ where
 //--- SERDE ---//
 //-------------//
 
-struct MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+struct MoAshaVisitor<Smpl, Selector, P>(PhantomData<(Smpl, Selector, P)>)
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
-{
-    _scp: PhantomData<Scp>,
-    _psol: PhantomData<PSol>,
-    _smpl: PhantomData<Smpl>,
-    _out: PhantomData<Out>,
-    _fn: PhantomData<Fn>,
-    _selector: PhantomData<Selector>,
-}
+    CompShape<P>: Dominate;
 
 enum MoAshaField {
     Sampler,
@@ -588,19 +468,12 @@ enum MoAshaField {
 
 struct MoAshaFieldVisitor;
 
-impl<Smpl, Selector, Scp, PSol, Out, Fn> Serialize
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<Smpl, Selector, P> Serialize for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -611,34 +484,21 @@ where
         state.serialize_field("selector", &self.selector)?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
-        state.serialize_field("rung", &self.rung)?;
+        state.serialize_field("rung", &self.rungs)?;
         state.serialize_field("current_budget", &self.current_budget)?;
         state.end()
     }
 }
 
-impl<Smpl, Selector, Scp, PSol, Out, Fn> MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<Smpl, Selector, P> MoAshaVisitor<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
     fn new() -> Self {
-        MoAshaStateVisitor {
-            _scp: PhantomData,
-            _psol: PhantomData,
-            _smpl: PhantomData,
-            _out: PhantomData,
-            _fn: PhantomData,
-            _selector: PhantomData,
-        }
+        MoAshaVisitor(PhantomData)
     }
 }
 
@@ -646,7 +506,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
     type Value = MoAshaField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter
-            .write_str("`sampler`, `selector`, `budgets`, `scaling`, `rung` or `current_budget`")
+            .write_str("`sampler`, `selector`, `budgets`, `scaling`, `rungs` or `current_budget`")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -658,7 +518,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
             "selector" => Ok(MoAshaField::Selector),
             "budgets" => Ok(MoAshaField::Budgets),
             "scaling" => Ok(MoAshaField::Scaling),
-            "rung" => Ok(MoAshaField::Rung),
+            "rungs" => Ok(MoAshaField::Rung),
             "current_budget" => Ok(MoAshaField::CurrentBudget),
             _ => Err(de::Error::unknown_field(
                 value,
@@ -667,7 +527,7 @@ impl<'de> Visitor<'de> for MoAshaFieldVisitor {
                     "selector",
                     "budgets",
                     "scaling",
-                    "rung",
+                    "rungs",
                     "current_budget",
                 ],
             )),
@@ -683,24 +543,17 @@ impl<'de> Deserialize<'de> for MoAshaField {
     }
 }
 
-impl<'de, Scp, PSol, Smpl, Selector, Out, Fn> Visitor<'de>
-    for MoAshaStateVisitor<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Smpl, Selector, P> Visitor<'de> for MoAshaVisitor<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
-    type Value = MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>;
+    type Value = MoAsha<Smpl, Selector, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("struct MoAshaState")
+        formatter.write_str("struct MoAsha")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -719,20 +572,19 @@ where
         let scaling = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(3, &self))?;
-        let rung = seq
+        let rungs = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
         let current_budget = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(5, &self))?;
-        Ok(MoAshaState {
+        Ok(MoAsha {
             sampler: Smpl::from_state(sampler),
             selector,
             budgets,
             scaling,
-            rung,
+            rungs,
             current_budget,
-            _fn: PhantomData,
         })
     }
 
@@ -744,7 +596,7 @@ where
         let mut selector = None;
         let mut budgets = None;
         let mut scaling = None;
-        let mut rung = None;
+        let mut rungs = None;
         let mut current_budget = None;
 
         while let Some(key) = map.next_key()? {
@@ -774,10 +626,10 @@ where
                     scaling = Some(map.next_value()?);
                 }
                 MoAshaField::Rung => {
-                    if rung.is_some() {
+                    if rungs.is_some() {
                         return Err(de::Error::duplicate_field("rung"));
                     }
-                    rung = Some(map.next_value()?);
+                    rungs = Some(map.next_value()?);
                 }
                 MoAshaField::CurrentBudget => {
                     if current_budget.is_some() {
@@ -792,40 +644,551 @@ where
         let selector = selector.ok_or_else(|| de::Error::missing_field("selector"))?;
         let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
         let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
-        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let rungs = rungs.ok_or_else(|| de::Error::missing_field("rungs"))?;
         let current_budget =
             current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
 
-        Ok(MoAshaState {
+        Ok(MoAsha {
             sampler: Smpl::from_state(sampler),
             selector,
             budgets,
             scaling,
-            rung,
+            rungs,
             current_budget,
-            _fn: PhantomData,
         })
     }
 }
 
-impl<'de, Scp, Selector, PSol, Smpl, Out, Fn> Deserialize<'de>
-    for MoAshaState<Smpl, Selector, Scp, PSol, Out, Fn>
+impl<'de, Smpl, Selector, P> Deserialize<'de> for MoAsha<Smpl, Selector, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out::Cod: Multi<Out>,
-    TypeCodom<Out>: Dominate,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Dominate,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
     Selector: CandidateSelector,
+    CompShape<P>: Dominate,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(MoAshaStateVisitor::new())
+        deserializer.deserialize_map(MoAshaVisitor::new())
+    }
+}
+
+//------------------//
+//  BrackettedMoAsha  //
+//------------------//
+
+/// [`BrackettedMoAsha`] is a variant of the Asynchronous Successive Halving algorithm
+/// that organizes the optimization process into multiple brackets,
+///  each with its own set of budget levels and rungs.
+/// This allows for more flexible and efficient exploration of the search space,
+/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets.
+pub struct BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
+    /// The candidate selection strategy used for promoting candidates between rungs.
+    /// This is a key component of the algorithm, as it determines how candidates are selected for promotion based on their performance and diversity.
+    pub selector: Selector,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<Vec<f64>>,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    pub scaling: f64,
+    /// A vector of vectors of vectors representing the rungs of the Asynchronous Successive Halving process.
+    pub rungs: Vec<Rungs<P>>,
+    /// The number of admissions per bracket.
+    pub admissions: Vec<usize>,
+    /// The maximum number of admissions per bracket.
+    pub max_admissions: Vec<usize>,
+    /// The number of brackets.
+    pub num_brackets: usize,
+}
+
+impl<P, Smpl, Selector> BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    pub fn select(
+        &self,
+        bracket: usize,
+        index: usize,
+        n: usize,
+    ) -> Result<Vec<usize>, SelectorError> {
+        let selected = self
+            .selector
+            .arg_select_candidates(&self.rungs[bracket][index], n)?;
+        let promotable = selected
+            .into_iter()
+            .filter(|&i| !self.rungs[bracket][index][i].is_promoted())
+            .collect::<Vec<usize>>();
+        Ok(promotable)
+    }
+}
+
+impl<P, Smpl, Selector> Debug for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+            .field("sampler", &self.sampler)
+            .field("selector", &self.selector)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("admissions", &self.admissions)
+            .field("max_admissions", &self.max_admissions)
+            .field("num_brackets", &self.num_brackets)
+            .finish()
+    }
+}
+
+impl<P, Smpl, Selector> Clone for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sampler: self.sampler.clone(),
+            selector: self.selector.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
+            admissions: self.admissions.clone(),
+            max_admissions: self.max_admissions.clone(),
+            num_brackets: self.num_brackets,
+        }
+    }
+}
+
+impl<P, Smpl, Selector> State for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+}
+
+impl<P, Smpl, Selector> HasState for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    type State = Self;
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+/// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
+///
+/// Defines the state management and codomain configuration for Asynchronous Successive Halving.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, Selector, P, Opt> Sampler<P, Opt> for BrackettedMoAsha<Smpl, Selector, P>
+where
+    Smpl: Sampler<P, Opt> + Prunable,
+    Selector: CandidateSelector,
+    CompShape<P>: Dominate,
+{
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut b = 0;
+        while b < self.num_brackets {
+            let mut i = self.budgets[b].len() - 1;
+            while i > 0 {
+                let length = self.rungs[b][i].len();
+                let k = (length as f64 / self.scaling) as usize;
+                if k > 0 {
+                    let selected = self.select(b, i, k);
+                    if let Ok(candidates) = selected
+                        && !candidates.is_empty()
+                    {
+                        let candidate = &mut self.rungs[b][i][candidates[0]];
+                        candidate.promote();
+                        let mut sol: Shape<P> =
+                            IntoComputedShape::extract(candidate.result.clone()).0;
+                        sol.set_fidelity(self.budgets[b][i]);
+                        return Some((sol, Sampled::Reused));
+                    }
+                }
+                i -= 1;
+            }
+
+            if self.admissions[b] < self.max_admissions[b] {
+                self.admissions[b] += 1;
+                return self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+                    sol.set_fidelity(self.budgets[b][0]);
+                    let info = match info {
+                        Sampled::Fresh(inf) => inf,
+                        Sampled::Reused => sol
+                            .sinfo()
+                            .find_info::<Smpl::Info>()
+                            .expect("Sampler info not found in solution info")
+                            .clone(),
+                    };
+                    let sinfo = WrappedInfo::new(info, BracketInfo(b).into());
+                    (sol, Sampled::Fresh(sinfo.into()))
+                });
+            }
+            b += 1;
+        }
+        self.admissions = vec![0; self.num_brackets];
+        self.rungs.iter_mut().for_each(|bracket| {
+            bracket.iter_mut().for_each(|rung| {
+                rung.drain(..);
+            })
+        });
+        self.sample_info(scp, acc)
+    }
+
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s) => {
+                let fid = x.fidelity().0;
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget {
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid, max_budget, s
+                    );
+                }
+
+                let idx = self.budgets[bracket]
+                    .iter()
+                    .position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs[bracket].len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+            }
+            Step::Evaluated => {
+                let fid = x.fidelity().0;
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget {
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid, max_budget
+                    );
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct BrackettedMoAshaVisitor<Smpl, Selector, P>(PhantomData<(Smpl, Selector, P)>)
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>>;
+
+enum BrackettedMoAshaField {
+    Sampler,
+    Selector,
+    Budgets,
+    Scaling,
+    Rung,
+    Admissions,
+    MaxAdmissions,
+    NumBrackets,
+}
+
+struct BrackettedMoAshaFieldVisitor;
+
+impl<Smpl, Selector, P> Serialize for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("BrackettedMoAsha", 9)?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
+        state.serialize_field("selector", &self.selector)?;
+        state.serialize_field("selector", &self.selector)?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rungs)?;
+        state.serialize_field("admissions", &self.admissions)?;
+        state.serialize_field("max_admissions", &self.max_admissions)?;
+        state.serialize_field("num_brackets", &self.num_brackets)?;
+        state.end()
+    }
+}
+
+impl<Smpl, Selector, P> BrackettedMoAshaVisitor<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn new() -> Self {
+        BrackettedMoAshaVisitor(PhantomData)
+    }
+}
+
+impl<'de> Visitor<'de> for BrackettedMoAshaFieldVisitor {
+    type Value = BrackettedMoAshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("`sampler`, 'selector', `budgets`, `scaling`, `rung`, `admissions`, `max_admissions` or `num_brackets`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(BrackettedMoAshaField::Sampler),
+            "selector" => Ok(BrackettedMoAshaField::Selector),
+            "budgets" => Ok(BrackettedMoAshaField::Budgets),
+            "scaling" => Ok(BrackettedMoAshaField::Scaling),
+            "rung" => Ok(BrackettedMoAshaField::Rung),
+            "admissions" => Ok(BrackettedMoAshaField::Admissions),
+            "max_admissions" => Ok(BrackettedMoAshaField::MaxAdmissions),
+            "num_brackets" => Ok(BrackettedMoAshaField::NumBrackets),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "sampler",
+                    "selector",
+                    "budgets",
+                    "scaling",
+                    "rung",
+                    "admissions",
+                    "max_admissions",
+                    "num_brackets",
+                ],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for BrackettedMoAshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(BrackettedMoAshaFieldVisitor)
+    }
+}
+
+impl<'de, Smpl, Selector, P> Visitor<'de> for BrackettedMoAshaVisitor<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    type Value = BrackettedMoAsha<Smpl, Selector, P>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct Asha")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let selector = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        let max_admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+        let num_brackets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(7, &self))?;
+        Ok(BrackettedMoAsha {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut selector = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut admissions = None;
+        let mut max_admissions = None;
+        let mut num_brackets = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                BrackettedMoAshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Selector => {
+                    if selector.is_some() {
+                        return Err(de::Error::duplicate_field("selector"));
+                    }
+                    selector = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::Admissions => {
+                    if admissions.is_some() {
+                        return Err(de::Error::duplicate_field("admissions"));
+                    }
+                    admissions = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::MaxAdmissions => {
+                    if max_admissions.is_some() {
+                        return Err(de::Error::duplicate_field("max_admissions"));
+                    }
+                    max_admissions = Some(map.next_value()?);
+                }
+                BrackettedMoAshaField::NumBrackets => {
+                    if num_brackets.is_some() {
+                        return Err(de::Error::duplicate_field("num_brackets"));
+                    }
+                    num_brackets = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let selector = selector.ok_or_else(|| de::Error::missing_field("selector"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let admissions = admissions.ok_or_else(|| de::Error::missing_field("admissions"))?;
+        let max_admissions =
+            max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
+        let num_brackets = num_brackets.ok_or_else(|| de::Error::missing_field("num_brackets"))?;
+
+        Ok(BrackettedMoAsha {
+            sampler: Smpl::from_state(sampler),
+            selector,
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+}
+
+impl<'de, Smpl, Selector, P> Deserialize<'de> for BrackettedMoAsha<Smpl, Selector, P>
+where
+    P: Problem,
+    Selector: CandidateSelector,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Dominate,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(BrackettedMoAshaVisitor::new())
     }
 }

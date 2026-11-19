@@ -7,7 +7,7 @@ use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::stop::Calls;
 use tantale::core::{
     BaseSol, Codomain, EmptyInfo, EvalStep, FidelitySol, FolderConfig, HasId, MessagePack, Mixed,
-    MixedTypeDom, MonoCheckpointer, Objective, SId, Searchspace, SingleCodomain, Sp, Stepped,
+    MixedTypeDom, MonoCheckpointer, OneStep, SId, Searchspace, SingleCodomain, Sp, MultiStep,
     checkpointer::{Checkpointer, FuncStateCheckpointer, messagepack::MPFnStateCheckpointer},
     domain::NoDomain,
     experiment::{
@@ -54,7 +54,7 @@ fn test_serde_batchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = SingleCodomain::new(|o: &OutEvaluator| o.obj);
-    let obj = Objective::new(func);
+    let obj = OneStep::new(func);
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -99,7 +99,7 @@ fn test_serde_batchevaluator() {
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
-        Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+        OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _>,
     >>::evaluate(&mut neval, &obj, &cod, &mut stop, &mut acc);
 
@@ -128,7 +128,7 @@ fn test_serde_thrbatchevaluator() {
     let sp = sp_evaluator::get_searchspace();
     let func = sp_evaluator::example;
     let cod = Arc::new(SingleCodomain::new(|o: &OutEvaluator| o.obj));
-    let obj = Arc::new(Objective::new(func));
+    let obj = Arc::new(OneStep::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -179,7 +179,7 @@ fn test_serde_thrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         OutEvaluator,
         Calls,
-        Objective<Arc<[MixedTypeDom]>, OutEvaluator>,
+        OneStep<Arc<[MixedTypeDom]>, OutEvaluator>,
         OutBatchEvaluate<SId, _, _, Lone<BaseSol<SId, Mixed, EmptyInfo>, SId, Mixed, EmptyInfo>, _>,
     >>::evaluate(
         &mut neval,
@@ -223,7 +223,7 @@ fn test_serde_fidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Stepped::new(func);
+    let obj = MultiStep::new(func);
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -286,7 +286,7 @@ fn test_serde_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -344,7 +344,7 @@ fn test_serde_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -368,7 +368,7 @@ fn test_serde_thrfidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -436,7 +436,7 @@ fn test_serde_thrfidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -507,7 +507,7 @@ fn test_serde_thrfidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -537,7 +537,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Stepped::new(func);
+    let obj = MultiStep::new(func);
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -598,7 +598,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -656,7 +656,7 @@ fn test_serde_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -680,7 +680,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = std::sync::Arc::new(RSInfo { iteration: 0 });
     let sinfo = std::sync::Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -746,7 +746,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,
@@ -817,7 +817,7 @@ fn test_serde_thrfidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             _,

@@ -1,7 +1,7 @@
 # MO-ASHA Hyperparameter Optimization with PyTorch
 
-In this example, we implement an asynchronous, MPI-distributed, multi-fidelity and multi-objective hyperparameter optimization, of a simple feed-forward neural network trained on MNIST.
-The neural network is built using the [PyTorch](https://pytorch.org/) library.
+This tutorial adapts the original MPI-distributed, multi-fidelity,
+multi-objective search for a PyTorch MNIST classifier.
 
 This example illustrates how a Python function can be interfaced within Tantale.
 
@@ -17,16 +17,16 @@ In this example we:
 
 We consider the number of epochs a network is trained on as our budget.
 - The minimum budget of a single evaluation is **1 epoch**.
-- The maximum budget of a single evaluation is **20 epochs**.
+- The maximum budget of a single evaluation is **16 epochs**.
 
 We use the [`MoAsha`](mod@crate::algos::moasha) algorithm, with a **scaling factor** of 2.
-Hence, the available budgets are: `[1, 2, 4, 8, 20]`. Because $2 \cdot 8 = 16$, and $2 \cdot 16 = 32$. The final budget is $16$, rounded to the maximum user-defined budget.
+Hence, the available budgets are `[1, 2, 4, 8, 16]`. A budget is a fidelity: here, a total number of epochs. The objective is called several times for the same solution, each call resuming training from the saved [`State`](crate::core::State) up to the requested epoch (see the multi-fidelity tutorial, `MOASHA`).
 
 ### MPI-distributed computing
 
 We consider a computing grid made of 6 nodes, with 2 NVIDIA GPUs and 2 CPUs each, each worker process
 is assigned to a single GPU. The master process (`rank = 0`) is only assigned to a CPU, and runs the opitmization algorithm involving cheap computations.
-The 6 nodes share the same persistent (disk) storage.
+The 6 nodes share the same persistent storage using a Parallel File System (PFS).
 
 #### Hostfile
 
@@ -71,11 +71,11 @@ foo@bar:~$ cargo init my_pytorch_hpo
 - A distribution of MPI should be installed on your nodes.
 - Serde for serialization:
 ```console
-foo@bar:~$ cargo add serde
+foo@bar:~$ cargo add serde --features derive
 ```
-- Tantale with `mpi` feature:
+- Tantale with `mpi` and `py` features:
 ```console
-foo@bar:~$ cargo add tantale --features mpi
+foo@bar:~$ cargo add tantale --features mpi,py
 ```
 
 ##### Python dependency
@@ -102,9 +102,11 @@ foo@bar:~$ source torch_venv/bin/activate
 ### Dataset: `dataset.py`
 
 First we define the dataset.
+Careful, keep in mind that in usual HPO, the dataset must be split into 3 subsets: train, validation and test.
+To keep things simple, we do not introduce a validation set.
 
 
-```custom,{class=language-python}
+```python
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -126,12 +128,13 @@ Notice that we can import a `pytantale` module without having installed any Pyth
 Tantale leverages [pyo3](https://pyo3.rs/) to call Python function, and exposes Rust objects to Python.
 
 
-```custom,{class=language-python}
+```python
 import os
 import pickle
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from dataset import get_dataloaders
 
 import pytantale as tnt # <- Main Tantale module exposed to Python
 from pytantale import indices as idx # <- Contains hyperparameter indices within the input solution
@@ -143,16 +146,14 @@ from pytantale import extra # <- Contains extra function like mpi_rank() or mpi_
 We consider a simple 2 hidden layers feed-forward neural network.
 We want to optimize the activation function, via a [`Cat`](crate::core::Cat).
 We consider the following code:
-```custom,{class=language-python}
+```python
 import torch.nn as nn
 
-MAX_EPOCHS = 20
+MAX_EPOCHS = 16
 ACTIVATIONS = {
-    "gelu": nn.GELU,
     "relu": nn.ReLU,
     "sigmoid": nn.Sigmoid,
     "tanh": nn.Tanh,
-    "hard_swish": nn.Hardswish,
 }
 
 class MyModel(nn.Module):
@@ -183,14 +184,15 @@ class MyModel(nn.Module):
 ### PyOutcome: `model.py`
 
 We can directly define the outcome of the python objective function in Python.
-But the class has to implement two methods to be compatible with Tantale: `csv_header`, and `csv_write`.
+The class implements `header` and `record` for the current Python bridge.
 These allow elements of `MyOutcome` to be written within a CSV file.
-Moreover, because we are optimizing a `Stepped` function, the outcome is a [`FidOutcome`](crate::core::FidOutcome), containing a [`PyStep`](crate::python::PyStep).
-To track which MPI-worker has evaluated which solution, we add a `rank` field, filled with [`MPI_RANK`](crate::core::MPI_RANK), via the `mpi_rank()` function
+Moreover, because this is a multi-step function, the outcome contains a
+[`PyStep`](crate::python::PyStep) field used by the [`FidOutcome`](crate::core::FidOutcome) wrapper.
+To track which MPI-worker has evaluated which solution, we add a `rank` field via the `mpi_rank()` function
 within `pytantale.extra` Python module.
 
 
-```custom,{class=language-python}
+```python
 class MyOutcome:
     def __init__(self, train_accuracy: float, train_loss: float, test_accuracy: float, test_loss: float, parameters: int, step: tnt.PyStep, rank: int):
         self.train_accuracy = train_accuracy
@@ -202,7 +204,7 @@ class MyOutcome:
         self.rank = rank
 
     @staticmethod
-    def csv_header():
+    def header():
         return [
                 "train_accuracy", 
                 "train_loss", 
@@ -212,15 +214,15 @@ class MyOutcome:
                 "step", 
                 "rank"
                 ]
-    def csv_write(self):
+    def record(self):
         return [
-                str(self.train_accuracy), 
-                str(self.train_loss), 
-                str(self.test_accuracy), 
-                str(self.test_loss), 
-                str(self.parameters), 
-                str(self.step),
-                str(self.rank)
+                    str(self.train_accuracy), 
+                    str(self.train_loss), 
+                    str(self.test_accuracy), 
+                    str(self.test_loss), 
+                    str(self.parameters), 
+                    str(self.step),
+                    str(self.rank)
                 ]
 ```
 
@@ -233,7 +235,7 @@ Both function receives a folder path, in which you can save or load the current 
 Additionally to the model, we also save the current epoch, to better resume the evaluation.
 
 
-```custom,{class=language-python}
+```python
 class State:
     def __init__(self, model: nn.Module, current_epoch: int = 0):
         self.model = model
@@ -249,7 +251,7 @@ class State:
     def load(path: str):
         with open(os.path.join(path, "current_epoch.pkl"), "rb") as f:
             current_epoch = pickle.load(f)
-        model = torch.load(os.path.join(path, "pytorch_state.pt"))
+        model = torch.load(os.path.join(path, "pytorch_state.pt"), weights_only=False)
         state = State(model, current_epoch)
         print(f"Loaded state at epoch {state.current_epoch}")
         return state
@@ -265,20 +267,20 @@ But indices of hyperparameters within the input solution `x` can be accessed via
 The searchspace is defined later within the Rust part. The name of the hyperparameter are capitalized / uppercased within `indices`.
 For example `dropout | Unit(Uniform) |` > `indices.DROPOUT`.
 Moreover, Tantale consider two types of function:
-* [`Objective`](crate::core::Objective): With function like `f(x : Arc<[SOLUTION TYPE]>) -> Outcome`, for single step evaluations
-* [`Stepped`](crate::core::Stepped): With function like `f(x : Arc<[SOLUTION TYPE]>, fidelity : f64, state: Option<State>) -> (Outcome, State)`, for multi-step evaluations.
+* [`OneStep`](crate::core::OneStep): `f(x) -> Outcome` for a single-step evaluation.
+* [`MultiStep`](crate::core::MultiStep): `f(x, fidelity, state) -> (Outcome, State)` for multi-step evaluation.
 
 In our case we want to perform a multi-fidelity optimization with a solution evaluated by step, with a given budget.
 The hyperparameters are retrieved with `x[idx.HIDDEN_SIZE1]`.
 So the python function is defined as:
 
-```custom,{class=language-python}
+```python
 def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, State]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     target_epoch = int(fid)
 
     # If no state is given, then
-    # This is a new solution, or the previous checkpoint was missing.
+    # this is a new solution (or something else failed).
     if state is None:
         model = MyModel(
             x[idx.HIDDEN_SIZE1], 
@@ -294,7 +296,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
     model = state.model
     model = model.to(device)
     
-    optimizer = optim.Adam(model.parameters(), lr= x[idx.LR])
+    optimizer = optim.SGD(model.parameters(), lr= x[idx.LR])
     criterion = nn.CrossEntropyLoss()
     train_loader, test_loader = get_dataloaders(x[idx.BATCH_SIZE])
 
@@ -310,7 +312,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
             optimizer.zero_grad()
             output = model(images)
             loss = criterion(output, targets)
-            running_loss += loss.item()
+            running_loss += loss.item() * targets.size(0)
             loss.backward()
             optimizer.step()
             correct += output.argmax(1).eq(targets).sum().item()
@@ -331,7 +333,7 @@ def objective(x: list, fid: float, state: State | None) -> tuple[MyOutcome, Stat
         for images, targets in test_loader:
             images, targets = images.to(device), targets.to(device)
             output = model(images)
-            running_loss += criterion(output, targets).item()
+            running_loss += criterion(output, targets).item() * targets.size(0)
             correct += output.argmax(1).eq(targets).sum().item()
             total += targets.size(0)
 
@@ -383,18 +385,18 @@ We want to optimize 8 hyperparameters:
 - The learning rate
 
 ```rust,ignore
-use tantale::core::{domain::{Cat, Nat, Real, Unit},sampler::Uniform};
+use tantale::core::{Cat, Nat, Real, Unit, Uniform};
 use tantale::macros::pyhpo;
 
 pyhpo!{
-        hidden_size1| Nat(10,1000, Uniform)                                           | ;
-        hidden_size2| Nat(10,1000, Uniform)                                           | ;
-        activation1 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | ;
-        activation2 | Cat(["relu", "sigmoid", "tanh", "gelu", "hard_swish"], Uniform) | ;
-        dropout1    | Unit(Uniform)                                                   | ;
-        dropout2    | Unit(Uniform)                                                   | ;
-        batch_size  | Nat(16,256, Uniform)                                            | ;
-        lr          | Real(1.0e-4, 1.0e-2, Uniform)                                   | ;
+        hidden_size1| Nat(10,1000, Uniform)                     |     ;
+        hidden_size2| Nat(10,1000, Uniform)                     |     ;
+        activation1 | Cat(["relu", "sigmoid", "tanh"], Uniform) |     ;
+        activation2 | Cat(["relu", "sigmoid", "tanh"], Uniform) |     ;
+        dropout1    | Unit(Uniform)                             |     ;
+        dropout2    | Unit(Uniform)                             |     ;
+        batch_size  | Nat(16,256, Uniform)                      |     ;
+        lr          | Real(1.0e-4, 1.0e-2, Uniform)             | Log ;
 }
 ```
 
@@ -402,9 +404,9 @@ pyhpo!{
 
 The macro creates:
 * The `pytantale` module exposed to Python
-  * it contains [`PyStep`](crate::python::PyStep), the Python equivalent of [`Step`](crate::core::Step).
+  * it contains `PyStep`, the Python equivalent of [`Step`](crate::core::Step).
   * the `indices` Python exposed submodule, containing hyperparameters' uppercased named constants of their corresponding indices within the solution.
-```custom,{class=language-python}
+```python
 from pytantale import indices as idx
 hidden_size1_index = idx.HIDDEN_SIZE1
 ```
@@ -416,31 +418,27 @@ hidden_size1_index = idx.HIDDEN_SIZE1
 Now that the neural networks and searchspace are defined we can use these within a `main.rs` file.
 To link the `model.py` Python file with the Rust code of Tantale, we'll use the [`init_python!`](crate::python::init_python) macro.
 This macro, initializes everything to nedd to be exposed from Python to Rust, and conversely. And,
-it returns the function  to be optimized. We have to precize what kind of function it is: [`Objective`](crate::core::Objective) or [`Stepped`](crate::core::Stepped).
-The [`init_python!`](crate::python::init_python) macros takes 8 parameters:
-* `Objective` or `Stepped` according to what kind of function we are optimizing
+it returns the function  to be optimized. We have to precize what kind of function it is: `OneStep` or `MultiStep`.
+The [`init_python!`](crate::python::init_python) macro takes, in order:
+* `OneStep` or `MultiStep` according to what kind of function we are optimizing
 * The name of the Rust module containing the searchspace; here `searchspace`
-* The full path **within the crate** of the Python file containing the **function** to optimize.
-  * Internally it is extended with `concat!(env!("CARGO_MANIFEST_DIR"), $func_file))`
+* The path, relative to the crate root (`CARGO_MANIFEST_DIR`), of the Python file containing the **function** to optimize.
 * The name of the Python module containing the function; here `model`
-* The name of the function to optimize; here `objective`
-* The full path **within the crate** of the Python file containing the **outcome** of the function to optimize.
-  * Internally it is extended with `concat!(env!("CARGO_MANIFEST_DIR"), $out_file))`
+* The name of the function to optimize; here [`objective`](crate::macros::objective)
+* The path, relative to the crate root (`CARGO_MANIFEST_DIR`), of the Python file containing the **outcome** of the function to optimize.
 * The name of the Python module containing the outcome; here `model`
 * The name of the outcome to optimize; here `MyOutcome`
 * The components of the [`Codomain`](crate::core::Codomain)
   * objectives: `maximize` or `minimize` followed by corresponding stringified fields
     * if there is only a single field: `objectives: [maximize "field"]`, then it defines a [`Single`](crate::core::Single) codomain for single-objective optimization.
     * if there are multiple fields: `objectives: [maximize "field1", minimize "field2"]`, then it defines a [`Multi`](crate::core::Multi) codomain for multi-objectives optimization.
-  * step: followed by the corresponding stringified field, if `Stepped`
+  * step: followed by the corresponding stringified field, if `MultiStep`
   * constraints: followed by corresponding stringified fields
   * cost: followed by the corresponding stringified field
 
-The Python object `State` will be automatically wrapped within a [`PyFuncState`](crate::python::PyFuncState).
-Then, the Python `MyOutcome` is handled with a [`PyFidOutcome`](crate::python::PyFidOutcome).
-The [`PyFidOutcome`](crate::python::PyFidOutcome) is then wrapped within `__PyOutWrapper` or
-`__PyFidWrapper`. These wrapper are single-tuple struct created within the macro, various traits are then implemented allowing a Python-Rust interface.
-And, the Python `objective` function is wrapped in a [`PyStepped`](crate::python::PyStepped).
+The Python `State` object is wrapped as a [`FuncState`](crate::core::FuncState) (through `save` and `load`), and `MyOutcome` is read through its `header`, `record` and attributes.
+The Python `objective` function is wrapped so that it receives `(x, fidelity, state)` and returns `(outcome, state)`. The `step` attribute of the outcome must be a `PyStep`.
+[`init_python!`](crate::python::init_python) returns the function only: build the problem with `Pb::new(searchspace, objective)`.
 
 
 This file contains the definition of the experiment itself:
@@ -448,41 +446,50 @@ This file contains the definition of the experiment itself:
 ```rust, ignore
 use tantale::{
     algos::{MoAsha, RandomSearch, mo::NSGA2Selector},
-    core::{CSVRecorder, Calls, DistSaverConfig, FolderConfig, HasX, HasY, MPIProcess, MessagePack, PoolMode, SolutionShape, distributed_with_pool},
+    core::{
+        CSVRecorder, FolderConfig, HasX, HasY, MPICommunicator, MessagePack, ParExperiment, Pb,
+        PoolMode, SolutionShape, stop::Evaluated,
+    },
     python::init_python,
 };
+use tantale::core::experiment::parallel::parexperiment::MasterWorkerCom;
 
 pub mod searchspace;
 pub use searchspace::get_searchspace;
 
-use std::env;
-
 // fn main() {
-    
-    let proc = MPIProcess::new();
-    let rank = proc.rank;
-
-    unsafe { std::env::set_var("CUDA_VISIBLE_DEVICES", (rank % 2).to_string()) };
-
     let sp = get_searchspace();
     let obj = init_python!(
-        Stepped, searchspace,
-        "/src/model.py", "model", "objective",
-        "/src/model.py", "model", "MyOutcome",
+        MultiStep, searchspace,
+        "src/model.py", "model", "objective",
+        "src/model.py", "model", "MyOutcome",
         objectives: [maximize "test_accuracy", minimize "parameters"],
         step: "step"
     );
+    // Bundle the searchspace and the Python-backed function into a problem.
+    let pb = Pb::new(sp, obj);
+    // MPICommunicator: rank 0 is the master, other ranks are workers.
+    let com = MPICommunicator::new(&pb);
+
+
+    // Pick one of the 2 GPUs of the node, before the Python runtime uses CUDA.
+    // worker ranks are 1.. (rank 0 is the master).
+    let rank: usize = com.me();
+    unsafe { std::env::set_var("CUDA_VISIBLE_DEVICES", (rank % 2).to_string()) };
 
     let sampler = RandomSearch::new();
-    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 20., 2.);
+    // Min budget, max budget, scaling factor. Returns a Result.
+    let opt = MoAsha::new(sampler, NSGA2Selector, 1., 16., 2.).unwrap();
 
-    let stop = Calls::new(1000);
-    let config = FolderConfig::new("pytorch_example").init(&proc);
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let stop = Evaluated::new(1000);
+    // The folder must not already exist: recorders and checkpointers fail otherwise.
+    let config = FolderConfig::new("tmp_pytorch_example");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = distributed_with_pool(&proc, sp, obj, opt, stop, (rec, check), PoolMode::Persistent);
-    println!("RUNNING EXPERIMENT from rank {}", rank);
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com).with_pool(PoolMode::Persistent);
+
+    // Only the master returns the accumulator, workers return None.
     let acc = exp.run();
     if let Some(a) = acc {
         let pareto = a.get();
@@ -499,7 +506,7 @@ use std::env;
 
 # Notes
 
-Note that we use the [`distributed_with_pool`](crate::core::distributed_with_pool) function, with [`PoolMode::Persistent`](crate::core::PoolMode).
+Note that the experiment uses `.with_pool(PoolMode::Persistent)`.
 Only one function state is kept within the RAM of a worker, while unecessary states are saved in persitent memory, and reloaded later if necessary. Once a network has been discarded or fully evaluated, their checkpoint are removed.
 
 # Compilation and execution

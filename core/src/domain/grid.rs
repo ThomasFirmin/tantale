@@ -1,8 +1,14 @@
+//! A [`GridDom`] represents a discrete set of values for a given type `T` that can be sampled from.
+//! It is a specific implementation of a [`Domain`] that allows for sampling from a predefined list of values
+//! rather than a range. This is particularly useful for optimization problems where the search space
+//! is inherently discrete or when a user wants to restrict the search to specific values.
+
 use crate::{
-    Bool, Bounded, CSVWritable, Domain, DomainSampler, GridDomDistribution, Mixed, MixedTypeDom,
-    Onto, OntoDom, Unit,
-    domain::{CategoricalDomain, PreDomain, TypeDom, bounded::BoundedBounds},
+    Bool, Bounded, Distribution, Domain, GridDomDistribution, Mixed, MixedTypeDom, Onto, OntoDom,
+    Unit,
+    domain::{CategoricalDomain, PreDomain, bounded::BoundedBounds},
     errors::OntoError,
+    utils::aliases::Elem,
 };
 use num::cast::AsPrimitive;
 use rand::RngExt;
@@ -11,11 +17,19 @@ use std::fmt::{Debug, Display};
 
 /// A shortcut for the bounds of the generic type `<T>` in [`GridDom`]`<T>`
 pub trait GridBounds:
-    PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
+    Send + Sync + PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
 {
 }
 impl<T> GridBounds for T where
-    T: PartialEq + Clone + Display + Debug + Default + Serialize + for<'a> Deserialize<'a>
+    T: Send
+        + Sync
+        + PartialEq
+        + Clone
+        + Display
+        + Debug
+        + Default
+        + Serialize
+        + for<'a> Deserialize<'a>
 {
 }
 
@@ -64,7 +78,7 @@ impl<T: GridBounds> GridDom<T> {
     pub fn new<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: DomainSampler<Self> + Into<GridDomDistribution>,
+        S: Distribution<Self> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,
@@ -79,7 +93,7 @@ impl<T: GridBounds> GridDom<T> {
     pub fn grid<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: DomainSampler<GridDom<T>> + Into<GridDomDistribution>,
+        S: Distribution<GridDom<T>> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,
@@ -96,14 +110,14 @@ impl<T: GridBounds> PartialEq for GridDom<T> {
 
 impl<T: GridBounds> PreDomain for GridDom<T> {}
 impl<T: GridBounds> Domain for GridDom<T> {
-    type TypeDom = T;
+    type Element = T;
 
-    fn sample<R: rand::Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: rand::Rng>(&self, rng: &mut R) -> Self::Element {
         let idx = rng.random_range(0..self.values.len());
         self.values[idx].clone()
     }
 
-    fn contains(&self, point: &Self::TypeDom) -> bool {
+    fn contains(&self, point: &Self::Element) -> bool {
         self.values.contains(point)
     }
 }
@@ -113,7 +127,7 @@ impl<T: GridBounds> CategoricalDomain for GridDom<T> {
         self.values.len()
     }
 
-    fn get_features(&self) -> &[Self::TypeDom] {
+    fn get_features(&self) -> &[Self::Element] {
         &self.values
     }
 }
@@ -185,7 +199,7 @@ where
 
 impl<In: GridBounds> Onto<Unit> for GridDom<In> {
     type Item = In;
-    type TargetItem = TypeDom<Unit>;
+    type TargetItem = Elem<Unit>;
     /// [`Onto`] function between a [`GridDom`] and a [`Unit`] [`Domain`].
     ///
     /// Considering $i$ the index of the item within `values` of [`GridDom`]
@@ -228,7 +242,7 @@ impl<In: GridBounds> OntoDom<Unit> for GridDom<In> {}
 
 impl<In: GridBounds> Onto<Mixed> for GridDom<In> {
     type Item = In;
-    type TargetItem = TypeDom<Mixed>;
+    type TargetItem = Elem<Mixed>;
     /// [`Onto`] function between a [`GridDom`] and a [`Mixed`] [`Domain`].
     ///
     /// Dispatches to the appropriate [`onto`](`Onto::onto`) method depending on the target [`Mixed`]
@@ -303,16 +317,6 @@ impl<In: GridBounds, Out: GridBounds> Onto<GridDom<Out>> for GridDom<In> {
     }
 }
 impl<In: GridBounds, Out: GridBounds> OntoDom<GridDom<Out>> for GridDom<In> {}
-
-impl<T: GridBounds> CSVWritable<(), T> for GridDom<T> {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &T) -> Vec<String> {
-        Vec::from([comp.to_string()])
-    }
-}
 
 /// [`GridDom`] alias for a list of `f64` elements.
 ///
@@ -436,7 +440,7 @@ impl From<Mixed> for Cat {
 /// into a single enum. Unlike [`Mixed`], which covers all basic domains, [`Grid`] is restricted to
 /// grid-based domains and [`Bool`], making it well-suited for exhaustive enumeration strategies
 /// such as Grid Search.
-/// The [`TypeDom`](`Domain::TypeDom`) is a [`MixedTypeDom`].
+/// Its associated [`Element`](Domain::Element) type is [`MixedTypeDom`].
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub enum Grid {
     Real(GridReal),
@@ -503,9 +507,9 @@ impl std::fmt::Debug for Grid {
 
 impl PreDomain for Grid {}
 impl Domain for Grid {
-    type TypeDom = MixedTypeDom;
+    type Element = MixedTypeDom;
 
-    fn sample<R: rand::Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: rand::Rng>(&self, rng: &mut R) -> Self::Element {
         match self {
             Grid::Real(dom) => MixedTypeDom::Real(dom.sample(rng)),
             Grid::Int(dom) => MixedTypeDom::Int(dom.sample(rng)),
@@ -515,7 +519,7 @@ impl Domain for Grid {
         }
     }
 
-    fn contains(&self, point: &Self::TypeDom) -> bool {
+    fn contains(&self, point: &Self::Element) -> bool {
         match (self, point) {
             (Grid::Real(dom), MixedTypeDom::Real(p)) => dom.contains(p),
             (Grid::Int(dom), MixedTypeDom::Int(p)) => dom.contains(p),
@@ -523,26 +527,6 @@ impl Domain for Grid {
             (Grid::Cat(dom), MixedTypeDom::Cat(p)) => dom.contains(p),
             (Grid::Bool(dom), MixedTypeDom::Bool(p)) => dom.contains(p),
             _ => false, // Type mismatch
-        }
-    }
-}
-
-impl CSVWritable<(), MixedTypeDom> for Grid {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &MixedTypeDom) -> Vec<String> {
-        match comp {
-            MixedTypeDom::Real(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Nat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Int(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Bool(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Cat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::Unit(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridReal(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridNat(s) => Vec::from([s.to_string()]),
-            MixedTypeDom::GridInt(s) => Vec::from([s.to_string()]),
         }
     }
 }

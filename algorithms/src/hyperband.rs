@@ -1,18 +1,26 @@
-//! [Hyperband](https://arxiv.org/pdf/1603.06560) algorithm for multi-fidelity hyperparameter optimization.
+//! # Hyperband
 //!
-//! # Overview
+//! This module implements the batch, SHA-based Hyperband variant. It divides
+//! the fidelity range into bracket configurations and runs those brackets
+//! through an inner [`Sha`] optimizer. The brackets vary the
+//! starting fidelity and initial batch size to balance broad low-fidelity
+//! exploration with smaller high-fidelity searches.
 //!
-//! Hyperband is a bandit-based algorithm that manages multiple brackets of successive halving runs
-//! in parallel. It efficiently allocates a fixed computational budget across brackets to discover
-//! high-performing configurations. Each bracket progressively increases fidelity while eliminating
-//! poorly-performing candidates through successive halving.
+//! Create it from SHA with [`Sha::into_hyperband`](crate::Sha::into_hyperband).
+//! That method derives the bracket count and initial configuration from the
+//! SHA budget range and scaling factor. The public [`Hyperband::new`] constructor
+//! accepts those derived values explicitly and should generally not be needed.
+//!
+//! ASHA and MO-ASHA provide their own `into_hyperband` conversions to
+//! `BrackettedAsha` and `BrackettedMoAsha`. Those are distinct bracketed
+//! optimizers; this module's [`Hyperband`] contains SHA.
 //!
 //! # Pseudo-code
 //!
 //! **Hyperband**
 //! ---
 //! **Inputs**
-//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`BudgetPruner`] (e.g., SHA or ASHA)*
+//! 1. &emsp; $\mathcal{O}$ &emsp;&emsp; *An inner optimizer implementing [`Pruner`] (e.g., SHA or ASHA)*
 //! 2. &emsp; $b_{\min}$ &emsp;&emsp; *Minimum budget*
 //! 3. &emsp; $b_{\max}$ &emsp;&emsp; *Maximum budget*
 //! 4. &emsp; $\eta$ &emsp;&emsp; *Scaling factor (from inner optimizer)*
@@ -21,7 +29,7 @@
 //! 7. &emsp;
 //! 8. &emsp; **for** $s \in [s_{\max}, \ldots, 0]$ **do**
 //! 9. &emsp;  &emsp; **set_max_budget**$(\mathcal{O}, b_{\max}\eta^{-s})$ &emsp; *Configure inner optimizer budgets*
-//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`BatchOptimizer`] ------
+//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`Sampler`] ------
 //! 11. &emsp; &emsp; **set_batch_size**$\left(\mathcal{O}, \left\lceil \frac{s_{\max}+1}{s+1} \eta^s \right\rceil\right)$ &emsp; *Configure inner optimizer batch size*
 //! 12. &emsp; &emsp; ------------------------------------------------------------
 //! 13. &emsp; &emsp; **Run** $\mathcal{O}$ until **current_budget**$(\mathcal{O}) \geq b_{\max}\eta^{-s}$ &emsp;
@@ -29,115 +37,50 @@
 //! 15. &emsp; **return best configuration across all brackets**
 //! ---
 //!
-//! # Type Parameters
+//! # Reference
 //!
-//! The algorithm is generic over:
-//! - **Inner Optimizer**: Must satisfy both [`Optimizer`] and [`BudgetPruner`]
-//!   traits. Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
-//! - **Output Type**: Must satisfy [`FidOutcome`] for multi-fidelity support
-//! - **Searchspace**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
-//! - **Solution Info**: Must satisfy [`SolInfo`] constraint for the inner optimizer
-//!
-//! # Example
-//!
-//! ```ignore
-//! // Create inner optimizer (e.g., SHA)
-//! let sampler = RandomSearch::new();
-//! let sha = Sha::new(
-//!     sampler,
-//!     batch_size,
-//!     budget_min,
-//!     budget_max,
-//!     scaling,
-//! );
-//!
-//! // Wrap in Hyperband to run multiple brackets
-//! let hyperband = Hyperband::new(sha);
-//! ```
-//!
-//! # Bracket Management
-//!
-//! Each bracket is executed sequentially, with the inner optimizer managing successive halving
-//! within each bracket. For [`BatchOptimizer`] inner optimizers (like SHA), brackets run one after another. For
-//! [`SingleOptimizer`] (like ASHA) when the inner [`BudgetPruner`] reaches its budget limit,
-//! the internal solutions are drained and [`Discarded`](tantale_core::Step::Discard), incoming solution from
-//! previous brackets might be included within the next bracket if their fidelity level correspond to new fidelity
-//! level of the next bracket.
-//!
-//! # Notes
-//!
-//! - Unlike single-bracket algorithms (SHA), Hyperband automatically discovers good initial batch sizes
-//! - The algorithm resets the inner optimizer for each bracket to maintain independence
-//! - The inner optimizer's state is preserved across checkpoints as part of the [`HyperbandState`]
-//! - For batch optimizers (like SHA), brackets execute sequentially; for sequential optimizers
-//!   (like ASHA), the implementation determines parallelization strategy
-//!
-//! The parallelization strategy is the one briefly described in [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
-//!
-//! # References
-//!
-//! Hyperband is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1603.06560).
-//! See also the work on Successive Halving by [Li et al. (2020)](https://arxiv.org/pdf/1810.05934).
+//! Li et al., [*Hyperband: A Novel Bandit-Based Approach to Hyperparameter Optimization*](https://arxiv.org/abs/1603.06560).
 
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use tantale_core::optimizer::opt::BudgetPruner;
-use tantale_core::solution::IntoComputedShape;
-use tantale_core::{Batch, BatchOptimizer, CSVWritable, OptInfo, SolInfo};
-use tantale_core::{
-    FidOutcome, FidelitySol, FuncState, HasFidelity, HasStep, LinkOpt, OptState, Optimizer,
-    Searchspace, SingleOptimizer, StepSId,
-};
+use tantale_core::aliases::{Accum, CompShape, Opt, Shape};
+use tantale_core::optimizer::opt::{Batched, Pruner};
+use tantale_core::utils::WrappedInfo;
+use tantale_core::{Domain, Problem};
+use tantale_core::{HasState, Orderable, Prunable, Sampled};
+use tantale_core::{Sampler, State};
+use tantale_macros::fidelity_bounds;
 
-use crate::utils::{BatchFCompShape, FCompAcc, FCompShape, SimpleStepped};
+use crate::Sha;
+use crate::utils::BracketInfo;
 
-/// A helper macro to simplify the type signature of [`Hyperband`].
-/// You can write:
+/// A helper macro for the `Hyperband<InnerSampler, Problem>` type.
+///
+/// # Example
 /// ```ignore
-/// let exp = load!(mono, hyperband!(asha!(RandomSearch)), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
-/// or even:
-/// ```ignore
-/// let exp = load!(mono, hyperband!(asha!(tpe!(Univariate, UniformWeighter, LinearSplit))), Evaluated, (sp, cod), obj, (rec, check));
+/// hyperband!(RandomSearch) // expands to Hyperband<RandomSearch, _>
 /// ```
 #[macro_export]
 macro_rules! hyperband {
     ($inner : ty) => {
-        Hyperband<$inner, _, _, _>
+        Hyperband<$inner, _>
     };
 }
 
-/// Internal state of the [`Hyperband`] optimizer.
+/// SHA-based Hyperband optimizer for multi-fidelity problems.
 ///
-/// This structure maintains all essential information needed to resume an optimization
-/// across checkpoints. It includes the bracket configuration, the inner optimizer state,
-/// and budget parameters shared across all brackets.
-///
-/// # Type Parameters
-///
-/// - `Optim` - The inner optimizer (typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha)).
-///   The behavior of Hyperband is determined by the inner optimizer's
-///   type [`SingleOptimizer`] or [`BatchOptimizer`].
-/// - `Out` - The outcome type satisfying [`FidOutcome`]
-/// - `Scp` - The searchspace
-/// - `SInfo` - The solution info type for the inner optimizer
-pub struct HyperbandState<Optim, Out, Scp, SInfo>
+/// The inner SHA optimizer is reconfigured for successive brackets. Prefer
+/// [`Sha::into_hyperband`](crate::Sha::into_hyperband), which calculates the
+/// bracket parameters from the SHA budgets and scaling factor.
+#[fidelity_bounds(P)]
+pub struct Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     /// Minimum budget across all brackets ($b_{\min}$)
     pub budget_min: f64,
@@ -150,470 +93,161 @@ where
     /// Current bracket index being executed (ranges from 0 to `s_max`)
     pub current_s: usize,
     /// The inner optimizer state managing the current bracket
-    pub inner: Optim,
-    _out: PhantomData<Out>,
-    _scp: PhantomData<Scp>,
-    _sinfo: PhantomData<SInfo>,
+    pub inner: Sha<Smpl, P>,
+    _p: PhantomData<P>,
 }
 
-impl<Optim, Out, Scp, SInfo> OptState for HyperbandState<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<Smpl, P> Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-}
-
-/// Metadata for Hyperband optimization steps, wrapping inner optimizer metadata.
-///
-/// Each evaluation iteration in Hyperband includes metadata about:
-/// - Which bracket is currently executing
-/// - The inner optimizer's own metadata (e.g., iteration number for SHA)
-///
-/// This allows tracking which bracket a solution belongs to when analyzing results.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
-#[serde(bound(
-    serialize = "Info: Serialize",
-    deserialize = "Info: for<'a> Deserialize<'a>"
-))]
-pub struct HyperbandInfo<Info: OptInfo> {
-    /// The bracket index ($s$) for the current iteration.
-    /// Ranges from $0$ (exploration-focused) to $s_{\max}$ (exploitation-focused).
-    pub bracket: usize,
-    /// The inner optimizer's metadata for the current iteration within this bracket.
-    pub inner_info: Arc<Info>,
-}
-impl<Info: OptInfo> OptInfo for HyperbandInfo<Info> {}
-
-impl<Info: OptInfo + CSVWritable<(), ()>> CSVWritable<(), ()> for HyperbandInfo<Info> {
-    /// The header consists of the "bracket" column followed by the inner information columns.
-    fn header(_elem: &()) -> Vec<String> {
-        let head = Vec::from([String::from("bracket")]);
-        let inner_head = Info::header(&());
-        [head, inner_head].concat()
-    }
-    /// The "bracket" column contains the current bracket index, followed by the inner information values.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        let head = Vec::from([self.bracket.to_string()]);
-        let inner_head = self.inner_info.write(&());
-        [head, inner_head].concat()
-    }
-}
-
-impl<Info: OptInfo> HyperbandInfo<Info> {
-    /// Creates a new instance of [`HyperbandInfo`] with the specified bracket index and inner information.
-    ///
-    /// # Arguments
-    ///
-    /// * `bracket` - The bracket index (0 to $s_{\max}$)
-    /// * `inner_info` - The metadata produced by the inner optimizer for this iteration
-    pub fn new(bracket: usize, inner_info: Arc<Info>) -> Self {
-        HyperbandInfo {
-            bracket,
-            inner_info,
+    pub fn new(
+        budget_min: f64,
+        budget_max: f64,
+        scaling: f64,
+        s_max: usize,
+        inner: Sha<Smpl, P>,
+    ) -> Self {
+        let current_s = s_max; // Start with the highest bracket
+        Hyperband {
+            budget_min,
+            budget_max,
+            scaling,
+            s_max,
+            current_s,
+            inner,
+            _p: PhantomData,
         }
     }
 }
 
-/// Hyperband multi-fidelity optimizer.
-///
-/// A wrapper optimizer that manages multiple brackets of an inner [`BudgetPruner`] (typically SHA or ASHA).
-/// Hyperband automatically determines bracket configurations and executes them sequentially,
-/// efficiently distributing a fixed budget across exploration and exploitation.
-///
-/// The information about maximum and minimum budget
-/// are extracted from the inner optimizer.
-///
-/// # Workflow
-///
-/// ```text
-///  Start Hyperband
-///       |
-///       v
-///  +--------------------+
-///  | Compute s_max      |  s_max = floor(log_eta(b_max/b_min))
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | For s = s_max to 0 |  Loop through brackets
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Configure bracket: |
-///  | b_min_s = b_min *  |
-///  |     eta^(s_max-s)  |
-///  | b_max_s = b_max    |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Set inner optimizer|
-///  | budgets            |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Run inner          |
-///  | optimizer          |  (SHA or ASHA)
-///  | for bracket s      |
-///  +--------------------+
-///       |
-///       v
-///  +--------------------+
-///  | Drain pending      |
-///  | solutions from     |
-///  | inner optimizer    |
-///  +--------------------+
-///        |
-///        v
-///       / \
-///      /   \
-///     /     \   No
-///    /  All  \ ---> Move to next bracket
-///    \ done? /         (loop back)
-///     \     /
-///      \   /
-///       \ /
-///        | Yes
-///        v
-///  +--------------------+
-///  | Return best across |
-///  | all brackets       |
-///  +--------------------+
-///
-/// Bracket characteristics:
-///   s=s_max: many configs, low fidelity   (exploration)
-///   s=0:     few configs, high fidelity  (exploitation)
-/// ```
-///
-/// # Type Parameters
-///
-/// - `Optim` - The inner optimizer (must implement both [`Optimizer`] and [`BudgetPruner`])
-/// - `Out` - Output type satisfying [`FidOutcome`]
-/// - `Scp` - Searchspace type
-/// - `SInfo` - Solution info type for the inner optimizer
-///
-/// # See Also
-///
-/// - [`Sha`](crate::Sha) - Successive Halving (batch optimizer)
-/// - [`Asha`](crate::Asha) - Asynchronous Successive Halving (sequential optimizer)
-pub struct Hyperband<Optim, Out, Scp, SInfo>(pub HyperbandState<Optim, Out, Scp, SInfo>)
+#[fidelity_bounds(P)]
+impl<Smpl, P> Clone for Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo;
-
-impl<Optim, Out, Scp, SInfo> Hyperband<Optim, Out, Scp, SInfo>
-where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    /// Creates a new [`Hyperband`] optimizer from an inner optimizer.
-    ///
-    /// This initializes the bracket configuration by extracting budget parameters from the
-    /// inner optimizer. The brackets are computed as follows:
-    /// - $s_{\max} = \lfloor \log_\eta(b_{\max}/b_{\min}) \rfloor$
-    /// - For each bracket $s$: budget range is $[b_{\min} \times \eta^{s_{\max} - s}, b_{\max}]$
-    ///
-    /// # Arguments
-    ///
-    /// * `sampler` - An inner optimizer implementing both [`Optimizer`] and [`BudgetPruner`].
-    ///   Typically [`Sha`](crate::Sha) or [`Asha`](crate::Asha).
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let sha = Sha::new(100, 1.0, 100.0, 2.0);
-    /// let hyperband = Hyperband::new(sha);
-    /// ```
-    pub fn new(mut sampler: Optim) -> Self {
-        let (budget_min, budget_max) = sampler.get_budgets();
-        let scaling = sampler.get_scaling();
+    fn clone(&self) -> Self {
+        Self {
+            budget_min: self.budget_min,
+            budget_max: self.budget_max,
+            scaling: self.scaling,
+            s_max: self.s_max,
+            current_s: self.current_s,
+            inner: self.inner.clone(),
+            _p: self._p,
+        }
+    }
+}
 
-        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
-        let current_s = s_max; // To start with if current_s = 0, to correctly initialize
+#[fidelity_bounds(P)]
+impl<Smpl, P> Debug for Hyperband<Smpl, P>
+where
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Hyperband")
+            .field("budget_min", &self.budget_min)
+            .field("budget_max", &self.budget_max)
+            .field("scaling", &self.scaling)
+            .field("s_max", &self.s_max)
+            .field("current_s", &self.current_s)
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
 
-        let r = budget_max * scaling.powi(-(s_max as i32));
-        sampler.set_budgets(budget_min, r);
-
-        Hyperband(HyperbandState {
-            budget_min,
-            budget_max,
-            scaling,
-            current_s,
-            s_max,
-            inner: sampler,
-            _out: PhantomData,
-            _scp: PhantomData,
-            _sinfo: PhantomData,
+#[fidelity_bounds(P)]
+impl<Smpl, P> Hyperband<Smpl, P>
+where
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    #[allow(clippy::type_complexity)]
+    fn wrap(
+        &self,
+        sampled: Option<(Shape<P>, Sampled<Smpl::Info>)>,
+    ) -> Option<(Shape<P>, Sampled<WrappedInfo<Smpl::Info, BracketInfo>>)> {
+        sampled.map(|(sol, info)| match info {
+            Sampled::Fresh(inner) => {
+                let hinfo = Arc::new(BracketInfo(self.current_s));
+                (
+                    sol,
+                    Sampled::Fresh(Arc::new(WrappedInfo::new(inner, hinfo))),
+                )
+            }
+            Sampled::Reused => (sol, Sampled::Reused),
         })
     }
 }
 
-impl<Optim, Out, Scp, SInfo>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Hyperband<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<Smpl, P> State for Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    type State = HyperbandState<Optim, Out, Scp, Optim::SInfo>;
-    type SInfo = Optim::SInfo;
+}
 
-    /// Provides mutable access to the internal state of the [`Hyperband`] optimizer.
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
+#[fidelity_bounds(P)]
+impl<Smpl, P> HasState for Hyperband<Smpl, P>
+where
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type State = Self;
 
-    /// Provides immutable access to the internal state of the [`Hyperband`] optimizer.
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    /// Creates a new instance of the [`Hyperband`] optimizer from a given state.
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
     fn from_state(state: Self::State) -> Self {
-        Hyperband(state)
+        state
     }
 }
 
-impl<Optim, Out, Scp, FnState, SInfo>
-    BatchOptimizer<
-        FidelitySol<StepSId, Scp::Opt, SInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    > for Hyperband<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, P, Opt> Sampler<P, Opt> for Hyperband<Smpl, P>
 where
-    Optim: BatchOptimizer<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-            SInfo = SInfo,
-        > + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Ord,
-    FnState: FuncState,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt> + Prunable,
+    CompShape<P>: Orderable,
+    Opt: Domain,
 {
-    type Info = HyperbandInfo<Optim::Info>;
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
 
-    /// Computes the first batch of candidates for the current bracket in the Hyperband optimization.
-    ///
-    /// Delegates to the inner optimizer to generate the initial batch, then wraps the result
-    /// with [`HyperbandInfo`] tracking the current bracket index.
-    ///
-    /// The initial batch size is determined by the current bracket $s$:
-    /// $$n^s = \left\lceil \frac{(s_{\max} + 1) \times \eta^{s_{\max} - s}}{s + 1} \right\rceil$$
-    ///
-    /// # Returns
-    ///
-    /// A [`Batch`] with metadata indicating which bracket these candidates belong to
-    fn first_step(
+    fn sample_info(
         &mut self,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let n = ((self.0.s_max as f64 + 1.) * self.0.scaling.powi(self.0.current_s as i32)
-            / (self.0.current_s + 1) as f64)
-            .ceil() as usize;
-        self.0.inner.set_batch_size(n);
-        let (pairs, info) = self.0.inner.first_step(scp, acc).extract();
-        let new_info = HyperbandInfo::new(self.0.current_s, info);
-        Batch::new(pairs, new_info.into())
-    }
-
-    /// Executes one iteration of Hyperband on evaluated candidates.
-    ///
-    /// This method orchestrates the multi-bracket strategy:
-    /// 1. If within current bracket: delegates to inner optimizer's `step`
-    /// 2. If bracket is complete (budget maxed out):
-    ///    - Moves to next bracket (decrement bracket index)
-    ///    - Recalculates batch size: $n^s = \left\lceil \frac{(s_{\max} + 1) \times \eta^{s_{\max} - s}}{s + 1} \right\rceil$
-    ///    - Updates budget range for new bracket
-    ///    - Drains and resets inner optimizer
-    ///    - Starts fresh batch in new bracket or cycles back to $s_{\max}$ if done
-    ///
-    /// # Bracket Cycling
-    ///
-    /// - When $s = 0$ completes, cycles back to $s = s_{\max}$
-    /// - This allows continuous optimization compatible with [`Stop`](tantale_core::Stop) criteria
-    ///
-    /// # Returns
-    ///
-    /// A [`Batch`] containing the next set of candidates to evaluate, with metadata
-    /// indicating the current bracket
-    fn step(
-        &mut self,
-        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo>,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
-            let (pairs, info) = x.extract();
-            let extracted = Batch::new(pairs, info.inner_info.clone());
-
-            let (pairs, info) = self.0.inner.step(extracted, scp, acc).extract();
-            let new_info = HyperbandInfo::new(self.0.current_s, info);
-            Batch::new(pairs, new_info.into())
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        if !self.inner.bracket_complete() {
+            let sampled = self.inner.sample_info(scp, acc);
+            self.wrap(sampled)
         } else {
-            if self.0.current_s == 0 {
-                self.0.current_s = self.0.s_max;
+            if self.current_s == 0 {
+                self.current_s = self.s_max;
             } else {
-                self.0.current_s -= 1;
+                self.current_s -= 1;
             }
-
-            let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
-            self.0.inner.set_budgets(self.0.budget_min, r);
-
-            let to_discard = self.0.inner.drain();
-
-            if to_discard.is_empty() {
-                self.first_step(scp, acc)
-            } else {
-                let new_info = HyperbandInfo::new(self.0.current_s, Optim::Info::default().into());
-                Batch::new(to_discard, new_info.into())
-            }
+            let n = (self.s_max as f64 + 1.) / (self.current_s as f64 + 1.)
+                * self.scaling.powi(self.current_s as i32);
+            self.inner.set_batch_size((n.ceil() as usize).max(1));
+            let r = self.budget_max * self.scaling.powi(-(self.current_s as i32));
+            self.inner.set_budgets(r, self.budget_max);
+            let sampled = self.inner.sample_info(scp, acc);
+            self.wrap(sampled)
         }
     }
 
-    fn set_batch_size(&mut self, batch_size: usize) {
-        self.0.inner.set_batch_size(batch_size);
-    }
-
-    fn get_batch_size(&self) -> usize {
-        self.0.inner.get_batch_size()
-    }
-}
-
-impl<Optim, Out, Scp, FnState, SInfo>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, SInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    > for Hyperband<Optim, Out, Scp, SInfo>
-where
-    Optim: SingleOptimizer<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-            SInfo = SInfo,
-        > + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity + Ord,
-    FnState: FuncState,
-    SInfo: SolInfo,
-{
-    /// Generates the next candidate for evaluation to the current bracket in sequential Hyperband.
-    ///
-    /// This method implements the sequential variant of Hyperband, delegating to the inner
-    /// sequential optimizer while managing bracket transitions.
-    ///
-    /// # Bracket Cycling
-    ///
-    /// When the current bracket reaches its maximum budget:
-    /// 1. Moves to next bracket (decrement $s$)
-    /// 2. Updates budget configuration for new bracket
-    /// 3. Drains pending candidates from previous bracket
-    /// 4. Generates first candidate from new bracket
-    /// 5. When $s = 0$ completes, cycles back to $s = s_{\max}$
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - Optional evaluated [`Computed`](tantale_core::Computed) solution from previous iteration
-    /// * `scp` - The searchspace
-    ///
-    /// # Returns
-    ///
-    /// The next uncomputed [`Solution`](tantale_core::Solution) to evaluate at the current bracket's budget level
-    fn step(
-        &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        if self.0.inner.get_current_budget() < self.0.inner.get_budgets().1 {
-            self.0.inner.step(x, scp, acc)
-        } else {
-            let to_discard = x.map_or(self.0.inner.drain_one(), |mut comp| {
-                comp.discard();
-                Some(IntoComputedShape::extract(comp).0)
-            });
-
-            if let Some(discard) = to_discard {
-                discard
-            } else {
-                if self.0.current_s == 0 {
-                    self.0.current_s = self.0.s_max;
-                } else {
-                    self.0.current_s -= 1;
-                }
-                let r = self.0.budget_max * self.0.scaling.powi(-(self.0.current_s as i32));
-                self.0.inner.set_budgets(self.0.budget_min, r);
-                self.0.inner.step(None, scp, acc)
-            }
-        }
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
+        self.inner.update(x, scp, acc);
     }
 }
 
@@ -621,26 +255,11 @@ where
 //--- SERDE ---//
 //-------------//
 
-struct HyperbandStateVisitor<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+struct HyperbandStateVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
-{
-    _optim: PhantomData<Optim>,
-    _out: PhantomData<Out>,
-    _scp: PhantomData<Scp>,
-    _sinfo: PhantomData<SInfo>,
-}
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable;
 
 enum HBField {
     BudgetMin,
@@ -653,20 +272,11 @@ enum HBField {
 
 struct HBFieldVisitor;
 
-impl<Optim, Out, Scp, SInfo> Serialize for HyperbandState<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<Smpl, P> Serialize for Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -683,36 +293,21 @@ where
     }
 }
 
-impl<Optim, Out, Scp, SInfo> HyperbandStateVisitor<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<Smpl, P> HyperbandStateVisitor<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn new() -> Self {
-        HyperbandStateVisitor {
-            _optim: PhantomData,
-            _out: PhantomData,
-            _scp: PhantomData,
-            _sinfo: PhantomData,
-        }
+        HyperbandStateVisitor(PhantomData)
     }
 }
 
 impl<'de> Visitor<'de> for HBFieldVisitor {
     type Value = HBField;
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter
-            .write_str("`budget_min`, `budget_max`, `scaling`, `s_max`, `current_s` or `inner`")
+        formatter.write_str("Hyperband state field")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -749,22 +344,13 @@ impl<'de> Deserialize<'de> for HBField {
     }
 }
 
-impl<'de, Optim, Out, Scp, SInfo> Visitor<'de> for HyperbandStateVisitor<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<'de, Smpl, P> Visitor<'de> for HyperbandStateVisitor<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    type Value = HyperbandState<Optim, Out, Scp, SInfo>;
+    type Value = Hyperband<Smpl, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("struct HyperbandState")
@@ -791,17 +377,15 @@ where
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
         let inner_state = seq
             .next_element()?
-            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
-        Ok(HyperbandState {
+            .ok_or_else(|| de::Error::invalid_length(8, &self))?;
+        Ok(Hyperband {
             budget_min,
             budget_max,
             scaling,
             current_s,
             s_max,
-            inner: Optim::from_state(inner_state),
-            _out: PhantomData,
-            _scp: PhantomData,
-            _sinfo: PhantomData,
+            inner: Sha::<Smpl, P>::from_state(inner_state),
+            _p: PhantomData,
         })
     }
 
@@ -864,35 +448,23 @@ where
         let s_max = s_max.ok_or_else(|| de::Error::missing_field("s_max"))?;
         let inner_state = inner_state.ok_or_else(|| de::Error::missing_field("inner"))?;
 
-        Ok(HyperbandState {
+        Ok(Hyperband {
             budget_min,
             budget_max,
             scaling,
             current_s,
             s_max,
-            inner: Optim::from_state(inner_state),
-            _out: PhantomData,
-            _scp: PhantomData,
-            _sinfo: PhantomData,
+            inner: Sha::<Smpl, P>::from_state(inner_state),
+            _p: PhantomData,
         })
     }
 }
 
-impl<'de, Optim, Out, Scp, SInfo> Deserialize<'de> for HyperbandState<Optim, Out, Scp, SInfo>
+#[fidelity_bounds(P)]
+impl<'de, Smpl, P> Deserialize<'de> for Hyperband<Smpl, P>
 where
-    Optim: Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp, SInfo = SInfo>
-        + BudgetPruner<
-            FidelitySol<StepSId, Scp::Opt, SInfo>,
-            StepSId,
-            Scp::Opt,
-            Out,
-            Scp,
-            SInfo = SInfo,
-        >,
-    Optim::State: Serialize + Deserialize<'de>,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

@@ -1,8 +1,8 @@
 use tantale::core::Codomain;
-use tantale::core::domain::TypeDom;
+use tantale::core::aliases::Elem;
 use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
 use tantale::core::solution::Uncomputed;
-use tantale::core::{BaseSol, Computed, HasId, HasSolInfo, HasX, HasY, ParSId};
+use tantale::core::{BaseSol, Computed, HasId, HasInfo, HasX, HasY, ParSId};
 
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
@@ -14,18 +14,18 @@ use std::sync::Arc;
 use super::init_outcome::{OutExample, get_struct};
 use super::init_sinfo::{TestSInfo, get_sinfo};
 
-type TestComp<Sol, Dom> = Computed<Sol, ParSId, Dom, OutExample, TestSInfo>;
+type TestComp<Sol> = Computed<Sol, OutExample>;
 
-fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc, Dom>, pid: u32)
+fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc>, pid: u32)
 where
-    Unc: Uncomputed<ParSId, Dom, TestSInfo, Raw = Arc<[Dom::TypeDom]>>,
+    Unc: Uncomputed<Id = ParSId, Dom = Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
     Dom: Domain + Clone + Display + Debug,
-    TypeDom<Dom>: Sync + Send,
-    TypeDom<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
+    Elem<Dom>: Sync + Send,
+    Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
 {
     assert_eq!(
         sol.clone_x(),
-        std::sync::Arc::from(vec![Dom::TypeDom::default(); n]),
+        std::sync::Arc::from(vec![Dom::Element::default(); n]),
         "Solution `x` mismatch."
     );
     assert_eq!(sol.y().value, 1.0, "Wrong value from codomain.");

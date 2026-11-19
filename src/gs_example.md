@@ -1,116 +1,90 @@
-# Grid search on a mock function
+# Grid search
 
-In this tutorial we quickly implement a [`GridSearch`](crate::algos::GridSearch) for a mock function.
-See [Quick Start](crate::docs::QuickStart) for in-depth explanation.
+[`GridSearch`](crate::algos::GridSearch) enumerates values from finite grid domains. It is appropriate
+when the candidate set is small enough to evaluate exhaustively or when a
+fixed discrete set of values is required. Grid values are declared with
+`Grid<Domain([...])>` in an [`objective!`](crate::macros::objective) invocation.
 
-## Defining the searchspace
+## Define finite domains
 
 ```rust
 mod searchspace {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::core::{Int, Real, Uniform};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-    pub struct OutExample {
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct Evaluation {
         #[maximize]
-        pub obj: f64,
+        pub score: f64,
     }
 
     objective!(
-        pub fn example() -> OutExample {
-            let _a = [! a | Grid<Int([-2_i64, -1, 0 ,1, 2] , Uniform)> | !];
-            let _b = [! b | Grid<Nat([0_u64, 1, 2, 3, 4] , Uniform)> | !];
-            let _c = [! c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !];
-            let _d = [! d | Grid<Bool(Bernoulli(0.5))> | !];
-            let e = [! e | Grid<Real([6000.0, 2000.0, 3000.0, 4000.0, 5000.0], Uniform)> | !];
-
-            // ... more variables and computation ...
-
-            OutExample{
-                obj: e,
-            }
+        pub fn tune() -> Evaluation {
+            let _a = [! a | Grid<Int([-1_i64, 0, 1], Uniform)> | !];
+            let e = [! e | Grid<Real([0.0, 0.5, 1.0], Uniform)> | !];
+            Evaluation { score: e }
         }
     );
-    // The macro expands to helpers like:
-    // let sp = example::get_searchspace();
-    // let obj = example::get_function();
 }
 ```
 
-## Define the optimization loop
+## Run the search
 
 ```rust
 # mod searchspace {
 #     use serde::{Deserialize, Serialize};
-#     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform};
-#     use tantale::macros::{CSVWritable, Outcome, objective};
-# 
-#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-#     pub struct OutExample {
+#     use tantale::core::{Int, Real, Uniform};
+#     use tantale::macros::{Outcome, Recordable, Schema, objective};
+#
+#     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+#     pub struct Evaluation {
 #         #[maximize]
-#         pub obj: f64,
+#         pub score: f64,
 #     }
-# 
+#
 #     objective!(
-#         pub fn example() -> OutExample {
-#             let _a = [! a | Grid<Int([-2_i64, -1, 0 ,1, 2] , Uniform)> | !];
-#             let _b = [! b | Grid<Nat([0_u64, 1, 2, 3, 4] , Uniform)> | !];
-#             let _c = [! c | Grid<Cat(["relu", "tanh", "sigmoid"], Uniform)> | !];
-#             let _d = [! d | Grid<Bool(Bernoulli(0.5))> | !];
-#             let e = [! e | Grid<Real([6000.0, 2000.0, 3000.0, 4000.0, 5000.0], Uniform)> | !];
-# 
-#             // ... more variables and computation ...
-# 
-#             OutExample{
-#                 obj: e,
-#             }
+#         pub fn tune() -> Evaluation {
+#             let _a = [! a | Grid<Int([-1_i64, 0, 1], Uniform)> | !];
+#             let e = [! e | Grid<Real([0.0, 0.5, 1.0], Uniform)> | !];
+#             Evaluation { score: e }
 #         }
 #     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
 # }
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-use tantale::core::{
-    HasX, CSVRecorder, FolderConfig, HasY, MessagePack, SolutionShape,
-    experiment::{Runable, mono},
-    stop::Calls,
-};
+use searchspace::get_problem;
 use tantale::algos::GridSearch;
-use searchspace::{get_function, get_searchspace};
+use tantale::core::{
+    CSVRecorder, Experiment, FolderConfig, HasX, HasY, MessagePack, Problem,
+    SolutionShape, experiment::Runable, stop::Calls,
+};
 
-use std::sync::Arc;
-# drop(Cleaner {
-#     path: String::from("tmp_gs_example"),
-# });
-# let _clean = Cleaner {
-#     path: String::from("tmp_gs_example"),
-# };
+fn main() {
+    let problem = get_problem();
+    let sampler = GridSearch::new(problem.get_searchspace());
+    let stop = Calls::new(9);
 
-let sp = get_searchspace();
-let obj = get_function();
-let opt = GridSearch::new(&sp);
+    let config = FolderConfig::new("tmp_grid_search_run");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
 
-let stop = Calls::new(50);
-let config = Arc::new(FolderConfig::new("tmp_gs_example"));
-let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-let check = MessagePack::new(config);
-
-let exp = mono(sp, obj, opt, stop, (rec, check));
-let accumulator = exp.run();
-let best = accumulator.get().unwrap().get_sobj();
-println!(
-    "Best solution found: f({:?}) = {}",
-    best.ref_x(),
-    best.y().value
-);
+    let experiment = Experiment::new(
+        problem,
+        sampler,
+        stop,
+        recorder,
+        checkpointer,
+    );
+    let accumulator = experiment.run();
+    if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
+        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+    }
+    # let _ = std::fs::remove_dir_all("tmp_grid_search_run");
+}
 ```
+
+The two three-value dimensions form nine candidate combinations, so the stop
+limit is set to nine calls. [`GridSearch::new`](crate::algos::GridSearch::new) takes the problem's search space.
+The same domain must be finite and grid-backed for exhaustive enumeration.
+
+The corresponding runnable workspace example is
+`examples/examples/gs_example.rs`.

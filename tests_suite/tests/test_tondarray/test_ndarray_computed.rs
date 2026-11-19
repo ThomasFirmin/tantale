@@ -1,13 +1,11 @@
 use super::init_cod::*;
 use super::init_sp::{
-    sp_ms_nosamp, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real, sp_only_unit,
+    one_step_func_with_out::FuncType, sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int,
+    sp_only_nat, sp_only_real, sp_only_unit,
 };
 use paste::paste;
 use std::sync::Arc;
-use tantale::core::Mixed;
-use tantale::core::{
-    BaseSol, Computed, EmptyInfo, SId, XToNdArray, YToNdArray, searchspace::Searchspace,
-};
+use tantale::core::{Computed, Sp, XToNdArray, YToNdArray, searchspace::Searchspace};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($out : ident | $func : ident ,)+] | $comp : expr ),*) => {
@@ -17,14 +15,14 @@ macro_rules! get_test {
             #[test]
             fn [< test_ $sp _ $func _json >](){
                 let sp = $sp::get_searchspace();
-                let info = Arc::new(EmptyInfo{});
+
                 let rng = &mut rand::rng();
-                let sample: BaseSol<SId,$sp::ObjType,_> = Searchspace::<BaseSol<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
+                let sample = <Sp<$sp::ObjType,$sp::OptType> as Searchspace<FuncType<$sp::ObjType, $out>>>::sample_obj(&sp, rng);
                 let (_,elem) = $func();
                 let x_array = sample.x_array();
                 let y_array = elem.y_array();
 
-                let computed: Computed<_,SId,$dom, $out,EmptyInfo> = Computed::new(sample,Arc::new(elem));
+                let computed = Computed::<_,$out>::new(sample,Arc::new(elem));
                 let computed_xarray = computed.x_array();
                 let comp_yarray = computed.y_array();
                 assert_eq!(x_array, computed_xarray, "Computed x_array is not equal to expected x_array");
@@ -37,7 +35,7 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp
+    sp_mixed_to_nodomain
         | Mixed
         | [
             OutCodSingle | get_elemsingle,

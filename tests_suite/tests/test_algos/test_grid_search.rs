@@ -1,17 +1,13 @@
-use tantale::algos::GridSearch;
-use tantale::{
-    algos::grid_search::GSState,
-    core::{
-        CSVRecorder, FolderConfig, MessagePack, Objective, SaverConfig,
-        experiment::{Runable, ThrExperiment, mono, threaded},
-        load,
-        stop::Evaluated,
-    },
-};
+use tantale::algos::{GridSearch, NoPruner, nopruner};
+use tantale::core::ParExperiment;
+use tantale::core::experiment::parallel::threaded::ThreadCommunicator;
+use tantale::core::problem::Pb;
+use tantale::core::{CSVRecorder, FolderConfig, MessagePack, experiment::Runable, stop::Evaluated};
+use tantale::core::{Experiment, Problem};
 
 use crate::cleaner::Cleaner;
 use crate::init_func::{sp_grid_evaluator, sp_grid_evaluator_fid};
-use crate::run_checker::{run_reader, run_reader_eps};
+use crate::run_checker::run_reader;
 
 #[test]
 fn test_seqrun() {
@@ -19,30 +15,32 @@ fn test_seqrun() {
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
-    let opt = GridSearch::new(&sp);
+    let pb = Pb::new(sp, obj);
+
+    let opt = GridSearch::new(pb.get_searchspace());
 
     let stop = Evaluated::new(200);
-    let config = FolderConfig::new("tmp_test_gs_seqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_seqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = mono(sp, obj, opt, stop, (rec, check));
+    let exp = Experiment::new(pb, opt, stop, rec, check);
     exp.run();
 
     run_reader("tmp_test_gs_seqrun", 200);
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
 
-    let config = FolderConfig::new("tmp_test_gs_seqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_seqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
+    let mut exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(pb, rec, check);
+    assert_eq!(exp.sampler.1, 0, "Number of fully evaluated grid is wrong");
 
-    let expstop: &mut Evaluated = exp.get_mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
     expstop.add(100);
 
@@ -50,68 +48,16 @@ fn test_seqrun() {
 
     let sp = sp_grid_evaluator::get_searchspace();
     let obj = sp_grid_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
 
-    let config = FolderConfig::new("tmp_test_gs_seqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_seqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
+    let exp = Experiment::<_, GridSearch, Evaluated, _, _>::load(pb, rec, check);
+    assert_eq!(exp.sampler.1, 1, "Number of fully evaluated grid is wrong");
     run_reader("tmp_test_gs_seqrun", 300);
     exp.run();
-}
-
-#[test]
-fn test_thrseqrun() {
-    let _clean = Cleaner::new("tmp_test_gs_thr_seq_run");
-
-    let sp = sp_grid_evaluator::get_searchspace();
-    let obj = sp_grid_evaluator::get_function();
-    let opt = GridSearch::new(&sp);
-    let stop = Evaluated::new(200);
-    let config = FolderConfig::new("tmp_test_gs_thr_seq_run").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config);
-
-    let exp = ThrExperiment::new(sp, obj, opt, stop, (rec, check));
-    exp.run();
-
-    run_reader_eps("tmp_test_gs_thr_seq_run", 200, 5);
-
-    let sp = sp_grid_evaluator::get_searchspace();
-    let func = sp_grid_evaluator::example;
-    let obj = Objective::new(func);
-
-    let config = FolderConfig::new("tmp_test_gs_thr_seq_run").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
-
-    let mut exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
-
-    let expstop: &mut Evaluated = exp.get_mut_stop();
-    let calls = expstop.calls();
-    assert!((200..=205).contains(&calls), "Number of calls is wrong");
-    expstop.add(100);
-
-    exp.run();
-
-    let sp = sp_grid_evaluator::get_searchspace();
-    let func = sp_grid_evaluator::example;
-    let obj = Objective::new(func);
-
-    let config = FolderConfig::new("tmp_test_gs_thr_seq_run").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
-
-    let exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
-    let expstop: &Evaluated = exp.get_stop();
-    let calls = expstop.calls();
-    assert!((300..=305).contains(&calls), "Number of calls is wrong");
 }
 
 #[test]
@@ -120,29 +66,33 @@ fn test_fid_seq_run() {
 
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
-    let opt = GridSearch::new(&sp);
+    let smpl = GridSearch::new(&sp);
+    let opt = NoPruner::new(smpl, None);
 
     let stop = Evaluated::new(200);
-    let config = FolderConfig::new("tmp_test_gs_fidseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_fidseqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = mono(sp, obj, opt, stop, (rec, check));
+    let exp = Experiment::new(Pb::new(sp, obj), opt, stop, rec, check);
     exp.run();
     run_reader("tmp_test_gs_fidseqrun", 1000);
 
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_gs_fidseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_fidseqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
+    let mut exp =
+        Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(
+        exp.sampler.sampler.1, 0,
+        "Number of fully evaluated grid is wrong"
+    );
 
-    let expstop: &mut Evaluated = exp.get_mut_stop();
+    let expstop: &mut Evaluated = &mut exp.stop;
     assert_eq!(expstop.calls(), 200, "Number of calls is wrong");
     expstop.add(100);
 
@@ -151,72 +101,75 @@ fn test_fid_seq_run() {
     let sp = sp_grid_evaluator_fid::get_searchspace();
     let obj = sp_grid_evaluator_fid::get_function();
 
-    let config = FolderConfig::new("tmp_test_gs_fidseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_gs_fidseqrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
+    let exp =
+        Experiment::<_, nopruner!(GridSearch), Evaluated, _, _>::load(Pb::new(sp, obj), rec, check);
+    assert_eq!(
+        exp.sampler.sampler.1, 1,
+        "Number of fully evaluated grid is wrong"
+    );
     run_reader("tmp_test_gs_fidseqrun", 1500);
-    let expstop: &Evaluated = exp.get_stop();
+    let expstop: &Evaluated = &exp.stop;
     assert_eq!(expstop.calls(), 300, "Number of calls is wrong");
 }
 
 #[test]
-fn test_fid_thr_seq_run() {
-    let _clean = Cleaner::new("tmp_test_gs_fidthrseqrun");
+fn test_seq_parrun() {
+    let _clean = Cleaner::new("tmp_test_gs_seq_parrun");
 
-    let sp = sp_grid_evaluator_fid::get_searchspace();
-    let obj = sp_grid_evaluator_fid::get_function();
-    let opt = GridSearch::new(&sp);
-    let stop = Evaluated::new(200);
-    let config = FolderConfig::new("tmp_test_gs_fidthrseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let sp = sp_grid_evaluator::get_searchspace();
+    let obj = sp_grid_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
+
+    let opt = GridSearch::new(pb.get_searchspace());
+
+    let stop = Evaluated::new(50);
+    let config = FolderConfig::new("tmp_test_gs_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    let exp = threaded(sp, obj, opt, stop, (rec, check));
-    exp.run();
-    run_reader_eps("tmp_test_gs_fidthrseqrun", 1000, 495);
-
-    let sp = sp_grid_evaluator_fid::get_searchspace();
-    let obj = sp_grid_evaluator_fid::get_function();
-
-    let config = FolderConfig::new("tmp_test_gs_fidthrseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-    let check = MessagePack::new(config).unwrap();
-
-    let mut exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 0, "Number of fully evaluated grid is wrong");
-
-    let expstop: &mut Evaluated = exp.get_mut_stop();
-    let max_call = expstop.calls() + num_cpus::get();
-    assert!(
-        expstop.calls() >= 200 && expstop.calls() <= max_call,
-        "Number of calls is wrong, it should be between 200 and {}",
-        max_call
-    );
-    expstop.add(100);
-
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
     exp.run();
 
-    let sp = sp_grid_evaluator_fid::get_searchspace();
-    let obj = sp_grid_evaluator_fid::get_function();
+    run_reader("tmp_test_gs_seq_parrun", 50);
 
-    let config = FolderConfig::new("tmp_test_gs_fidthrseqrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let sp = sp_grid_evaluator::get_searchspace();
+    let obj = sp_grid_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
+
+    let config = FolderConfig::new("tmp_test_gs_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(threaded, GridSearch, Evaluated, sp, obj, (rec, check));
-    let opt_state: &GSState = &exp.get_optimizer().0;
-    assert_eq!(opt_state.1, 1, "Number of fully evaluated grid is wrong");
-    run_reader_eps("tmp_test_gs_fidthrseqrun", 1500, 740);
-    let expstop: &Evaluated = exp.get_stop();
-    let max_call = expstop.calls() + num_cpus::get();
-    assert!(
-        expstop.calls() >= 300 && expstop.calls() <= max_call,
-        "Number of calls is wrong, it should be between 300 and {}",
-        max_call
-    );
+    let com = ThreadCommunicator::new();
+    let mut exp = ParExperiment::<_, GridSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
+    if let Some(m) = exp.master_mut() {
+        let expstop: &mut Evaluated = &mut m.stop;
+        assert_eq!(expstop.calls(), 50, "Number of calls is wrong");
+        expstop.add(50);
+    }
+    exp.run();
+
+    let sp = sp_grid_evaluator::get_searchspace();
+    let obj = sp_grid_evaluator::get_function();
+    let pb = Pb::new(sp, obj);
+
+    let config = FolderConfig::new("tmp_test_gs_seq_parrun");
+    let rec = CSVRecorder::new(config.clone());
+    let check = MessagePack::new(config).unwrap();
+
+    let com = ThreadCommunicator::new();
+    let mut _exp = ParExperiment::<_, GridSearch, Evaluated, _, _, _>::load(pb, rec, check, com);
+    match _exp.master_mut() {
+        Some(m) => {
+            let expstop = &m.stop;
+            assert_eq!(expstop.calls(), 100, "Number of calls is wrong");
+        }
+        None => panic!("Master process not found"),
+    }
+    run_reader("tmp_test_gs_seq_parrun", 100);
 }

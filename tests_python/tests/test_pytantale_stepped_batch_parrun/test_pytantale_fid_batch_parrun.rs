@@ -1,7 +1,7 @@
-use tantale::algos::{BatchRandomSearch, Sha, sha};
+use tantale::algos::{RandomSearch, Sha, sha};
+use tantale::core::optimizer::opt::Batched;
 use tantale::core::{
-    CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
-    threaded_with_pool,
+    CSVRecorder, Evaluated, FolderConfig, MessagePack, ParExperiment, Pb, ThreadCommunicator,
 };
 use tantale::python::init_python;
 
@@ -10,10 +10,10 @@ use crate::run_checker::run_reader;
 
 #[test]
 fn test_python_function() {
-    pub mod sp_ms_nosamp {
+    pub mod searchspace {
         use tantale::core::{
+            distribution::{Bernoulli, Uniform},
             domain::{Bool, Cat, Int, Nat, Real},
-            sampler::{Bernoulli, Uniform},
         };
         use tantale::macros::pyhpo;
 
@@ -25,78 +25,78 @@ fn test_python_function() {
         }
     }
 
-    let _clean = Cleaner::new("tmp_test_python_sha_parrun");
+    let _clean = Cleaner::new("tmp_py_test_sha_batch_parrun");
 
-    let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Stepped, sp_ms_nosamp, "/tests/test_pytantale_stepped_batch_parrun/function_fid_batch_parrun.py", "function_fid_batch_parrun",
-        "objective", "/tests/test_pytantale_stepped_batch_parrun/function_fid_batch_parrun.py", "function_fid_batch_parrun", "MyOutcome",
+        MultiStep, searchspace,
+        "/tests/test_pytantale_stepped_batch_parrun/function_fid_batch_parrun.py",
+        "function_fid_batch_parrun",
+        "objective",
+        "/tests/test_pytantale_stepped_batch_parrun/function_fid_batch_parrun.py",
+        "function_fid_batch_parrun",
+        "MyOutcome",
         objectives: [maximize "obj1"],
         step: "step",
     );
     let obj2 = obj.clone();
     let obj3 = obj.clone();
-    let sampler = BatchRandomSearch::new(10);
-    let opt = Sha::new(sampler, 10, 1., 5., 1.61); // log(max/min)
+
+    let sampler = RandomSearch::new();
+    let opt = Sha::new(sampler, 1., 8., 2., 10).unwrap(); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_python_sha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_py_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    threaded_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
-    run_reader("tmp_test_python_sha_parrun", 1000);
+    let pb = Pb::new(searchspace::get_searchspace(), obj);
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj2;
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::new(pb, opt, stop, rec, check, com);
+    exp.run();
 
-    let config = FolderConfig::new("tmp_test_python_sha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    run_reader("tmp_py_test_sha_batch_parrun", 900);
+
+    let pb = Pb::new(searchspace::get_searchspace(), obj2);
+
+    let config = FolderConfig::new("tmp_py_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(
-        threaded,
-        sha!(BatchRandomSearch),
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
+    let com = ThreadCommunicator::new();
+    let mut exp =
+        ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 200,
-        "Number of iteration is wrong"
-    );
-    assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
+    match exp.master_mut() {
+        Some(m) => {
+            let expstop = &mut m.stop;
+            assert_eq!(expstop.0, 50, "Number of calls is wrong");
+            expstop.1 = 100;
+            let expoptimizer = &m.sampler;
+            assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+        }
+        None => panic!("No master found"),
+    }
 
     exp.run();
 
-    let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj3;
+    let pb = Pb::new(searchspace::get_searchspace(), obj3);
 
-    let config = FolderConfig::new("tmp_test_python_sha_parrun").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_py_test_sha_batch_parrun");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(
-        threaded,
-        sha!(BatchRandomSearch),
-        Evaluated,
-        sp,
-        obj,
-        (rec, check)
-    );
-    run_reader("tmp_test_python_sha_parrun", 2000);
-    let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
-    let expoptimizer = exp.get_optimizer();
-    assert_eq!(
-        expoptimizer.0.iteration, 400,
-        "Number of iteration is wrong"
-    );
-    assert_eq!(expoptimizer.0.batch, 10, "Batch size is wrong");
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::<_, sha!(RandomSearch), Evaluated, _, _, _>::load(pb, rec, check, com);
+
+    run_reader("tmp_py_test_sha_batch_parrun", 1800);
+    match exp.master() {
+        Some(m) => {
+            let expstop = &m.stop;
+            assert_eq!(expstop.0, 100, "Number of calls is wrong");
+            let expoptimizer = &m.sampler;
+            assert_eq!(expoptimizer.batch_size(), 10, "Batch size is wrong");
+        }
+        None => panic!("No master found"),
+    }
 }

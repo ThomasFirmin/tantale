@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
-use tantale::core::{FuncState, objective::Step, recorder::CSVWritable};
-use tantale::macros::{CSVWritable, Outcome};
+use tantale::core::{FuncState, objective::Step};
+use tantale::core::{Recordable, Schema};
+use tantale::macros::{Outcome, Recordable, Schema};
 
 #[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutExample {
@@ -15,8 +16,10 @@ pub struct OutExample {
     pub neuron: Neuron,
     pub vec: Vec<u64>,
 }
-impl CSVWritable<(), ()> for OutExample {
-    fn header(_elem: &()) -> Vec<String> {
+
+impl Schema<()> for OutExample {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -30,8 +33,11 @@ impl CSVWritable<(), ()> for OutExample {
             String::from("vec"),
         ])
     }
+}
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for OutExample {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -61,8 +67,9 @@ pub struct OutUnique {
     pub vec: Vec<f64>,
 }
 
-impl CSVWritable<(), ()> for OutUnique {
-    fn header(_elem: &()) -> Vec<String> {
+impl Schema<()> for OutUnique {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -76,8 +83,10 @@ impl CSVWritable<(), ()> for OutUnique {
             String::from("vec"),
         ])
     }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
+}
+impl Recordable<()> for OutUnique {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -109,8 +118,9 @@ pub struct FidOutExample {
     pub fid: Step,
 }
 
-impl CSVWritable<(), ()> for FidOutExample {
-    fn header(_elem: &()) -> Vec<String> {
+impl Schema<()> for FidOutExample {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -125,8 +135,10 @@ impl CSVWritable<(), ()> for FidOutExample {
             String::from("fid"),
         ])
     }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
+}
+impl Recordable<()> for FidOutExample {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -159,8 +171,9 @@ pub struct FidOutUnique {
     pub fid: Step,
 }
 
-impl CSVWritable<(), ()> for FidOutUnique {
-    fn header(_elem: &()) -> Vec<String> {
+impl Schema<()> for FidOutUnique {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             String::from("obj"),
             String::from("int_v"),
@@ -175,8 +188,11 @@ impl CSVWritable<(), ()> for FidOutUnique {
             String::from("fid"),
         ])
     }
+}
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for FidOutUnique {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Vec::from([
             self.obj.to_string(),
             self.int_v.to_string(),
@@ -243,7 +259,7 @@ pub mod sp_ms_nosamp {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -286,7 +302,7 @@ pub mod sp_ms_samp {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -329,7 +345,7 @@ pub mod sp_ms_samp_right {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -372,7 +388,7 @@ pub mod sp_ms_noright {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -415,7 +431,7 @@ pub mod sp_ms_samp_noright {
     use super::{Neuron, OutExample, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -458,7 +474,7 @@ pub mod sp_sm_samp {
     use super::{OutUnique, Point, float_plus_float, plus_one_float};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -499,7 +515,7 @@ pub mod sp_sm_samp {
 
 pub mod sp_sm_samp_noright {
     use super::{OutUnique, Point, float_plus_float, plus_one_float};
-    use tantale::core::{Real, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -537,10 +553,24 @@ pub mod sp_sm_samp_noright {
     );
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct OutEvaluator {
     #[maximize]
     pub obj: f64,
+}
+
+impl Schema<()> for OutEvaluator {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([String::from("obj")])
+    }
+}
+
+impl Recordable<()> for OutEvaluator {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([self.obj.to_string()])
+    }
 }
 
 impl PartialEq for OutEvaluator {
@@ -549,12 +579,25 @@ impl PartialEq for OutEvaluator {
     }
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize)]
 pub struct FidOutEvaluator {
     #[maximize]
     pub obj: f64,
     #[step]
     pub fid: Step,
+}
+
+impl Schema<()> for FidOutEvaluator {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([String::from("obj"), String::from("fid")])
+    }
+}
+impl Recordable<()> for FidOutEvaluator {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        Vec::from([self.obj.to_string(), self.fid.to_string()])
+    }
 }
 
 impl PartialEq for FidOutEvaluator {
@@ -567,7 +610,7 @@ pub mod sp_evaluator {
     use super::{Neuron, OutEvaluator, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -599,7 +642,7 @@ pub mod sp_evaluator {
 
 pub mod sp_evaluator_real {
     use super::OutEvaluator;
-    use tantale::core::{Real, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 5;
@@ -612,7 +655,7 @@ pub mod sp_evaluator_real {
             let _d = [! d | Real(1000.0,2000.0, Uniform) | !];
 
             OutEvaluator{
-                obj: [! j | Real(1000.0,2000.0, Uniform) | !]
+                obj: [! j | Real(1000.0,2000.0, Uniform) | !] as f64
             }
         }
     );
@@ -620,7 +663,7 @@ pub mod sp_evaluator_real {
 
 pub mod sp_grid_evaluator {
     use super::{Neuron, OutEvaluator};
-    use tantale::core::{Cat, Int, Real, sampler::Uniform};
+    use tantale::core::{Cat, Int, Real, distribution::Uniform};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -649,8 +692,8 @@ pub mod sp_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -693,7 +736,7 @@ pub mod sp_evaluator_fid {
 
 pub mod sp_grid_evaluator_fid {
     use super::{FidOutEvaluator, FnState, Neuron};
-    use tantale::core::{Cat, Int, Real, objective::Step, sampler::Uniform};
+    use tantale::core::{Cat, Int, Real, distribution::Uniform, objective::Step};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -729,8 +772,8 @@ pub mod sp_ms_nosamp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -782,8 +825,8 @@ pub mod sp_ms_samp_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -835,8 +878,8 @@ pub mod sp_ms_samp_right_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -888,8 +931,8 @@ pub mod sp_ms_noright_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -941,8 +984,8 @@ pub mod sp_ms_samp_noright_fid {
     use super::{FidOutExample, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -994,8 +1037,8 @@ pub mod sp_sm_samp_fid {
     use super::{FidOutUnique, FnState, Point, float_plus_float, plus_one_float};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1045,7 +1088,7 @@ pub mod sp_sm_samp_fid {
 
 pub mod sp_sm_samp_noright_fid {
     use super::{FidOutUnique, FnState, Point, float_plus_float, plus_one_float};
-    use tantale::core::{Real, objective::Step, sampler::Uniform};
+    use tantale::core::{Real, distribution::Uniform, objective::Step};
     use tantale::macros::objective;
 
     pub const SP_SIZE: usize = 14;
@@ -1092,7 +1135,7 @@ pub mod sp_sm_samp_noright_fid {
     );
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Debug, Serialize, Deserialize, Schema, Recordable)]
 pub struct MoOutEvaluator {
     #[maximize]
     pub obj1: f64,
@@ -1101,13 +1144,13 @@ pub struct MoOutEvaluator {
     info: f64,
 }
 
-#[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct MoFidOutEvaluator {
     #[maximize]
     pub obj1: f64,
     #[maximize]
     pub obj2: f64,
-    info: f64,
+    pub info: f64,
     #[step]
     pub fid: Step,
 }
@@ -1116,8 +1159,8 @@ pub mod sp_evaluator_sh {
     use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1174,11 +1217,61 @@ pub mod sp_evaluator_sh {
     );
 }
 
+pub mod sp_evaluator_hb {
+    use super::{FidOutEvaluator, FnState, Neuron, int_plus_nat, plus_one_int};
+    use tantale::core::{
+        Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
+        objective::Step,
+    };
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 14;
+
+    objective!(
+        pub fn example() -> (FidOutEvaluator, FnState) {
+
+            let fid = [! FIDELITY !];
+
+            let _a = [! a | Int(0,100, Uniform) | !];
+            let _b = [! b | Nat(0,100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+            let _d = [! d | Bool(Bernoulli(0.5)) | !];
+
+            let _e = plus_one_int([! e | Int(0,100, Uniform) | !]);
+            let _f = int_plus_nat([! f | Int(0,100, Uniform) | !], [! g | Nat(0,100, Uniform) | !]);
+
+            let _layer = Neuron{
+                number: [! h | Int(0,100, Uniform) | !],
+                activation: [! i | Cat(["relu", "tanh", "sigmoid"], Uniform) | !],
+            };
+
+            let _k = [! k_{4} | Nat(0,100, Uniform) | !];
+
+            let mut state = match [! STATE !]{
+                Some(s) => s,
+                None => FnState { state: 0 },
+            };
+
+            state.state += 1;
+            let evalstate = if (fid == 8.) {Step::Evaluated} else{Step::Partially(state.state)};
+            (
+                FidOutEvaluator{
+                    obj: [! j | Real(1000.0,2000.0, Uniform) | !],
+                    fid: evalstate,
+                },
+                state
+            )
+
+        }
+    );
+}
+
 pub mod sp_evaluator_mo {
     use super::{MoOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
-        sampler::{Bernoulli, Uniform},
+        distribution::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1239,8 +1332,8 @@ pub mod sp_evaluator_mo_fid {
     use super::{FnState, MoFidOutEvaluator, Neuron, int_plus_nat, plus_one_int};
     use tantale::core::{
         Bool, Cat, Int, Nat, Real,
+        distribution::{Bernoulli, Uniform},
         objective::Step,
-        sampler::{Bernoulli, Uniform},
     };
     use tantale::macros::objective;
 
@@ -1314,6 +1407,88 @@ pub mod sp_evaluator_mo_fid {
                 state
             )
 
+        }
+    );
+}
+
+pub mod sp_real {
+    use super::OutEvaluator;
+    use tantale::core::{Real, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Real(-10.0, 10.0, Uniform) | !];
+            let _b = [! b | Real(-10.0, 10.0, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Real(-10.0, 10.0, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_int {
+    use super::OutEvaluator;
+    use tantale::core::{Int, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Int(1000,2000, Uniform) | !];
+            let _b = [! b | Int(1000,2000, Uniform) | !];
+            let _c = [! c | Int(1000,2000, Uniform) | !];
+            let _d = [! d | Int(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Int(1000,2000, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_nat {
+    use super::OutEvaluator;
+    use tantale::core::{Nat, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Nat(1000,2000, Uniform) | !];
+            let _b = [! b | Nat(1000,2000, Uniform) | !];
+            let _c = [! c | Nat(1000,2000, Uniform) | !];
+            let _d = [! d | Nat(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Nat(1000,2000, Uniform) | !] as f64
+            }
+        }
+    );
+}
+
+pub mod sp_unit {
+    use super::OutEvaluator;
+    use tantale::core::{Nat, distribution::Uniform};
+    use tantale::macros::objective;
+
+    pub const SP_SIZE: usize = 5;
+
+    objective!(
+        pub fn example() -> OutEvaluator {
+            let _a = [! a | Nat(1000,2000, Uniform) | !];
+            let _b = [! b | Nat(1000,2000, Uniform) | !];
+            let _c = [! c | Nat(1000,2000, Uniform) | !];
+            let _d = [! d | Nat(1000,2000, Uniform) | !];
+
+            OutEvaluator{
+                obj: [! j | Nat(1000,2000, Uniform) | !] as f64
+            }
         }
     );
 }

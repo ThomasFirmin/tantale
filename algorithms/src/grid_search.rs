@@ -1,434 +1,146 @@
 use tantale_core::{
-    BaseSol, FidOutcome, Grid, HasFidelity, HasStep, Id, Lone, MixedTypeDom, NoDomain, Objective,
-    Sampler, SingleSampler, Sp, StepSId, Stepped, Uncomputed,
-    domain::onto::LinkOpt,
-    objective::{
-        Step,
-        outcome::{FuncState, Outcome},
-    },
-    optimizer::{
-        EmptyInfo, OptState,
-        opt::{Optimizer, SingleOptimizer},
-    },
+    EmptyInfo, Grid, GridDom, HasState, HasVariables, NoDomain, Problem, Sampled, Sampler, Sp,
+    State,
+    aliases::{Accum, CompShape, Shape},
+    domain::{CategoricalDomain, grid::GridBounds},
     searchspace::Searchspace,
-    solution::{IntoComputedShape, SId, partial::FidelitySol, shape::RawObj},
 };
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tantale_macros::basic_bounds;
 
-use crate::utils::{BCompAcc, BCompShape, FCompAcc, FCompShape};
+/// A helper macro to shortcut the type signature of [`GridSearch`] when loading.
+#[macro_export]
+macro_rules! gridsearch {
+    () => {
+        GridSearch
+    };
+}
 
 //------------------//
 //--- SEQUENTIAL ---//
 //------------------//
 
-/// State for the Sequential Grid Search optimizer.
-/// Sequential Grid Search requires to save the index of the current solution in the grid.
+/// Grid sampler for a search space whose optimizer domains are finite
+/// [`Grid`] values. It enumerates the Cartesian product in a deterministic
+/// order, with the last variable changing fastest.
 ///
-/// # Attributes
-/// * `Vec<usize>` - A vector of usize representing the current indices in the grid for each variable.
-/// * `usize` - An additional usize to track the number of times the grid was fully evaluated.
-#[derive(Serialize, Deserialize)]
-pub struct GSState(pub Vec<usize>, pub usize);
-impl OptState for GSState {}
-
-/// Sequential Grid Search optimizer implementation.
-/// This optimizer samples solutions on-demand according to a predefined grid
-/// from a [`Searchspace`] made of [`Grid`] at each iteration.
-///
-/// Points are generated sequentially on demand, accord to a Cartesian product of the [`Grid`] of each variable.
 ///
 /// # Note
 ///
-/// The algorithm is only a [`SingleOptimizer`] due to the exponential growth of the number of solutions in the grid.
-///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +--------------------+
-///  | Prior solution     |
-///  | provided?          |
-///  +--------------------+
-///     Yes /         | No
-///        /          |
-///       v           |
-///  +----------+     |
-///  | Check    |     +----------------+
-///  | status   |                      |
-///  +----------+                      |
-///       |                            |
-///       v                            v
-///    +---------+           +-------------------+
-///   / Partially \          | Get the next      |  
-///  /   stepped?  \  No --> | solution from     |
-///  \             /         | the grid          |
-///   \   Yes     /          +-------------------+  
-///    +---------+                     |      
-///        |                           |
-///        v                           v
-///  Return same solution      Return the solution
-///  (continue evaluation)
-/// ```
-///
-/// # Note
-///
-/// It implements [`SingleOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
-/// allowing it to handle [`Step`]-based optimization scenarios.
-/// [`GridSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
-/// any state or history of evaluations.
-/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-pub struct GridSearch(pub GSState);
+/// `GridSearch` does not use evaluation results to filter candidates. Its
+/// index wraps after the final grid point, so it starts enumerating from the
+/// beginning again rather than reporting exhaustion. Use a stopping criterion
+/// to bound an experiment. A partially evaluated candidate is resumed by the
+/// experiment's sampler/pruner protocol.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GridSearch(pub Vec<usize>, pub usize);
 
 impl GridSearch {
-    /// Creates a new instance of the Sequential [`GridSearch`] optimizer with an initial state.
+    /// Creates a grid sampler with its per-variable indices initialized to
+    /// zero.
+    ///
+    /// The search space must use the `Grid` optimizer domain for every
+    /// variable, as required by the [`Sampler`] implementation.
     pub fn new(searchspace: &Sp<Grid, NoDomain>) -> Self {
         let size = searchspace.var.len();
-        GridSearch(GSState(vec![0; size], 0))
+        GridSearch(vec![0; size], 0)
     }
 }
+impl State for GridSearch {}
 
-impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for GridSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    type State = GSState;
-    type SInfo = EmptyInfo;
+impl HasState for GridSearch {
+    type State = GridSearch;
 
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
     }
 
     fn from_state(state: Self::State) -> Self {
-        Self(state)
+        state
     }
 }
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for GridSearch
+#[basic_bounds(P, GridDom<T>)]
+impl<P, T> Sampler<P, GridDom<T>> for GridSearch
 where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
+    T: GridBounds,
 {
-    type State = GSState;
-    type SInfo = EmptyInfo;
+    type Info = EmptyInfo;
 
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
-
-    fn from_state(state: Self::State) -> Self {
-        Self(state)
-    }
-}
-
-impl<Out>
-    SingleOptimizer<
-        BaseSol<SId, Grid, EmptyInfo>,
-        SId,
-        Grid,
-        Out,
-        Sp<Grid, NoDomain>,
-        Objective<
-            RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
-            Out,
-        >,
-    > for GridSearch
-where
-    Out: Outcome,
-    Sp<Grid, NoDomain>:
-        Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
-{
-    fn step(
+    fn sample_info(
         &mut self,
-        _x: Option<BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>>,
-        scp: &Sp<Grid, NoDomain>,
-        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
-        let x: Vec<MixedTypeDom> = self
-            .0
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
+        let x: Arc<[_]> = self
             .0
             .iter()
             .enumerate()
             .map(|(i, &idx)| {
-                let var = &scp.var[i];
-                var.domain_obj.get(idx).unwrap()
+                let dom = &scp.opt_at(i).unwrap();
+                dom.get_features().get(idx).unwrap().clone()
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
 
-        for i in (0..self.0.0.len()).rev() {
-            let var = &scp.var[i];
-            self.0.0[i] += 1;
-            if self.0.0[i] < var.domain_obj.size() {
+        for i in (0..self.0.len()).rev() {
+            let dom = &scp.opt_at(i).unwrap();
+            self.0[i] += 1;
+            if self.0[i] < dom.size() {
                 break;
             } else {
-                self.0.0[i] = 0;
+                self.0[i] = 0;
                 if i == 0 {
-                    self.0.1 += 1;
+                    self.1 += 1;
                 }
             }
         }
-        Lone::new(BaseSol::new(SId::generate(), x, EmptyInfo.into()))
+        Some((scp.new_opt(x), EmptyInfo.into()))
     }
+
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }
 
-impl<Out, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Grid, EmptyInfo>,
-        StepSId,
-        Grid,
-        Out,
-        Sp<Grid, NoDomain>,
-        Stepped<
-            RawObj<
-                Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
-                StepSId,
-                EmptyInfo,
-            >,
-            Out,
-            FnState,
-        >,
-    > for GridSearch
-where
-    Out: FidOutcome,
-    FnState: FuncState,
-    Sp<Grid, NoDomain>: Searchspace<
-            FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-            StepSId,
-            EmptyInfo,
-        >,
-    <Sp<Grid, NoDomain> as Searchspace<
-        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        StepSId,
-        EmptyInfo,
-    >>::SolShape: HasStep + HasFidelity,
-{
-    fn step(
-        &mut self,
-        x: Option<FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>>,
-        scp: &Sp<Grid, NoDomain>,
-        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
-        if let Some(comp_x) = x
-            && let Step::Partially(_) = comp_x.step()
-        {
-            return IntoComputedShape::extract(comp_x).0;
-        }
+#[basic_bounds(P, Grid)]
+impl<P> Sampler<P, Grid> for GridSearch {
+    type Info = EmptyInfo;
 
-        let x: Vec<MixedTypeDom> = self
-            .0
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<EmptyInfo>)> {
+        let x: Arc<[_]> = self
             .0
             .iter()
             .enumerate()
             .map(|(i, &idx)| {
-                let var = &scp.var[i];
-                var.domain_obj.get(idx).unwrap()
+                let dom = &scp.opt_at(i).unwrap();
+                dom.get(idx).unwrap().clone()
             })
-            .collect();
+            .collect::<Vec<_>>()
+            .into();
 
-        for i in (0..self.0.0.len()).rev() {
-            let var = &scp.var[i];
-            self.0.0[i] += 1;
-            if self.0.0[i] < var.domain_obj.size() {
+        for i in (0..self.0.len()).rev() {
+            let dom = &scp.opt_at(i).unwrap();
+            self.0[i] += 1;
+            if self.0[i] < dom.size() {
                 break;
             } else {
-                self.0.0[i] = 0;
+                self.0[i] = 0;
                 if i == 0 {
-                    self.0.1 += 1;
+                    self.1 += 1;
                 }
             }
         }
-        Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
-    }
-}
-
-impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for GridSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-}
-
-impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for GridSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-}
-
-impl<Out>
-    SingleSampler<
-        BaseSol<SId, Grid, EmptyInfo>,
-        SId,
-        Grid,
-        Out,
-        Sp<Grid, NoDomain>,
-        Objective<
-            RawObj<Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>, SId, EmptyInfo>,
-            Out,
-        >,
-    > for GridSearch
-where
-    Out: Outcome,
-    Sp<Grid, NoDomain>:
-        Searchspace<BaseSol<SId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>, SId, EmptyInfo>,
-{
-    fn sample(
-        &mut self,
-        scp: &Sp<Grid, NoDomain>,
-        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo> {
-        let x: Vec<MixedTypeDom> = self
-            .0
-            .0
-            .iter()
-            .enumerate()
-            .map(|(i, &idx)| {
-                let var = &scp.var[i];
-                var.domain_obj.get(idx).unwrap()
-            })
-            .collect();
-
-        for i in (0..self.0.0.len()).rev() {
-            let var = &scp.var[i];
-            self.0.0[i] += 1;
-            if self.0.0[i] < var.domain_obj.size() {
-                break;
-            } else {
-                self.0.0[i] = 0;
-                if i == 0 {
-                    self.0.1 += 1;
-                }
-            }
-        }
-        Lone::new(BaseSol::new(SId::generate(), x, EmptyInfo.into()))
+        Some((scp.new_opt(x), EmptyInfo.into()))
     }
 
-    fn update(
-        &mut self,
-        _x: &BCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-        _scp: &Sp<Grid, NoDomain>,
-        _acc: &BCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Sp<Grid, NoDomain>,
-        acc: &tantale_core::CompAcc<
-            Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>,
-            SId,
-            Self::SInfo,
-            Out,
-        >,
-    ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>
-    where
-        F: Fn(
-            Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>,
-        ) -> Lone<BaseSol<SId, Grid, EmptyInfo>, SId, Grid, EmptyInfo>,
-    {
-        let sol = <GridSearch as SingleSampler<_, _, _, Out, _, _>>::sample(self, scp, acc);
-        f(sol)
-    }
-}
-
-impl<Out, FnState>
-    SingleSampler<
-        FidelitySol<StepSId, Grid, EmptyInfo>,
-        StepSId,
-        Grid,
-        Out,
-        Sp<Grid, NoDomain>,
-        Stepped<
-            RawObj<
-                Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
-                StepSId,
-                EmptyInfo,
-            >,
-            Out,
-            FnState,
-        >,
-    > for GridSearch
-where
-    Out: FidOutcome,
-    FnState: FuncState,
-    Sp<Grid, NoDomain>: Searchspace<
-            FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-            StepSId,
-            EmptyInfo,
-        >,
-    <Sp<Grid, NoDomain> as Searchspace<
-        FidelitySol<StepSId, LinkOpt<Sp<Grid, NoDomain>>, EmptyInfo>,
-        StepSId,
-        EmptyInfo,
-    >>::SolShape: HasStep + HasFidelity,
-{
-    fn sample(
-        &mut self,
-        scp: &Sp<Grid, NoDomain>,
-        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo> {
-        let x: Vec<MixedTypeDom> = self
-            .0
-            .0
-            .iter()
-            .enumerate()
-            .map(|(i, &idx)| {
-                let var = &scp.var[i];
-                var.domain_obj.get(idx).unwrap()
-            })
-            .collect();
-
-        for i in (0..self.0.0.len()).rev() {
-            let var = &scp.var[i];
-            self.0.0[i] += 1;
-            if self.0.0[i] < var.domain_obj.size() {
-                break;
-            } else {
-                self.0.0[i] = 0;
-                if i == 0 {
-                    self.0.1 += 1;
-                }
-            }
-        }
-        Lone::new(FidelitySol::new(StepSId::generate(), x, EmptyInfo.into()))
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Sp<Grid, NoDomain>,
-        acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>
-    where
-        F: Fn(
-            Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
-        ) -> Lone<FidelitySol<StepSId, Grid, EmptyInfo>, StepSId, Grid, EmptyInfo>,
-    {
-        let sol = <GridSearch as SingleSampler<_, _, _, Out, _, Stepped<_, Out, FnState>>>::sample(
-            self, scp, acc,
-        );
-        f(sol)
-    }
-
-    fn update(
-        &mut self,
-        _x: &FCompShape<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-        _scp: &Sp<Grid, NoDomain>,
-        _acc: &FCompAcc<Sp<Grid, NoDomain>, Out, Self::SInfo>,
-    ) {
-    }
+    fn update(&mut self, _x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {}
 }

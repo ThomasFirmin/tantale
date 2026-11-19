@@ -10,13 +10,9 @@ examples=(
     mpi_seq_run
     mpi_seq_run_fid
     mpi_seq_run_fid_loadpool
-    mpi_seq_evaluator
-    mpi_seq_evaluator_fid
     mpi_batch_run
     mpi_batch_run_fid
     mpi_batch_run_fid_loadpool
-    mpi_batch_evaluator
-    mpi_batch_evaluator_fid
     mpi_mo_example
     mpi_test_pytantale_objective_async
     mpi_test_pytantale_objective_batch

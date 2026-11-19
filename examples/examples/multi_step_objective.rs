@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-use tantale::macros::{Outcome, objective};
+use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-#[derive(Outcome, Debug, Serialize, Deserialize)]
+#[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
 pub struct FidOutExample {
     #[maximize]
     pub obj: f64,
@@ -42,7 +42,7 @@ fn plus_one_int(x: i64) -> i64 {
 }
 
 objective!(
-    pub fn example<'a>() -> (FidOutExample,FnState) {
+    pub fn example() -> (FidOutExample,FnState) {
        let a = [! a | Real(0.0,5.0,Uniform) | !];
        let aa = [! aa_{10} | Real(-5.0,0.0,Uniform) | Int(0,100,Uniform) !];
        let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];

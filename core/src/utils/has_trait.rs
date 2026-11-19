@@ -1,40 +1,40 @@
 //! `Has`-like traits provide a unified interface for retrieving information such as solution identifiers, raw solution data, objective function
 //! values, evaluation steps, fidelity levels, and associated metadata, regardless of the specific solution representation used in the optimization process.
 
-use crate::{
-    Domain, EvalStep, Fidelity, Id, Linked, OptInfo, Outcome, SolInfo, Step, StepId, Uncomputed,
-    domain::codomain::TypeCodom,
-};
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
+
+use crate::{EvalStep, Fidelity, Linked, SolId, SolInfo, State, Step, StepId, Uncomputed, Var};
+use std::{fmt::Debug, sync::Arc};
 
 /// Trait for objects with a unique solution identifier.
 ///
-/// [`HasId`] provides access to a solution's unique [`Id`], which remains constant across
-/// domain transformations. Twin solutions (same point in different domains) share the same [`Id`],
+/// [`HasId`] provides access to a solution's unique [`SolId`], which remains constant across
+/// domain transformations. Paired solutions that represent the same candidate share the same [`SolId`],
 /// enabling tracking and correlation throughout the optimization process.
-pub trait HasId<SolId: Id> {
+pub trait HasId {
+    type Id: SolId;
     /// Returns the solution's unique identifier.
-    fn id(&self) -> SolId;
+    fn id(&self) -> Self::Id;
 
     /// Returns a reference to the solution's unique identifier.
-    fn ref_id(&self) -> &SolId;
+    fn ref_id(&self) -> &Self::Id;
 
     /// Returns a mutable reference to the solution's unique identifier.
-    fn mut_ref_id(&mut self) -> &mut SolId;
+    fn mut_id(&mut self) -> &mut Self::Id;
 
-    /// Checks if another object is a twin (shares the same [`Id`]).
+    /// Checks if another object shares the same [`SolId`].
     ///
     /// Two solutions are twins if they represent the same point in different domains
-    /// or shapes. Twin solutions always have equal [`Id`]s.
+    /// or shapes. Paired solutions always have equal identifiers.
     ///
     /// # Parameters
     ///
-    /// * `solb` - Another object with an [`Id`] to compare
+    /// * `solb` - Another object with an identifier to compare
     ///
     /// # Returns
     ///
-    /// `true` if both objects share the same [`Id`], `false` otherwise.
-    fn is_twin<Twin: HasId<SolId>>(&self, solb: Twin) -> bool {
+    /// `true` if both objects share the same identifier, `false` otherwise.
+    fn is_twin<Twin: HasId<Id = Self::Id>>(&self, solb: Twin) -> bool {
         self.ref_id() == solb.ref_id()
     }
 }
@@ -43,7 +43,10 @@ pub trait HasId<SolId: Id> {
 ///
 /// [`HasStepId`] extends [`HasId`] to provide access to a solution's unique identifier that also tracks
 /// how many times that solution has been passed to the function to optimize.
-pub trait HasStepId<SolId: StepId>: HasId<SolId> {
+pub trait HasStepId: HasId
+where
+    Self::Id: StepId,
+{
     /// Increments the step counter in the solution's identifier.
     fn increment(&mut self);
 
@@ -51,16 +54,20 @@ pub trait HasStepId<SolId: StepId>: HasId<SolId> {
     fn id_step(&self) -> usize;
 
     /// Returns a new identifier representing the previous step id.
-    fn previous_id(&self) -> SolId;
+    fn previous_id(&self) -> Self::Id;
 }
 
 /// Trait for objects carrying solution metadata.
 ///
-/// [`HasSolInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may
+/// [`HasInfo`] provides access to a solution's associated metadata ([`SolInfo`]), which may
 /// include iteration numbers, timestamps, or other optimizer-specific information specifically related to the solution.
-pub trait HasSolInfo<Info: SolInfo> {
+pub trait HasInfo {
+    type Info: SolInfo;
     /// Returns the solution's [`SolInfo`] wrapped in [`Arc`].
-    fn sinfo(&self) -> Arc<Info>;
+    fn sinfo(&self) -> Arc<Self::Info>;
+
+    /// Sets the solution's [`SolInfo`] to a new value.
+    fn set_info(&mut self, info: Arc<Self::Info>);
 }
 
 /// Trait for objects containing a raw solution.
@@ -68,12 +75,16 @@ pub trait HasSolInfo<Info: SolInfo> {
 /// [`HasX`] provides access to the raw solution data, which is the internal representation of the solution.
 /// This trait is typically implemented by both [`Uncomputed`] and [`Computed`](crate::Computed) solutions,
 /// allowing retrieval of the underlying raw solution regardless of its computed state.
-pub trait HasX<Raw: Clone> {
+pub trait HasX {
+    type X: Send + Sync + Clone + Debug + Serialize + for<'de> Deserialize<'de>;
     /// Returns a reference to the raw solution associated with this object.
-    fn ref_x(&self) -> &Raw;
+    fn ref_x(&self) -> &Self::X;
 
     /// Returns a clone of the raw solution associated with this object.
-    fn clone_x(&self) -> Raw;
+    fn clone_x(&self) -> Self::X;
+
+    /// Sets the raw solution to a new value.
+    fn set_x(&mut self, x: Self::X);
 }
 
 /// Trait for objects with an associated objective function value.
@@ -86,22 +97,18 @@ pub trait HasX<Raw: Clone> {
 /// When the [`TypeCodom`](crate::Codomain::TypeCodom) is [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`]
 /// (e.g. [`SingleCodomain`](crate::SingleCodomain)), then objects implementing [`HasY`], such as
 /// [`Computed`](crate::Computed), [`Pair`](crate::Pair), [`Lone`](crate::Lone), are also [`Ord`], [`PartialOrd`], [`Eq`] or [`PartialEq`] respectively.
-pub trait HasY<Out: Outcome> {
+pub trait HasY {
+    type Y: Debug + Serialize + for<'a> Deserialize<'a>;
+
     /// Returns the objective function value associated with this solution.
     ///
     /// # Returns
     ///
     /// A shared reference to the codomain value (objective function output).
-    fn y(&self) -> Arc<TypeCodom<Out>>;
-}
+    fn y(&self) -> Arc<Self::Y>;
 
-/// Trait for objects carrying optimizer-specific metadata.
-///
-/// [`HasInfo`] provides access to optimizer-specific information that may be attached to
-/// solutions, distinct from general [`SolInfo`].
-pub trait HasInfo<Info: OptInfo> {
-    /// Returns the optimizer-specific metadata for this solution.
-    fn info(&self) -> Arc<Info>;
+    /// Sets the objective function value associated with this solution.
+    fn set_y(&mut self, y: Arc<Self::Y>);
 }
 
 /// Trait for solutions supporting multi-fidelity evaluation tracking.
@@ -116,7 +123,6 @@ pub trait HasInfo<Info: OptInfo> {
 /// - **[`Partially(n)`](Step::Partially)**: Evaluated to step `n`
 /// - **[`Evaluated`](Step::Evaluated)**: Fully evaluated
 /// - **[`Discard`](Step::Discard)**: Marked for rejection without full evaluation
-/// - **[`Error`](Step::Error)**: Evaluation failed
 pub trait HasStep {
     /// Returns the current evaluation [`Step`].
     fn step(&self) -> Step;
@@ -156,11 +162,6 @@ pub trait HasStep {
     /// Sets the state to [`Evaluated`](Step::Evaluated), indicating the solution
     /// has been completely evaluated at the highest fidelity.
     fn evaluated(&mut self);
-
-    /// Marks the solution as having encountered an error during evaluation.
-    ///
-    /// Sets the state to [`Error`](Step::Error), indicating evaluation failed.
-    fn error(&mut self);
 }
 
 /// Trait for solutions with an associated fidelity level.
@@ -182,32 +183,75 @@ pub trait HasFidelity {
 ///
 /// [`HasUncomputed`] provides access to the underlying [`Uncomputed`] solution within
 /// wrapper types like [`Computed`](crate::Computed) or [`SolutionShape`](crate::SolutionShape).
-pub trait HasUncomputed<SolId: Id, Dom: Domain, SInfo: SolInfo> {
+pub trait HasUncomputed {
     /// The uncomputed solution type contained within.
-    type Uncomputed: Uncomputed<SolId, Dom, SInfo>;
+    type Uncomputed: Uncomputed;
 
     /// Returns a reference to the contained uncomputed solution.
     fn get_uncomputed(&self) -> &Self::Uncomputed;
+
+    /// Sets the contained uncomputed solution to a new value.
+    fn set_uncomputed(&mut self, uncomputed: Self::Uncomputed);
 }
 
-/// Trait for objects containing a slice of [`Var`](crate::Var)iables.
+/// Trait for objects containing a slice of [Var]iables.
 pub trait HasVariables: Linked {
-    /// Returns an iterator over the `Opt` [`Domain`]s associated with this object.
+    /// Returns a slice of [Var]iables associated with this object.
+    fn get_vars(&self) -> &[Var<Self::Obj, Self::TrueOpt>];
+
+    /// Sets the slice of [Var]iables for this object.
+    fn set_vars(&mut self, vars: Vec<Var<Self::Obj, Self::TrueOpt>>);
+
+    /// Returns an iterator over the `Opt` [`Domain`](crate::Domain)s associated with this object.
     fn iter_opt(&self) -> impl Iterator<Item = &Self::Opt> + '_ {
         (0..self.size()).map(|idx| self.opt_at(idx).unwrap())
     }
 
-    /// Returns an iterator over the `Obj` [`Domain`]s associated with this object.
+    /// Returns an iterator over the `Obj` [`Domain`](crate::Domain)s associated with this object.
     fn iter_obj(&self) -> impl Iterator<Item = &Self::Obj> + '_ {
         (0..self.size()).map(|idx| self.obj_at(idx).unwrap())
     }
 
-    /// Returns the `Obj` [`Domain`] at a specific index, if it exists.
+    /// Returns the [`Var`] at a specific index, if it exists.
+    fn var_at(&self, index: usize) -> Option<&Var<Self::Obj, Self::TrueOpt>> {
+        self.get_vars().get(index)
+    }
+
+    /// Returns the `Obj` [`Domain`](crate::Domain) at a specific index, if it exists.
     fn obj_at(&self, index: usize) -> Option<&Self::Obj>;
 
-    /// Returns the `Opt` [`Domain`] at a specific index, if it exists.
+    /// Returns the `Opt` [`Domain`](crate::Domain) at a specific index, if it exists.
     fn opt_at(&self, index: usize) -> Option<&Self::Opt>;
 
     /// Returns the number of variables associated with this object.
     fn size(&self) -> usize;
+
+    /// Returns the names of the variables associated with this object.
+    fn names(&self) -> Vec<String>;
+}
+
+/// Trait for objects that can provide their internal state.
+pub trait HasState {
+    type State: State;
+
+    /// Returns a reference to the [`State`] of `Self`.
+    fn get_state(&self) -> &Self::State;
+    /// Returns a mutable reference to the [`State`] of `Self`.
+    fn get_mut_state(&mut self) -> &mut Self::State;
+    /// Builds `Self` from a previously saved [`State`].
+    fn from_state(state: Self::State) -> Self;
+
+    /// Sets the [`State`] of `Self` to a new value.
+    fn set_state(&mut self, state: Self::State) {
+        *self.get_mut_state() = state;
+    }
+}
+
+/// Trait for objects that can provide their batch size.
+pub trait HasBatchSize {
+    /// Sets the batch size for the optimizer.
+    fn set_batch_size(&mut self, batch_size: usize);
+
+    /// Returns the current batch size of the optimizer.
+    fn get_batch_size(&self) -> usize;
 }

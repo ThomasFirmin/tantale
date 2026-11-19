@@ -1,271 +1,126 @@
 # Multi-fidelity, multi-objective optimization with MO-ASHA
 
-In this tutorial we quickly implement [`MoAsha`](crate::algos::MoAsha) for a mock function.
-See [Quick Start](crate::docs::QuickStart) for in-depth explanation.
+In a single-step optimization, each candidate is evaluated once at full
+cost and returns an outcome. In multi-fidelity optimization, the same
+candidate can first be evaluated cheaply, then continued at a larger budget.
+For example, the fidelity can be the **total number of training epochs**:
+a candidate evaluated at 1 epoch may be promoted to 2, then 4. A candidate
+that is not promoted may never reach the full budget.
 
-In this example solutions will be associated to a random codomain from the following fronts via a function `random_codom`, which is omitted here for brevity.
+MO-ASHA uses an inner sampler for new candidates and a multi-objective
+selector to decide promotions. With minimum 1, maximum 4, and scaling 2, its
+budget levels are 1, 2, and 4. An outcome with two objective fields lets the
+accumulator maintain a Pareto set rather than a single best value.
 
-```text
+## Fidelity, step, and state are different
 
-O   5.0 |  1  .  .  .  .  .  .  .  .  .  .
-b   4.5 |  .  .  .  .  2  .  .  .  .  .  .
-j   4.0 |  .  6  .  .  .  .  3  .  .  .  .
-e   3.5 | 11  .  .  .  7  .  .  .  .  .  .
-c   3.0 |  .  . 12  .  .  .  8  .  4  .  .
-t   2.5 |  .  .  .  .  .  .  .  .  .  .  .
-i   2.0 |  .  .  .  . 13  .  .  .  9  .  .
-v   1.5 |  .  .  .  .  .  .  .  .  .  .  .
-e   1.0 |  .  .  .  .  . 14  .  .  .  .  5
-    0.5 |  .  .  .  .  .  .  .  .  .  .  .
-2   0.0 |  .  .  .  .  .  . 15  .  .  . 10
-        +---------------------------------
-         0.0   1.0   2.0   3.0   4.0   5.0
-                   Objective 1
-```
+- **Fidelity** is the `f64` budget supplied by the sampler to this call. Its
+  units are chosen by the objective: epochs in the example below.
+- **Step** is the status returned by the objective. `Step::Partially(n)`
+  reports a positive integer progress marker, [`Step::Evaluated`](crate::core::Step::Evaluated) marks
+  completion, [`Step::Pending`](crate::core::Step::Pending) means not yet evaluated, and [`Step::Discard`](crate::core::Step::Discard)
+  discards the evaluation. The integer marker is not automatically the
+  floating-point fidelity.
+- **Function state** is per-candidate data returned by one evaluation and
+  passed back on a later promotion. A training objective would save model and
+  optimizer state and the completed epoch count; it must implement [`FuncState`](crate::core::FuncState)
+  for checkpointing. For example, a function state could be the weights and biases
+  of a neural network.
 
-## Defining the searchspace
+MO-ASHA expects a partial step below the maximum budget and an evaluated step
+at the maximum. [`Calls`](crate::core::Calls) counts partial and completed evaluations, whereas
+[`Evaluated`](crate::core::Evaluated) counts completed ones. Parallel runs may already have work in
+flight when a stop condition is reached.
 
-```rust
+## A complete example
+
+This small objective simulates training progress; replace the score
+calculation and state with a real model and its training state. It follows the
+structure of `examples/examples/mo_example.rs`.
+
+```rust,no_run
 mod searchspace {
+    use std::{io, path::PathBuf};
     use serde::{Deserialize, Serialize};
     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-    use tantale::macros::{CSVWritable, Outcome, objective};
-
-#   pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
-#       let idx: usize = rand::random_range(0..15) % 15;
-#       match idx {
-#           0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 5.0]),
-#           1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 4.5]),
-#           2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 4.0]),
-#           3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 3.0]),
-#           4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 1.0]),
-#           5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5, 4.0]),
-#           6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 3.5]),
-#           7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 3.0]),
-#           8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 2.0]),
-#           9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 0.0]),
-#           10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 3.5]),
-#           11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0, 3.0]),
-#           12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 2.0]),
-#           13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5, 1.0]),
-#           14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 0.0]),
-#           _ => unreachable!("Index out of bounds for random codomain generation"),
-#       }
-#   }
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
     #[derive(Serialize, Deserialize)]
-    pub struct FnState {
-        pub state: isize,
+    pub struct TrainingState {
+        pub epochs: isize,
     }
-
-    impl FuncState for FnState {
-        fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
-            let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
-            rmp_serde::encode::write(&mut file, &self).unwrap();
-            Ok(())
+    impl FuncState for TrainingState {
+        fn save(&self, path: PathBuf) -> io::Result<()> {
+            std::fs::write(path.join("epochs"), self.epochs.to_string())
         }
-        fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
-            let file_path = path.join("fn_state.mp");
-            let file = std::fs::File::open(file_path)?;
-            let state = rmp_serde::decode::from_read(file).unwrap();
-            Ok(state)
+        fn load(path: PathBuf) -> io::Result<Self> {
+            let value = std::fs::read_to_string(path.join("epochs"))?;
+            let epochs = value.parse().map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            Ok(Self { epochs })
         }
     }
 
-    #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
-    pub struct MoFidOutEvaluator {
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct Evaluation {
         #[maximize]
-        pub obj1: f64, // First objective
-        #[maximize]
-        pub obj2: f64, // Second objective
-        info: f64,     // Extra info
+        pub score: f64,
+        #[minimize]
+        pub cost: f64,
         #[step]
-        pub fid: Step, // Evaluation step
+        pub step: Step,
     }
 
     objective!(
-        pub fn example() -> (MoFidOutEvaluator, FnState) {
-
-            let fid = [! FIDELITY !];
-
-            let _a = [! a | Int(0,100, Uniform) | !];
-            let _b = [! b | Nat(0,100, Uniform) | !];
-            let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
+        pub fn train() -> (Evaluation, TrainingState) {
+            let fidelity = [! FIDELITY !];
+            let mut state = [! STATE !].unwrap_or(TrainingState { epochs: 0 });
+            let _a = [! a | Int(-100, 100, Uniform) | !];
+            let _b = [! b | Nat(0, 100, Uniform) | !];
+            let _c = [! c | Cat(["relu", "tanh"], Uniform) | !];
             let _d = [! d | Bool(Bernoulli(0.5)) | !];
+            let rate = [! rate | Real(0.0, 1.0, Uniform) | !];
 
-            // ... some extra computation ...
-
-            // Virtually update the step
-            let mut state = match [! STATE !]{
-                Some(s) => s,
-                None => FnState { state: 0 },
+            // A real trainer would resume from state.epochs to this budget.
+            state.epochs = fidelity as isize;
+            let step = if fidelity >= 4.0 {
+                Step::Evaluated
+            } else {
+                Step::Partially(state.epochs)
             };
-            state.state += 1;
-            let evalstate = if fid == 10. {Step::Evaluated} else{Step::Partially(fid as isize)};
-            let obj = random_codom();
-            (
-                MoFidOutEvaluator{
-                    obj1: obj.value[0],
-                    obj2: obj.value[1],
-                    info: [!j | Real(0.0,2000.0, Uniform) | !],
-                    fid: evalstate,
-                },
-                state
-            )
-
+            (Evaluation { score: rate, cost: rate * rate, step }, state)
         }
     );
-    // The macro expands to helpers like:
-    // let sp = example::get_searchspace();
-    // let obj = example::get_function();
 }
-```
 
-## Define the optimization loop
-
-```rust
-# mod searchspace {
-#     use serde::{Deserialize, Serialize};
-#     use tantale::core::{Bernoulli, Bool, Cat, FuncState, Int, Nat, Real, Step, Uniform};
-#     use tantale::macros::{CSVWritable, Outcome, objective};
-# 
-#   pub fn random_codom() -> tantale::core::domain::codomain::ElemMultiCodomain {
-#       let idx: usize = rand::random_range(0..15) % 15;
-#       match idx {
-#           0 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 5.0]),
-#           1 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 4.5]),
-#           2 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 4.0]),
-#           3 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 3.0]),
-#           4 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 1.0]),
-#           5 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.5, 4.0]),
-#           6 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 3.5]),
-#           7 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 3.0]),
-#           8 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![4.0, 2.0]),
-#           9 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![5.0, 0.0]),
-#           10 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![0.0, 3.5]),
-#           11 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![1.0, 3.0]),
-#           12 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.0, 2.0]),
-#           13 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![2.5, 1.0]),
-#           14 => tantale::core::domain::codomain::ElemMultiCodomain::new(vec![3.0, 0.0]),
-#           _ => unreachable!("Index out of bounds for random codomain generation"),
-#       }
-#   }
-# 
-#     #[derive(Serialize, Deserialize)]
-#     pub struct FnState {
-#         pub state: isize,
-#     }
-# 
-#     impl FuncState for FnState {
-#         fn save(&self, path: std::path::PathBuf) -> std::io::Result<()> {
-#             let mut file = std::fs::File::create(path.join("fn_state.mp"))?;
-#             rmp_serde::encode::write(&mut file, &self).unwrap();
-#             Ok(())
-#         }
-#         fn load(path: std::path::PathBuf) -> std::io::Result<Self> {
-#             let file_path = path.join("fn_state.mp");
-#             let file = std::fs::File::open(file_path)?;
-#             let state = rmp_serde::decode::from_read(file).unwrap();
-#             Ok(state)
-#         }
-#     }
-# 
-#     #[derive(Outcome, Debug, Serialize, Deserialize, CSVWritable)]
-#     pub struct MoFidOutEvaluator {
-#         #[maximize]
-#         pub obj1: f64, // First objective
-#         #[maximize]
-#         pub obj2: f64, // Second objective
-#         info: f64,     // Extra info
-#         #[step]
-#         pub fid: Step, // Evaluation step
-#     }
-# 
-#     objective!(
-#         pub fn example() -> (MoFidOutEvaluator, FnState) {
-# 
-#             let fid = [! FIDELITY !];
-# 
-#             let _a = [! a | Int(0,100, Uniform) | !];
-#             let _b = [! b | Nat(0,100, Uniform) | !];
-#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"],Uniform) | !];
-#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
-# 
-#             // ... some extra computation ...
-# 
-#             // Virtually update the step
-#             let mut state = match [! STATE !]{
-#                 Some(s) => s,
-#                 None => FnState { state: 0 },
-#             };
-#             state.state += 1;
-#             let evalstate = if fid == 10. {Step::Evaluated} else{Step::Partially(fid as isize)};
-#             let obj = random_codom();
-#             (
-#                 MoFidOutEvaluator{
-#                     obj1: obj.value[0],
-#                     obj2: obj.value[1],
-#                     info: [!j | Real(0.0,2000.0, Uniform) | !],
-#                     fid: evalstate,
-#                 },
-#                 state
-#             )
-# 
-#         }
-#     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
-# }
-# 
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-
-use tantale::{
-    algos::mo::NSGA2Selector,
-    core::{
-        CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SaverConfig, SolutionShape,
-        experiment::{Runable, threaded},
-        stop::Calls,
-    },
+use tantale::algos::{MoAsha, RandomSearch, mo::NSGA2Selector};
+use tantale::core::{
+    CSVRecorder, Calls, FolderConfig, HasX, HasY, MessagePack, ParExperiment,
+    SolutionShape, ThreadCommunicator,
 };
-use tantale::algos::{MoAsha, RandomSearch};
-use searchspace::{get_function, get_searchspace};
 
-# drop(Cleaner {
-#     path: String::from("tmp_moasha_example"),
-# });
-# let _clean = Cleaner {
-#     path: String::from("tmp_moasha_example"),
-# };
-
-let sp = get_searchspace();
-let obj = get_function();
-// Selector, budget min and max per solution, scaling factor
-let sampler = RandomSearch::new();
-let opt = MoAsha::new(sampler, NSGA2Selector, 1., 10., 1.61);
-
-let stop = Calls::new(25);
-let config = FolderConfig::new("tmp_moasha_example").init();
-let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-let check = MessagePack::new(config);
-
-let exp = threaded(sp, obj, opt, stop, (rec, check));
-let acc = exp.run();
-let pareto = acc.get();
-
-for dominant in pareto {
-    println!(
-        "Dominant: f({:?}) ={:?}",
-        dominant.get_sobj().ref_x(),
-        dominant.y().value
+// fn main() {
+    let problem = searchspace::get_problem();
+    let sampler = MoAsha::new(RandomSearch::new(), NSGA2Selector, 1.0, 4.0, 2.0)
+        .expect("invalid budgets");
+    let config = FolderConfig::new("tmp_moasha_run");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
+    let experiment = ParExperiment::new(
+        problem, sampler, Calls::new(25), recorder, checkpointer,
+        ThreadCommunicator::new(),
     );
-}
+    if let Some(accumulator) = experiment.run() {
+        let pareto_front = accumulator.get();
+        for solution in pareto_front {
+            println!("f( {:?} ) = {:?}", solution.get_sobj().ref_x(), solution.y().value);
+        }
+    }
+    # let _ = std::fs::remove_dir_all("tmp_moasha_run");
+// }
 ```
+
+The returned state belongs to the candidate fed to the function `train`, not to the sampler. `STATE` is
+`None` for a new candidate (or if something failed), and `Some(state)` on continuation. This example
+saves only an epoch counter, so it does not demonstrate actual model
+training. For the workspace's runnable mock objective and threaded
+experiment, see `examples/examples/mo_example.rs`.

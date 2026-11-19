@@ -25,7 +25,6 @@ pub mod test_grid_search;
 
 pub mod test_tpe;
 pub mod test_tpe_bandwidth;
-pub mod test_tpe_error;
 pub mod test_tpe_kernel;
 pub mod test_tpe_splitter;
 pub mod test_tpe_weighter;

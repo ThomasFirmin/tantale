@@ -1,12 +1,24 @@
-//! The asynchronous version of [`Successive Halving`](crate::Sha) algorithm for
-//! multi-fidelity hyperparameter optimization.
+//! # Asynchronous Successive Halving
 //!
-//! # Overview
+//! ASHA maintains result rungs for a sequence of fidelity budgets. When a
+//! worker requests a candidate, it promotes an eligible completed candidate
+//! from a lower rung when available; otherwise it asks the inner sampler for
+//! a new candidate at the minimum budget. Promotion is based on the
+//! single-objective ordering of computed results, and does not wait for every
+//! candidate at a rung to finish.
 //!
-//! The objective of ASHA is to generate on-demand of the process workers new [`Solution`](tantale_core::Solution)s
-//! to evaluate, without waiting for the completion of evaluations from other workers.
-//! This allows to keep all workers busy and avoid idle time, while still benefiting from the successive
-//! halving strategy of eliminating poor performers at increasing fidelity levels.
+//! [`Asha::new`] takes an inner sampler, minimum budget, maximum budget, and
+//! scaling factor. Budgets must be finite and positive, `budget_max` must be
+//! greater than or equal to `budget_min`, and scaling must be finite and
+//! greater than `1.0`. Invalid budget parameters are returned as
+//! [`PrunerError`].
+//!
+//! [`Asha::into_hyperband`] converts an ASHA instance to the separate
+//! `BrackettedAsha` type for multiple brackets. It does not create the
+//! [`Hyperband`](crate::Hyperband) type, which wraps SHA.
+//!
+//! ASHA requires a multi-fidelity problem, an inner sampler that implements
+//! [`Prunable`], and computed results that implement [`Orderable`].
 //!
 //! # Pseudo-code
 //!
@@ -40,443 +52,277 @@
 //! 25. &emsp; &emsp;&emsp; **return** $(\mathbf{x}_0, i)$
 //! ---
 //!
-//! # Type Parameters
+//! # Reference
 //!
-//! The algorithm is generic over:
-//! - Output types satisfying [`FidOutcome`] for multi-fidelity support
-//! - [`Searchspace`] over randomly samplable [`Domain`](tantale_core::Domain) generating candidates with [`HasStep`] and [`HasFidelity`] traits
-//!
-//! # Example
-//!
-//! ```ignore
-//! let sampler = RandomSearch::new();
-//! let sh = ASHA::new(
-//!     sampler,         // Samples random points
-//!     budget_min,      // Minimum resource level (e.g., epochs=1)
-//!     budget_max,      // Maximum resource level (e.g., epochs=100)
-//!     scaling,         // Reduction factor (e.g., 2.0 or 3.0)
-//! );
-//! ```
-//!
-//! # Note
-//!
-//! Solutions are not discarded by default.
-//! They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-//!
-//! # References
-//!
-//! Asynchronous Successive Halving is based on the work of [Li et al. (2018)](https://arxiv.org/pdf/1810.05934).
+//! Li et al., [*A System for Massively Parallel Hyperparameter Tuning*](https://arxiv.org/abs/1810.05934).
 
-use std::{cell::RefCell, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData};
 
+use log::warn;
 use tantale_core::{
-    CompShape, FidOutcome, FidelitySol, FuncState, FuncWrapper, HasFidelity, HasStep, LinkOpt,
-    OptState, Optimizer, Orderable, RawObj, Searchspace, Single, SingleOptimizer, SingleSampler,
-    SolInfo, Step, StepSId, Uncomputed, domain::codomain::TypeCodom, optimizer::opt::BudgetPruner,
-    solution::IntoComputedShape,
+    HasFidelity, HasInfo, HasState, HasStep, Orderable, Problem, Sampled, Sampler, SolInfo, State,
+    Step,
+    aliases::{Accum, CompShape, Opt, Shape},
+    optimizer::opt::{Prunable, Pruner},
+    solution::shape::IntoComputedShape,
+    utils::WrappedInfo,
 };
 
-use rand::rngs::StdRng;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{self, Visitor},
     ser::SerializeStruct,
 };
+use tantale_macros::fidelity_bounds;
 
-use crate::utils::{FCompAcc, FCompShape, SimpleStepped, fidelity_setter};
-
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-}
+use crate::utils::{
+    BracketInfo, PromotableShape, PrunerError, Rungs, build_halving_budgets,
+    build_halving_budgets_with_levels,
+};
 
 /// A helper macro to simplify the type signature of [`Asha`].
-/// You can write:
-/// ```rust,ignore
-/// let exp = load!(mono, asha!(RandomSearch), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
-/// or even:
-/// ```rust,ignore
-/// let exp = load!(mono, asha!(tpe!(Univariate, UniformWeighter, LinearSplit)), Evaluated, (sp, cod), obj, (rec, check));
-/// ```
 #[macro_export]
 macro_rules! asha {
     ($sampler : ident) => {
-        Asha<$sampler, _, _, _, _>
+        Asha<$sampler, _>
     };
     ($sampler : ty) => {
-        Asha<$sampler, _, _, _, _>
+        Asha<$sampler, _>
     };
 }
 
-pub fn build_asha_budget(min:f64, max:f64, scaling:f64) -> Vec<f64> {
-    assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-    assert!(min > 0.0, "Minimum budget must be > 0.0");
-    assert!(
-        max > min,
-        "Maximum budget must be > minimum budget"
-    );
-    let mut budgets: Vec<f64> = (0..)
-        .map(|i| min * scaling.powi(i))
-        .take_while(|&b| b <= max)
-        .collect();
-    // If only one budget level is generated, add the max budget as a second level to ensure the algorithm can run
-    if budgets.len() == 1 {
-        budgets.push(max);
-    }
-    //If final budget is not budget_max, modify final budget to be budget_max
-    if *budgets.last().unwrap() != max {
-        let last = budgets.last_mut().unwrap();
-        *last = max;
-    }
-    budgets
+/// A helper macro to simplify the type signature of [`BrackettedAsha`].
+#[macro_export]
+macro_rules! bracketted_asha {
+    ($sampler : ident) => {
+        tantale::algos::asha::BrackettedAsha<$sampler, _>
+    };
+    ($sampler : ty) => {
+        tantale::algos::asha::BrackettedAsha<$sampler, _>
+    };
 }
 
-type AshaRungs<SInfo, SolShape, Out> = Vec<Vec<CompShape<SolShape, StepSId, SInfo, Out>>>;
-
-/// Internal state of the [`Asha`] optimizer.
+/// Asynchronous Successive Halving optimizer for multi-fidelity problems.
 ///
-/// This structure maintains all essential information needed to resume an optimization
-/// across checkpoints. It encodes the core parameters of the algorithm and current iteration.
-pub struct AshaState<Smpl, Scp, PSol, Out, Fn>
+/// # Overview
+///
+/// ASHA keeps candidate results in fidelity rungs. It returns eligible
+/// candidates for promotion when available, and otherwise delegates new
+/// candidate generation at the lowest budget to its inner sampler. Unlike
+/// [`Sha`](crate::Sha), ASHA does not require a complete batch at each rung.
+///
+pub struct Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    /// The sampler used for generating new candidates when no computed solutions are available for promotion.
+    /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
     pub sampler: Smpl,
     /// A vector of budget levels corresponding to the halving rounds.
     pub budgets: Vec<f64>,
     /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
     pub scaling: f64,
     /// A vector of vectors representing the rungs of the Successive Halving process.
-    pub rungs: AshaRungs<Smpl::SInfo, Scp::SolShape, Out>,
+    pub rungs: Rungs<P>,
     /// The current budget level index being processed. This is used to track which rung is currently active for promotions and evaluations.
     pub current_budget: f64,
-    _fn: PhantomData<Fn>,
 }
 
-impl<Smpl, Scp, PSol, Out, Fn> OptState for AshaState<Smpl, Scp, PSol, Out, Fn>
+impl<P, Smpl> Debug for Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+            .field("sampler", &self.sampler)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("current_budget", &self.current_budget)
+            .finish()
+    }
+}
+
+impl<P, Smpl> Clone for Asha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sampler: self.sampler.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
+            current_budget: self.current_budget,
+        }
+    }
+}
+
+impl<Smpl, P> State for Asha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
 }
 
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934) multi-fidelity optimizer.
-///
-/// A [`SingleOptimizer`] implementing the
-/// [Asynchronous Successive Halving](https://arxiv.org/pdf/1810.05934)  algorithm for multi-fidelity evaluations.
-///
-/// # Overview
-///
-/// [`Asha`] manages the optimization process through on-demand generation of candidates :
-/// - It maintains a set of rungs corresponding to different budget levels, where candidates are evaluated and pruned asynchronously.
-/// - When a worker requests a new candidate, the optimizer checks the rungs starting from the highest budget level,
-///   selecting the top performers and promoting them to the next level of fidelity, if the rung has enough candidates.
-/// - If not, it continues down the rungs until it finds candidates to promote or defaults to generate a new candidate at the lowest budget level
-///   using a [`Sampler`](tantale_core::Sampler).
-///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +------------------------------+
-///  | Provide a Computed solution? |
-///  +------------------------------+
-///     Yes /     \ No
-///        /       \
-///       v         v
-///  +----------+   +--------------------+
-///  | Add to   |   | Start from highest |
-///  | rung and |-->| budget rung        |
-///  | update   |   +--------------------+
-///  | sampler  |      |
-///  | state    |      |
-///  +----------+      |
-///                    |
-///                    v
-///         +----------------+
-///         | Rung has top-k |  Yes
-///  +----->| candidates?    | --------+
-///  |      +----------------+         |
-///  |             | No                |
-///  |             v                   v
-///  |        +----------+      +-------------+
-///  |        | Move to  |      | Promote     |
-///  |        | next     |      | top configs |
-///  |        | rung     |      | to next     |
-///  |        +----------+      | fidelity    |
-///  |             |            +-------------+
-///  |             v              |
-///  |       +----------+         +-->Return config
-///  |      /            \        |    to worker
-///  |  No /  At lowest   \ Yes +--------------+
-///  +-----\    rung?     / --->|    Sample    |
-///         \            /      |random configs|
-///          +----------+       +--------------+  
-/// ```
-///
-/// # Type Parameters
-///
-/// This optimizer is generic over:
-/// - **Sampler**: Must implement [`SingleSampler`] for generating new candidates when no computed solutions are available for promotion
-/// - **Output Type**: Must satisfy [`FidOutcome`] to support multi-fidelity metrics
-/// - **Search Space**: Must generate [`SolutionShape`](tantale_core::SolutionShape) with [`HasFidelity`] and [`HasStep`]
-/// - **Function State**: Must implement [`FuncState`] for managing
-///   evaluation state across fidelity levels
-/// - [`Stepped`](tantale_core::Stepped) functions
-///
-/// # Internal State
-///
-/// - [`AshaState`]: Checkpointable state including budget, scaling factor, and iteration count
-pub struct Asha<Smpl, Scp, PSol, Out, Fn>(pub AshaState<Smpl, Scp, PSol, Out, Fn>)
+impl<Smpl, P> HasState for Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable;
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type State = Self;
 
-impl<Smpl, Scp, PSol, Out, Fn> Asha<Smpl, Scp, PSol, Out, Fn>
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+#[fidelity_bounds(P)]
+impl<Smpl, P> Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     /// Creates a new [`Asha`] optimizer with the specified parameters.
     ///
     /// # Parameters
     ///
-    /// * `sampler` - A [`SingleSampler`] used to sample random configuration.
-    /// * `budget_min` - Minimum budget ($b_0$). Must be $> 0.0$. Represents the lowest
-    ///   fidelity level, typically 1 epoch or similar.
-    /// * `budget_max` - Maximum budget ($b_{max}$). Must be $> b_{min}$. The process
-    ///   cycles when this budget is reached.
-    /// * `scaling` - Budget scaling factor ($\eta$). Must be $\geq 1.0$.
-    ///   Controls how aggressively fidelity increases and candidates are pruned ($1/\eta$ of candidates survive each round).
+    /// * `sampler` - Inner sampler used for candidates at the minimum budget.
+    /// * `budget_min` - Finite, positive fidelity of the first rung.
+    /// * `budget_max` - Finite maximum fidelity, greater than or equal to
+    ///   `budget_min`.
+    /// * `scaling` - Finite budget multiplier greater than `1.0`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if:
-    /// - `budget_min <= 0.0`
-    /// - `budget_max <= budget_min`
-    /// - `scaling < 1.0`
-    pub fn new(sampler: Smpl, budget_min: f64, budget_max: f64, scaling: f64) -> Self {
-        let budgets = build_asha_budget(budget_min, budget_max, scaling);
+    /// Returns an error if the scaling factor or budget range is invalid.
+    pub fn new(
+        sampler: Smpl,
+        budget_min: f64,
+        budget_max: f64,
+        scaling: f64,
+    ) -> Result<Self, PrunerError> {
+        let budgets = build_halving_budgets(budget_min, budget_max, scaling)?;
         let rungs = (0..budgets.len()).map(|_| Vec::new()).collect();
         let current_budget = budgets[0];
-        Asha(AshaState {
+        Ok(Asha {
             sampler,
             budgets,
             scaling,
             rungs,
             current_budget,
-            _fn: PhantomData,
         })
     }
-    pub fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+
+    pub fn into_hyperband(self) -> BrackettedAsha<Smpl, P> {
+        let (budget_min, budget_max) = self.get_budgets();
+        let sampler = self.sampler;
+        let scaling = self.scaling;
+
+        let s_max = (budget_max / budget_min).log(scaling).floor() as usize;
+        let num_brackets = s_max + 1;
+        let admissions = vec![0; num_brackets];
+
+        let mut max_admissions = Vec::with_capacity(num_brackets);
+        let mut budgets = Vec::with_capacity(num_brackets);
+        let mut rungs = Vec::with_capacity(num_brackets);
+
+        (0..num_brackets).rev().for_each(|s| {
+            let admission =
+                (num_brackets as f64 * scaling.powi(s as i32) / ((s + 1) as f64)).ceil() as usize;
+            let bmin = budget_max * scaling.powi(-(s as i32));
+            let bracket_budgets =
+                build_halving_budgets_with_levels(bmin, budget_max, scaling, s + 1).unwrap();
+            let bracket_rungs: Rungs<P> = (0..bracket_budgets.len()).map(|_| Vec::new()).collect();
+            max_admissions.push(admission);
+            budgets.push(bracket_budgets);
+            rungs.push(bracket_rungs);
+        });
+
+        BrackettedAsha {
+            sampler,
+            budgets,
+            scaling,
+            rungs,
+            admissions,
+            max_admissions,
+            num_brackets,
+        }
     }
 }
 
-/// Implementation of the [`Optimizer`] trait for Successive Halving.
-///
-/// Defines the state management and codomain configuration for Successive Halving.
-impl<Smpl, Out, Scp, SInfo, Fn>
-    Optimizer<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, P, Opt> Pruner<P, Opt> for Asha<Smpl, P>
 where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
-    SInfo: SolInfo,
+    Smpl: Sampler<P, Opt> + Prunable,
+    CompShape<P>: Orderable,
 {
-    type State = AshaState<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>;
-    type SInfo = SInfo;
-
-    /// Returns a reference to the current optimizer state.
-    fn get_state(&self) -> &Self::State {
-        &self.0
-    }
-
-    /// Returns a mutable reference to the current optimizer state.
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
-
-    /// Reconstructs the [`Asha`] optimizer from a saved state.
-    ///
-    /// Used for checkpointing and resuming optimization experiments.
-    /// Creates a fresh random number generator for the reconstructed optimizer.
-    fn from_state(state: Self::State) -> Self {
-        Asha(state)
-    }
-}
-
-impl<Smpl, Out, Scp, SInfo, Fn>
-    BudgetPruner<FidelitySol<StepSId, Scp::Opt, SInfo>, StepSId, Scp::Opt, Out, Scp>
-    for Asha<Smpl, Scp, FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, Out, Fn>
-where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            Fn,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
-    SInfo: SolInfo,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-{
-    /// Reinitializes the budget parameters for this optimizer.
-    /// This can be used to adjust the fidelity levels during optimization or before restarting a new run
-    /// Rungs are cleared when budgets are updated, as the previous candidates may not be relevant to the new budget configuration.
     fn set_budgets(&mut self, budget_min: f64, budget_max: f64) {
-        self.0.budgets = build_asha_budget(budget_min, budget_max, self.0.scaling);
-        self.0.current_budget = self.0.budgets[0];
+        self.budgets = build_halving_budgets(budget_min, budget_max, self.scaling).unwrap();
+        self.current_budget = self.budgets[0];
+        self.rungs = (0..self.budgets.len()).map(|_| Vec::new()).collect();
     }
 
     /// Returns the current minimum and maximum budgets of this optimizer.
     fn get_budgets(&self) -> (f64, f64) {
         (
-            *self.0.budgets.first().unwrap(),
-            *self.0.budgets.last().unwrap(),
+            *self.budgets.first().unwrap(),
+            *self.budgets.last().unwrap(),
         )
     }
 
     /// Updates the scaling factor for this optimizer.
     fn set_scaling(&mut self, scaling: f64) {
-        assert!(scaling >= 1.0, "Scaling factor must be >= 1.0");
-        self.0.scaling = scaling;
+        assert!(scaling > 1.0, "Scaling factor must be >= 1.0");
+        self.scaling = scaling;
     }
 
     /// Returns the current scaling factor for this optimizer.
     fn get_scaling(&self) -> f64 {
-        self.0.scaling
+        self.scaling
     }
 
     /// Sets the current budget level used by the optimizer for pruning candidates.
     fn set_current_budget(&mut self, budget: f64) {
         assert!(
-            budget >= self.0.budgets[0] && budget <= *self.0.budgets.last().unwrap(),
+            budget >= self.budgets[0] && budget <= *self.budgets.last().unwrap(),
             "Current budget must be within the range of defined budgets"
         );
-        self.0.current_budget = budget;
+        self.current_budget = budget;
     }
 
     fn get_current_budget(&self) -> f64 {
-        self.0.current_budget
-    }
-
-    /// Here, all pending candidates are drained when a new budget configuration is set, as they may not be relevant to the new budget configuration.
-    /// All drained canditates are set to [`Discard`](tantale_core::Step::Discard) to free up memory, as they will not be evaluated or promoted anymore.
-    /// Drained elements should be returned by the optimizer to actually discard them, as the optimizer does not have direct access to the function states.
-    fn drain(&mut self) -> Vec<Scp::SolShape> {
-        let clear = self
-            .0
-            .rungs
-            .drain(..)
-            .flatten()
-            .map(|comp| {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                sol
-            })
-            .collect();
-        self.0.rungs = (0..self.0.budgets.len()).map(|_| Vec::new()).collect();
-        clear
-    }
-
-    fn drain_one(&mut self) -> Option<Scp::SolShape> {
-        for rung in self.0.rungs.iter_mut() {
-            if let Some(comp) = rung.pop() {
-                let mut sol: Scp::SolShape = IntoComputedShape::extract(comp).0;
-                sol.discard();
-                return Some(sol);
-            }
-        }
-        None
+        self.current_budget
     }
 }
 
-/// Implementation of the [`SingleOptimizer`] trait for Successive Halving.
+/// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
 ///
-/// Implements the core optimization logic: initial batch generation and successive halving
-/// with fidelity-based candidate elimination.
-impl<Smpl, Out, Scp, SInfo, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, SInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
-    for Asha<
-        Smpl,
-        Scp,
-        FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-        Out,
-        SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-    >
+/// Defines the state management and codomain configuration for Asynchronous Successive Halving.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, P, Opt> Sampler<P, Opt> for Asha<Smpl, P>
 where
-    Smpl: SingleSampler<
-            FidelitySol<StepSId, LinkOpt<Scp>, SInfo>,
-            StepSId,
-            LinkOpt<Scp>,
-            Out,
-            Scp,
-            SimpleStepped<Scp::SolShape, SInfo, Out, FnState>,
-            SInfo = SInfo,
-        >,
-    Out: FidOutcome,
-    Out::Cod: Single<Out>,
-    TypeCodom<Out>: Orderable,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, SInfo>, StepSId, SInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, SInfo>: HasStep + HasFidelity + Orderable,
-    SInfo: SolInfo,
-    FnState: FuncState,
+    Smpl: Sampler<P, Opt> + Prunable,
+    CompShape<P>: Orderable,
 {
+    type Info = Smpl::Info;
+
     /// Executes one iteration of Asynchronous Successive Halving on computed candidates.
     ///
     /// This method implements the core algorithm:
@@ -488,26 +334,9 @@ where
     ///   it finds candidates to promote or defaults to random sampling at the lowest budget level.
     /// - If no candidate is provided, it generates a new random candidate at the lowest budget level.
     ///
-    /// # Note on function states management
-    ///
-    /// Solutions are not discarded by default.
-    /// They remain in their respective rungs until they are promoted or the rung is cleared by the next generation step.
-    /// This allows for asynchronous evaluation without waiting for all candidates to complete before proceeding to the next round.
-    ///
-    /// In Tantale, states are stored internally (in RAM or written in a file via checkpointing),
-    /// until a solution is [`Discarded`](tantale_core::Step::Discard),
-    /// [`Evaluated`](tantale_core::Step::Evaluated) or [`Errored`](tantale_core::Step::Error).
-    ///
-    /// For instance suppose `scaling` = 4, and that we have 16 candidates in the first rung (budget level 0).
-    /// When a candidate is evaluated at the first rung, it is not discarded but stored in the first rung until the next generation step.
-    /// So when using ASHA a total of:
-    /// - 16 states at rung 0 (budget level 0)
-    /// - 4 states at rung 1 (budget level 1)
-    /// - 1 state at rung 2 (budget level 2)
-    ///   are stored in memory until the next generation step, where they will be promoted or discarded.
-    ///
-    /// So memory management is crucial when using ASHA,
-    /// as the number of candidates stored can grow significantly according to the scaling factor and the number of budget levels.
+    /// Completed candidates are retained in their rungs until promotion or
+    /// rung cleanup. The amount of retained state depends on candidate
+    /// throughput, rung thresholds, and the number of budget levels.
     ///
     /// In MPI-distributed optimization:
     /// - If there is no Parallel File Sytems, function states and worker states are stored within the worker local memory, and are not shared across workers.
@@ -516,57 +345,85 @@ where
     /// To simplify things, a function state is local to a worker, and is not shared across workers.
     ///
     /// In multi-threaded optimization, function states are stored in the shared memory and can be accessed by all threads.
-    ///
-    fn step(
+    fn sample_info(
         &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        if let Some(comp) = x {
-            if let Step::Partially(_s) = comp.step() {
-                self.0.sampler.update(&comp, scp, acc);
-                let idx = self.0.budgets.iter().position(|&b| b == comp.fidelity().0);
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut i = self.budgets.len() - 1;
+        while i > 0 {
+            let k = (self.rungs[i].len() as f64 / self.scaling) as usize;
+            if k > 0 {
+                self.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
+                let mut promotable = self.rungs[i]
+                    .iter_mut()
+                    .take(k)
+                    .filter(|x| !x.is_promoted())
+                    .collect::<Vec<_>>();
+                if !promotable.is_empty() {
+                    promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
+                    promotable[0].promote();
+                    let mut sol: Shape<P> =
+                        IntoComputedShape::extract(promotable[0].result.clone()).0;
+                    self.current_budget = self.budgets[i];
+                    sol.set_fidelity(self.current_budget);
+                    return Some((sol, Sampled::Reused));
+                }
+            }
+            i -= 1;
+        }
+
+        self.current_budget = self.budgets[0];
+        self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+            sol.set_fidelity(self.current_budget);
+            (sol, info)
+        })
+    }
+
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s) => {
+                let fid = x.fidelity().0;
+                if fid >= self.get_budget_max() {
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid,
+                        self.get_budget_max(),
+                        s
+                    );
+                }
+                let idx = self.budgets.iter().position(|&b| b == x.fidelity().0);
                 if let Some(i) = idx {
                     let rung_idx = i + 1;
-                    if rung_idx >= self.0.rungs.len() {
-                        // Emit a warning
-                        eprintln!("
-                        Warning: Rung index out of bounds due to wrong Step. 
-                        Most probably within user-defined objective function.
-                        Return Step::Evaluated or Step::Error for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                    if rung_idx >= self.rungs.len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
                         ");
                     } else {
-                        // Invariant:
-                        // rungs[i] contains configurations waiting to be evaluated at budgets[i].
-                        // A completed evaluation at budgets[i] is inserted into rungs[i + 1].
-                        self.0.rungs[rung_idx].push(comp);
+                        self.rungs[rung_idx].push(PromotableShape::new(x.clone()));
                     }
                 }
             }
-
-            let mut i = self.0.budgets.len() - 1;
-            let mut k = (self.0.rungs[i].len() as f64 / self.0.scaling) as usize;
-            while k == 0 && i > 0 {
-                i -= 1;
-                k = (self.0.rungs[i].len() as f64 / self.0.scaling) as usize;
+            Step::Evaluated => {
+                let fid = x.fidelity().0;
+                if fid < self.get_budget_max() {
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid,
+                        self.get_budget_max()
+                    );
+                }
             }
-            if k == 0 {
-                self.0.current_budget = self.0.budgets[0];
-                self.0
-                    .sampler
-                    .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
-            } else {
-                self.0.rungs[i].select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap());
-                self.0.current_budget = self.0.budgets[i];
-                let sol = IntoComputedShape::extract(self.0.rungs[i].pop().unwrap()).0;
-                fidelity_setter(sol, self.0.current_budget)
-            }
-        } else {
-            self.0.current_budget = self.0.budgets[0];
-            self.0
-                .sampler
-                .sample_apply(|s| fidelity_setter(s, self.0.budgets[0]), scp, acc)
+            _ => (),
         }
     }
 }
@@ -575,21 +432,10 @@ where
 //--- SERDE ---//
 //-------------//
 
-struct AshaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+struct AshaVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out: FidOutcome,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-{
-    _scp: PhantomData<Scp>,
-    _psol: PhantomData<PSol>,
-    _smpl: PhantomData<Smpl>,
-    _out: PhantomData<Out>,
-    _fn: PhantomData<Fn>,
-}
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>>;
 
 enum AshaField {
     Sampler,
@@ -601,22 +447,18 @@ enum AshaField {
 
 struct AshaFieldVisitor;
 
-impl<Smpl, Scp, PSol, Out, Fn> Serialize for AshaState<Smpl, Scp, PSol, Out, Fn>
+impl<Smpl, P> Serialize for Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AshaState", 5)?;
-        state.serialize_field("sampler", &self.sampler.get_state())?;
+        let mut state = serializer.serialize_struct("Asha", 5)?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
         state.serialize_field("budgets", &self.budgets)?;
         state.serialize_field("scaling", &self.scaling)?;
         state.serialize_field("rung", &self.rungs)?;
@@ -625,24 +467,14 @@ where
     }
 }
 
-impl<Smpl, Scp, PSol, Out, Fn> AshaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+impl<Smpl, P> AshaVisitor<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn new() -> Self {
-        AshaStateVisitor {
-            _scp: PhantomData,
-            _psol: PhantomData,
-            _smpl: PhantomData,
-            _out: PhantomData,
-            _fn: PhantomData,
-        }
+        AshaVisitor(PhantomData)
     }
 }
 
@@ -678,20 +510,16 @@ impl<'de> Deserialize<'de> for AshaField {
     }
 }
 
-impl<'de, Scp, PSol, Smpl, Out, Fn> Visitor<'de> for AshaStateVisitor<Smpl, Scp, PSol, Out, Fn>
+impl<'de, Smpl, P> Visitor<'de> for AshaVisitor<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
-    type Value = AshaState<Smpl, Scp, PSol, Out, Fn>;
+    type Value = Asha<Smpl, P>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("struct AshaState")
+        formatter.write_str("struct Asha")
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -713,13 +541,12 @@ where
         let current_budget = seq
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(4, &self))?;
-        Ok(AshaState {
+        Ok(Asha {
             sampler: Smpl::from_state(sampler),
             budgets,
             scaling,
             rungs: rung,
             current_budget,
-            _fn: PhantomData,
         })
     }
 
@@ -775,31 +602,491 @@ where
         let current_budget =
             current_budget.ok_or_else(|| de::Error::missing_field("current_budget"))?;
 
-        Ok(AshaState {
+        Ok(Asha {
             sampler: Smpl::from_state(sampler),
             budgets,
             scaling,
             rungs: rung,
             current_budget,
-            _fn: PhantomData,
         })
     }
 }
 
-impl<'de, Scp, PSol, Smpl, Out, Fn> Deserialize<'de> for AshaState<Smpl, Scp, PSol, Out, Fn>
+impl<'de, Smpl, P> Deserialize<'de> for Asha<Smpl, P>
 where
-    PSol: Uncomputed<StepSId, Scp::Opt, Smpl::SInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<StepSId, Scp::Obj, Smpl::SInfo, Twin<Scp::Opt> = PSol>,
-    Scp: Searchspace<PSol, StepSId, Smpl::SInfo>,
-    Smpl: SingleSampler<PSol, StepSId, LinkOpt<Scp>, Out, Scp, Fn>,
-    Out: FidOutcome,
-    CompShape<Scp::SolShape, StepSId, Smpl::SInfo, Out>: HasStep + HasFidelity + Orderable,
-    Fn: FuncWrapper<RawObj<Scp::SolShape, StepSId, Smpl::SInfo>>,
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_map(AshaStateVisitor::new())
+        deserializer.deserialize_map(AshaVisitor::new())
+    }
+}
+
+//------------------//
+//  BrackettedAsha  //
+//------------------//
+
+/// [`BrackettedAsha`] is a variant of the Asynchronous Successive Halving algorithm
+/// that organizes the optimization process into multiple brackets,
+///  each with its own set of budget levels and rungs.
+/// This allows for more flexible and efficient exploration of the search space,
+/// as different brackets can operate independently and concurrently, promoting candidates based on their performance within their respective brackets.
+pub struct BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    /// The [`Sampler`] used for generating new candidates when no computed solutions are available for promotion.
+    pub sampler: Smpl,
+    /// A vector of budget levels corresponding to the halving rounds.
+    pub budgets: Vec<Vec<f64>>,
+    /// Scaling factor ($\eta$) by which the budget is multiplied at each stage.
+    pub scaling: f64,
+    /// A vector of vectors of vectors representing the rungs of the Asynchronous Successive Halving process.
+    pub rungs: Vec<Rungs<P>>,
+    /// The number of admissions per bracket.
+    pub admissions: Vec<usize>,
+    /// The maximum number of admissions per bracket.
+    pub max_admissions: Vec<usize>,
+    /// The number of brackets.
+    pub num_brackets: usize,
+}
+
+impl<P, Smpl> Debug for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Asha")
+            .field("sampler", &self.sampler)
+            .field("budgets", &self.budgets)
+            .field("scaling", &self.scaling)
+            .field("rungs", &self.rungs)
+            .field("admissions", &self.admissions)
+            .field("max_admissions", &self.max_admissions)
+            .field("num_brackets", &self.num_brackets)
+            .finish()
+    }
+}
+
+impl<P, Smpl> Clone for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn clone(&self) -> Self {
+        Self {
+            sampler: self.sampler.clone(),
+            budgets: self.budgets.clone(),
+            scaling: self.scaling,
+            rungs: self.rungs.clone(),
+            admissions: self.admissions.clone(),
+            max_admissions: self.max_admissions.clone(),
+            num_brackets: self.num_brackets,
+        }
+    }
+}
+
+impl<Smpl, P> State for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+}
+
+impl<Smpl, P> HasState for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type State = Self;
+
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
+    }
+
+    fn get_state(&self) -> &Self::State {
+        self
+    }
+
+    fn from_state(state: Self::State) -> Self {
+        state
+    }
+}
+
+/// Implementation of the [`Sampler`] trait for Asynchronous Successive Halving.
+///
+/// Defines the state management and codomain configuration for Asynchronous Successive Halving.
+#[fidelity_bounds(P, Opt)]
+impl<Smpl, P, Opt> Sampler<P, Opt> for BrackettedAsha<Smpl, P>
+where
+    Smpl: Sampler<P, Opt> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type Info = WrappedInfo<Smpl::Info, BracketInfo>;
+
+    fn sample_info(
+        &mut self,
+        scp: &<P as Problem>::Scp,
+        acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
+        let mut b = 0;
+        while b < self.num_brackets {
+            let mut i = self.budgets[b].len() - 1;
+            while i > 0 {
+                let length = self.rungs[b][i].len();
+                let k = (length as f64 / self.scaling) as usize;
+                if k > 0 {
+                    self.rungs[b][i]
+                        .select_nth_unstable_by(k, |a, b| a.ord_cmp(b).unwrap().reverse());
+                    let mut promotable = self.rungs[b][i]
+                        .iter_mut()
+                        .take(k)
+                        .filter(|x| !x.is_promoted())
+                        .collect::<Vec<_>>();
+                    if !promotable.is_empty() {
+                        promotable.sort_by(|a, b| a.ord_cmp(b).unwrap().reverse());
+                        promotable[0].promote();
+                        let mut sol: Shape<P> =
+                            IntoComputedShape::extract(promotable[0].result.clone()).0;
+                        sol.set_fidelity(self.budgets[b][i]);
+                        return Some((sol, Sampled::Reused));
+                    }
+                }
+                i -= 1;
+            }
+
+            if self.admissions[b] < self.max_admissions[b] {
+                self.admissions[b] += 1;
+                return self.sampler.sample_info(scp, acc).map(|(mut sol, info)| {
+                    sol.set_fidelity(self.budgets[b][0]);
+                    let info = match info {
+                        Sampled::Fresh(inf) => inf,
+                        Sampled::Reused => sol
+                            .sinfo()
+                            .find_info::<Smpl::Info>()
+                            .expect("Sampler info not found in solution info")
+                            .clone(),
+                    };
+                    let sinfo = WrappedInfo::new(info, BracketInfo(b).into());
+                    (sol, Sampled::Fresh(sinfo.into()))
+                });
+            }
+            b += 1;
+        }
+        self.admissions = vec![0; self.num_brackets];
+        self.rungs.iter_mut().for_each(|bracket| {
+            bracket.iter_mut().for_each(|rung| {
+                rung.drain(..);
+            })
+        });
+        self.sample_info(scp, acc)
+    }
+
+    fn update(&mut self, x: &CompShape<P>, scp: &<P as Problem>::Scp, acc: &Accum<P>) {
+        self.sampler.update(x, scp, acc);
+        match x.step() {
+            Step::Partially(s) => {
+                let fid = x.fidelity().0;
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget {
+                    warn!(
+                        "
+                            Fidelity {} >= budget_max {} for a Partially({}) step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid, max_budget, s
+                    );
+                }
+
+                let idx = self.budgets[bracket]
+                    .iter()
+                    .position(|&b| b == x.fidelity().0);
+                if let Some(i) = idx {
+                    let rung_idx = i + 1;
+                    if rung_idx >= self.rungs[bracket].len() {
+                        warn!("
+                            Warning: Rung index out of bounds due to wrong Step. 
+                            Most probably within user-defined objective function.
+                            Return Step::Evaluated for fidelity >= budget_max, and Step::Partially for fidelity < budget_max.
+                        ");
+                    } else {
+                        self.rungs[bracket][rung_idx].push(PromotableShape::new(x.clone()));
+                    }
+                }
+            }
+            Step::Evaluated => {
+                let fid = x.fidelity().0;
+                let info = x
+                    .sinfo()
+                    .find_info::<WrappedInfo<Smpl::Info, BracketInfo>>()
+                    .expect("BracketInfo not found in solution info");
+                let bracket = info.super_info.0;
+                let max_budget = *self.budgets[bracket].last().unwrap();
+                if fid >= max_budget {
+                    warn!(
+                        "
+                            Fidelity {} < budget_max {} for an Evaluated step.
+                            This may indicate a logic error in the objective function.
+                        ",
+                        fid, max_budget
+                    );
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
+//-------------//
+//--- SERDE ---//
+//-------------//
+
+struct BrackettedAshaVisitor<Smpl, P>(PhantomData<(Smpl, P)>)
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>>;
+
+enum BrackettedAshaField {
+    Sampler,
+    Budgets,
+    Scaling,
+    Rung,
+    Admissions,
+    MaxAdmissions,
+    NumBrackets,
+}
+
+struct BrackettedAshaFieldVisitor;
+
+impl<Smpl, P> Serialize for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Asha", 7)?;
+        state.serialize_field("sampler", self.sampler.get_state())?;
+        state.serialize_field("budgets", &self.budgets)?;
+        state.serialize_field("scaling", &self.scaling)?;
+        state.serialize_field("rung", &self.rungs)?;
+        state.serialize_field("admissions", &self.admissions)?;
+        state.serialize_field("max_admissions", &self.max_admissions)?;
+        state.serialize_field("num_brackets", &self.num_brackets)?;
+        state.end()
+    }
+}
+
+impl<Smpl, P> BrackettedAshaVisitor<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn new() -> Self {
+        BrackettedAshaVisitor(PhantomData)
+    }
+}
+
+impl<'de> Visitor<'de> for BrackettedAshaFieldVisitor {
+    type Value = BrackettedAshaField;
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("`sampler`, `budgets`, `scaling`, `rung`, `admissions`, `max_admissions` or `num_brackets`")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        match value {
+            "sampler" => Ok(BrackettedAshaField::Sampler),
+            "budgets" => Ok(BrackettedAshaField::Budgets),
+            "scaling" => Ok(BrackettedAshaField::Scaling),
+            "rung" => Ok(BrackettedAshaField::Rung),
+            "admissions" => Ok(BrackettedAshaField::Admissions),
+            "max_admissions" => Ok(BrackettedAshaField::MaxAdmissions),
+            "num_brackets" => Ok(BrackettedAshaField::NumBrackets),
+            _ => Err(de::Error::unknown_field(
+                value,
+                &[
+                    "sampler",
+                    "budgets",
+                    "scaling",
+                    "rung",
+                    "admissions",
+                    "max_admissions",
+                    "num_brackets",
+                ],
+            )),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for BrackettedAshaField {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(BrackettedAshaFieldVisitor)
+    }
+}
+
+impl<'de, Smpl, P> Visitor<'de> for BrackettedAshaVisitor<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    type Value = BrackettedAsha<Smpl, P>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("struct Asha")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let sampler = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        let budgets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+        let scaling = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+        let rung = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(3, &self))?;
+        let admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(4, &self))?;
+        let max_admissions = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(5, &self))?;
+        let num_brackets = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(6, &self))?;
+        Ok(BrackettedAsha {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+
+    fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
+    where
+        V: de::MapAccess<'de>,
+    {
+        let mut sampler = None;
+        let mut budgets = None;
+        let mut scaling = None;
+        let mut rung = None;
+        let mut admissions = None;
+        let mut max_admissions = None;
+        let mut num_brackets = None;
+
+        while let Some(key) = map.next_key()? {
+            match key {
+                BrackettedAshaField::Sampler => {
+                    if sampler.is_some() {
+                        return Err(de::Error::duplicate_field("sampler"));
+                    }
+                    sampler = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Budgets => {
+                    if budgets.is_some() {
+                        return Err(de::Error::duplicate_field("budgets"));
+                    }
+                    budgets = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Scaling => {
+                    if scaling.is_some() {
+                        return Err(de::Error::duplicate_field("scaling"));
+                    }
+                    scaling = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Rung => {
+                    if rung.is_some() {
+                        return Err(de::Error::duplicate_field("rung"));
+                    }
+                    rung = Some(map.next_value()?);
+                }
+                BrackettedAshaField::Admissions => {
+                    if admissions.is_some() {
+                        return Err(de::Error::duplicate_field("admissions"));
+                    }
+                    admissions = Some(map.next_value()?);
+                }
+                BrackettedAshaField::MaxAdmissions => {
+                    if max_admissions.is_some() {
+                        return Err(de::Error::duplicate_field("max_admissions"));
+                    }
+                    max_admissions = Some(map.next_value()?);
+                }
+                BrackettedAshaField::NumBrackets => {
+                    if num_brackets.is_some() {
+                        return Err(de::Error::duplicate_field("num_brackets"));
+                    }
+                    num_brackets = Some(map.next_value()?);
+                }
+            }
+        }
+
+        let sampler = sampler.ok_or_else(|| de::Error::missing_field("sampler"))?;
+        let budgets = budgets.ok_or_else(|| de::Error::missing_field("budgets"))?;
+        let scaling = scaling.ok_or_else(|| de::Error::missing_field("scaling"))?;
+        let rung = rung.ok_or_else(|| de::Error::missing_field("rung"))?;
+        let admissions = admissions.ok_or_else(|| de::Error::missing_field("admissions"))?;
+        let max_admissions =
+            max_admissions.ok_or_else(|| de::Error::missing_field("max_admissions"))?;
+        let num_brackets = num_brackets.ok_or_else(|| de::Error::missing_field("num_brackets"))?;
+
+        Ok(BrackettedAsha {
+            sampler: Smpl::from_state(sampler),
+            budgets,
+            scaling,
+            rungs: rung,
+            admissions,
+            max_admissions,
+            num_brackets,
+        })
+    }
+}
+
+impl<'de, Smpl, P> Deserialize<'de> for BrackettedAsha<Smpl, P>
+where
+    P: Problem,
+    Smpl: Sampler<P, Opt<P>> + Prunable,
+    CompShape<P>: Orderable,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_map(BrackettedAshaVisitor::new())
     }
 }

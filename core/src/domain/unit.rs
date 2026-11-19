@@ -1,7 +1,10 @@
+//! A [`Unit`] domain defines a [`Domain`] for which values are in $[0.0, 1.0]$.
+//!
 use crate::{
     GridDom,
+    distribution::{BoundedDistribution, Distribution},
     domain::{
-        Domain, NumericalDomain, PreDomain, TypeDom,
+        Domain, NumericalDomain, PreDomain,
         bool::Bool,
         bounded::{Bounded, BoundedBounds, RangeDomain},
         grid::GridBounds,
@@ -9,8 +12,7 @@ use crate::{
         onto::{Onto, OntoDom},
     },
     errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, DomainSampler},
+    utils::aliases::Elem,
 };
 
 use num::cast::AsPrimitive;
@@ -44,7 +46,7 @@ pub struct Unit {
 
 impl Unit {
     /// Fabric for a [`Unit`] [`Domain`].
-    pub fn new<S: DomainSampler<Self> + Into<BoundedDistribution>>(sampler: S) -> Unit {
+    pub fn new<S: Distribution<Self> + Into<BoundedDistribution>>(sampler: S) -> Unit {
         Unit {
             bounds: RangeInclusive::new(0.0, 1.0),
             mid: 0.5,
@@ -62,30 +64,30 @@ impl PartialEq for Unit {
 
 impl PreDomain for Unit {}
 impl Domain for Unit {
-    type TypeDom = f64;
+    type Element = f64;
 
     /// Sample a `f64` using the inner [`BoundedDistribution`] of [`Unit`].
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element {
         self.sampler.sample(self, rng)
     }
 
-    fn contains(&self, item: &Self::TypeDom) -> bool {
+    fn contains(&self, item: &Self::Element) -> bool {
         self.bounds.contains(item)
     }
 }
 
 impl NumericalDomain for Unit {
-    fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom) {
+    fn get_bounds(&self) -> (Self::Element, Self::Element) {
         (0.0, 1.0)
     }
 
-    fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom) {
+    fn get_ref_bounds(&self) -> (&Self::Element, &Self::Element) {
         (&0.0, &1.0)
     }
 }
 
 impl RangeDomain for Unit {
-    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
+    fn get_bounds(&self) -> RangeInclusive<Self::Element> {
         self.bounds.clone()
     }
 }
@@ -113,8 +115,8 @@ where
     Out: BoundedBounds + Serialize + for<'a> Deserialize<'a>,
     f64: AsPrimitive<Out>,
 {
-    type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<Bounded<Out>>;
+    type Item = Elem<Unit>;
+    type TargetItem = Elem<Bounded<Out>>;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bounded`] [`Domain`].
     ///
     /// Considering $l_{out}$, $u_{out}$ the lower and upper bounds of
@@ -125,7 +127,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -164,15 +166,15 @@ impl Onto<Bool> for Unit
 where
     f64: AsPrimitive<f64>,
 {
-    type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<Bool>;
+    type Item = Elem<Unit>;
+    type TargetItem = Elem<Bool>;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Bool`][`Domain`].
     ///
     /// Considering $x$ the `item`, returns `true` if $x>0.5$
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
     ///
     /// # Errors
@@ -191,7 +193,7 @@ where
 impl OntoDom<Bool> for Unit {}
 
 impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
-    type Item = TypeDom<Unit>;
+    type Item = Elem<Unit>;
     type TargetItem = Out;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`GridDom`][`Domain`].
     ///
@@ -207,7 +209,7 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`GridDom`].
     ///
     /// # Errors
@@ -244,8 +246,8 @@ impl<Out: GridBounds> Onto<GridDom<Out>> for Unit {
 impl<Out: GridBounds> OntoDom<GridDom<Out>> for Unit {}
 
 impl Onto<Mixed> for Unit {
-    type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<Mixed>;
+    type Item = Elem<Unit>;
+    type TargetItem = Elem<Mixed>;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Mixed`][`Domain`].
     ///
     /// Considering $x$ the `item`, the mapping is done depending on the target [`Mixed`] [`Domain`] variant
@@ -253,7 +255,7 @@ impl Onto<Mixed> for Unit {
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
@@ -284,15 +286,15 @@ impl Onto<Unit> for Unit
 where
     f64: AsPrimitive<f64>,
 {
-    type Item = TypeDom<Unit>;
-    type TargetItem = TypeDom<Unit>;
+    type Item = Elem<Unit>;
+    type TargetItem = Elem<Unit>;
     /// [`Onto`] function between a [`Unit`] [`Domain`] and a [`Unit`][`Domain`].
     ///
     /// Considering $x$ the `item`, returns a copy of $x$.
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Unit`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Unit`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
     ///
     /// # Errors
@@ -312,15 +314,5 @@ impl From<Mixed> for Unit {
             Mixed::Unit(d) => d,
             _ => unreachable!("Can only From<BaseDom> with Unit."),
         }
-    }
-}
-
-impl CSVWritable<(), f64> for Unit {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &f64) -> Vec<String> {
-        Vec::from([comp.to_string()])
     }
 }

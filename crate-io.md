@@ -1,69 +1,31 @@
-**Tantale** is a Rust library for **Automated Machine Learning (AutoML)**, focusing on:
-- **Hyperparameter Optimization (HPO)** — find the best hyperparameters for a model.
-- **Neural Architecture Search (NAS)** *(planned)* — find the best architecture for a neural network.
+# Tantale crate quick start
 
-## Quick start
+Add Tantale to a Rust 2024 project:
 
-In Tantale, we always consider by default a **maximization** problem.
-
-### 1 — Define the objective function
-
-```rust
-mod searchspace {
-    use tantale::core::{Bool, Cat, Int, Nat, Real, Unit, Bernoulli, Uniform};
-    use tantale::macros::{objective, Outcome, CSVWritable};
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-    pub struct OutExample {
-        #[maximize]
-        pub obj: f64,
-        pub info: f64,
-    }
-
-    objective!(
-        pub fn example() -> OutExample {
-            let _a = [! a | Int(0, 100, Uniform)                      | !];
-            let _b = [! b | Nat(0, 100, Uniform)                      | !];
-            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform)  | !];
-            let _d = [! d | Bool(Bernoulli(0.5))                       | !];
-            let e  = [! e | Real(1000.0, 2000.0, Uniform)              | !];
-
-            OutExample {
-                obj:  e,
-                info: [! f | Unit(Uniform) | !],
-            }
-        }
-    );
-}
+```console
+cargo add tantale
 ```
 
-Each variable is declared with `[! name | ObjectiveDomain | OptimizerDomain !]`.
-Leaving the optimizer domain empty (`!]`) means the optimizer searches directly over the objective domain.
+The minimum supported Rust version is 1.91.1.
 
-### 2 — Assemble and run the experiment
+Or add the dependency directly to `Cargo.toml`:
 
-```rust
-use tantale::core::{
-    CSVRecorder, FolderConfig, MessagePack,
-    experiment::{Runable, mono}, stop::Calls,
-    HasX, HasY, SolutionShape,
-};
-use tantale::algos::{random_search, BatchRandomSearch};
-use searchspace::{get_searchspace, get_function, OutExample};
-use std::sync::Arc;
-
-let sp  = get_searchspace();
-let obj = get_function();
-let opt = BatchRandomSearch::new(7);                              // batch size = 7
-
-let stop   = Calls::new(50);                                     // stop after 50 evaluations
-let config = Arc::new(FolderConfig::new("run_batch"));
-let rec    = CSVRecorder::new(config.clone(), true, true, true, true);
-let check  = MessagePack::new(config);
-
-let exp         = mono(sp, obj, opt, stop, (rec, check)); // mono-threaded
-let accumulator = exp.run();
-let best        = accumulator.get().unwrap().get_sobj();
-println!("Best: f({:?}) = {}", best.ref_x(), best.y().value);
+```toml
+[dependencies]
+tantale = "0.5.0"
 ```
+
+Enable optional integrations as needed:
+
+```toml
+[dependencies]
+tantale = { version = "0.5.0", features = ["mpi", "py", "bayes"] }
+```
+
+The `mpi` feature requires an MPI implementation. The `py` feature enables the
+Python bridge; Python examples and requirements are covered in the
+[Python objective integration guide](src/python_integration.md).
+
+Start with the [Quick start tutorial](src/quick_start.md) for a complete
+objective, search space, sampler, stopping criterion, and experiment. The
+repository README also contains a self-contained Rust example.

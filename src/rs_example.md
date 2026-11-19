@@ -1,122 +1,132 @@
-# Random search on a mock function
+# Random search
 
-In this tutorial we quickly implement a [`RandomSearch`](crate::algos::RandomSearch) for a mock function.
-See [Quick Start](crate::docs::QuickStart) for in-depth explanation.
+Random search samples candidates from the declared search space without using
+previous objective values to choose the next candidate. It is a useful
+baseline and can be used with single-step or multi-fidelity objectives.
 
-## Defining the searchspace
+[`RandomSearch`](crate::algos::RandomSearch) samples one candidate at a time. For a sampler that
+provides batches, use [`BatchRandomSearch::new(batch_size)`](crate::algos::BatchRandomSearch::new). The following
+examples use simple random search, the second one applies the batched version.
+
+## Simple
 
 ```rust
 mod searchspace {
     use serde::{Deserialize, Serialize};
-    use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-    use tantale::macros::{CSVWritable, Outcome, objective};
+    use tantale::core::{Real, Uniform};
+    use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-    #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-    pub struct OutExample {
+    #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+    pub struct Evaluation {
         #[maximize]
-        pub obj: f64,
-        pub info: f64,
+        pub score: f64,
+        pub extra: f64,
     }
 
     objective!(
-        pub fn example() -> OutExample {
-            let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
-            let _b = [! b | Nat(0,100, Uniform) | !];
-            let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-            let _d = [! d | Bool(Bernoulli(0.5)) | !];
-            let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-
-            // ... more variables and computation ...
-
-            OutExample{
-                obj: e,
-                info: [! f | Unit(Uniform) | !],
+        pub fn tune() -> Evaluation {
+            let x = [! x | Real(0.0, 1.0, Uniform) | !];
+            let y = [! y | Real(0.0, 1.0, Uniform) | !];
+            Evaluation {
+                score: 1.0 - (x - 0.25).abs() - (y - 0.75).abs(),
+                extra: x + y,
             }
         }
     );
-    // The macro expands to helpers like:
-    // let sp = example::get_searchspace();
-    // let obj = example::get_function();
 }
+
+use searchspace::get_problem;
+use tantale::algos::RandomSearch;
+use tantale::core::{
+    CSVRecorder, Experiment, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+    experiment::Runable, stop::Evaluated,
+};
+
+// fn main() {
+    let problem = get_problem();
+    let sampler = RandomSearch::new();
+    let stop = Evaluated::new(50);
+
+    let config = FolderConfig::new("tmp_random_search");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
+
+    let experiment = Experiment::new(
+        problem,
+        sampler,
+        stop,
+        recorder,
+        checkpointer,
+    );
+    let accumulator = experiment.run();
+    if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
+        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+    }
+    # let _ = std::fs::remove_dir_all("tmp_random_search");
+// }
 ```
 
-## Define the optimization loop
+## Batched version
 
 ```rust
 # mod searchspace {
 #     use serde::{Deserialize, Serialize};
-#     use tantale::core::{Bernoulli, Bool, Cat, Int, Nat, Real, Uniform, Unit};
-#     use tantale::macros::{CSVWritable, Outcome, objective};
+#     use tantale::core::{Real, Uniform};
+#     use tantale::macros::{Outcome, Recordable, Schema, objective};
 # 
-#     #[derive(Outcome, Debug, CSVWritable, Serialize, Deserialize)]
-#     pub struct OutExample {
+#     #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
+#     pub struct Evaluation {
 #         #[maximize]
-#         pub obj: f64,
-#         pub info: f64,
+#         pub score: f64,
+#         pub extra: f64,
 #     }
 # 
 #     objective!(
-#         pub fn example() -> OutExample {
-#             let _a = [! a | Int(0,100, Uniform) | !]; // Defines the one domain of the searchspace. _a will receive a f64
-#             let _b = [! b | Nat(0,100, Uniform) | !];
-#             let _c = [! c | Cat(["relu", "tanh", "sigmoid"], Uniform) | !];
-#             let _d = [! d | Bool(Bernoulli(0.5)) | !];
-#             let e = [! e | Real(1000.0,2000.0, Uniform) | !];
-# 
-#             // ... more variables and computation ...
-# 
-#             OutExample{
-#                 obj: e,
-#                 info: [! f | Unit(Uniform) | !],
+#         pub fn tune() -> Evaluation {
+#             let x = [! x | Real(0.0, 1.0, Uniform) | !];
+#             let y = [! y | Real(0.0, 1.0, Uniform) | !];
+#             Evaluation {
+#                 score: 1.0 - (x - 0.25).abs() - (y - 0.75).abs(),
+#                 extra: x + y,
 #             }
 #         }
 #     );
-#     // The macro expands to helpers like:
-#     // let sp = example::get_searchspace();
-#     // let obj = example::get_function();
 # }
-# 
-# struct Cleaner {
-#     path: String,
-# }
-# 
-# impl Drop for Cleaner {
-#     fn drop(&mut self) {
-#         let _ = std::fs::remove_dir_all(&self.path);
-#     }
-# }
-use tantale::core::{
-    CSVRecorder, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
-    experiment::{Runable, mono},
-    stop::Calls,
-};
+
+use searchspace::get_problem;
 use tantale::algos::BatchRandomSearch;
-use searchspace::{get_function, get_searchspace};
+use tantale::core::{
+    CSVRecorder, Experiment, FolderConfig, HasX, HasY, MessagePack, SolutionShape,
+    experiment::Runable, stop::Evaluated,
+};
 
-use std::sync::Arc;
+// fn main() {
+    let problem = get_problem();
+    let sampler = BatchRandomSearch::new(7);
+    let stop = Evaluated::new(50);
 
-# drop(Cleaner {
-#     path: String::from("tmp_rs_example"),
-# });
-# let _clean = Cleaner {
-#     path: String::from("tmp_rs_example"),
-# };// In practice put your accuracy, MSE... here
+    let config = FolderConfig::new("tmp_batch_random_search");
+    let recorder = CSVRecorder::new(config.clone());
+    let checkpointer = MessagePack::new(config);
 
-let sp = get_searchspace();
-let obj = get_function();
-let opt = BatchRandomSearch::new(7);
-
-let stop = Calls::new(50);
-let config = Arc::new(FolderConfig::new("tmp_rs_example"));
-let rec = CSVRecorder::new(config.clone(), true, true, true, true);
-let check = MessagePack::new(config);
-
-let exp = mono(sp, obj, opt, stop, (rec, check));
-let accumulator = exp.run();
-let best = accumulator.get().unwrap().get_sobj();
-println!(
-    "Best solution found: f({:?}) = {}",
-    best.ref_x(),
-    best.y().value
-);
+    let experiment = Experiment::new(
+        problem,
+        sampler,
+        stop,
+        recorder,
+        checkpointer,
+    );
+    let accumulator = experiment.run();
+    if let Some(best) = accumulator.get().map(|acc| acc.get_sobj()) {
+        println!("Best candidate: {:?}, score: {}", best.ref_x(), best.y().value);
+    }
+    # let _ = std::fs::remove_dir_all("tmp_batch_random_search");
+// }
 ```
+
+[`BatchRandomSearch`](crate::algos::BatchRandomSearch) implements the [`Batched`](crate::core::optimizer::opt::Batched) capability; a batch size of zero
+does not generate candidates. `Evaluated::new(50)` stops after 50 fully evaluated solutions.
+
+The complete definition of `searchspace::get_problem` is shown in the
+[Quick start](quick_start.md). The source example is
+`examples/examples/rs_example.rs`.

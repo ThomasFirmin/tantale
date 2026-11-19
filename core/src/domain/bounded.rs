@@ -29,8 +29,9 @@
 
 use crate::{
     GridDomDistribution,
+    distribution::{BoundedDistribution, Distribution},
     domain::{
-        Domain, NumericalDomain, PreDomain, TypeDom,
+        Domain, Element, NumericalDomain, PreDomain,
         bool::Bool,
         grid::{GridBounds, GridDom},
         mixed::{Mixed, MixedTypeDom},
@@ -38,8 +39,7 @@ use crate::{
         unit::Unit,
     },
     errors::OntoError,
-    recorder::csv::CSVWritable,
-    sampler::{BoundedDistribution, DomainSampler},
+    utils::aliases::Elem,
 };
 
 use num::{Num, NumCast, cast::AsPrimitive};
@@ -55,14 +55,15 @@ use std::{
 
 pub trait RangeDomain: Domain
 where
-    Self::TypeDom: BoundedBounds,
+    Self::Element: BoundedBounds,
 {
-    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom>;
+    fn get_bounds(&self) -> RangeInclusive<Self::Element>;
 }
 
 /// A shortcut for the bounds of the generic type `<T>` in [`Bounded`]`<T>`
 pub trait BoundedBounds:
-    Num
+    Element
+    + Num
     + NumCast
     + PartialEq
     + PartialOrd
@@ -78,7 +79,8 @@ pub trait BoundedBounds:
 {
 }
 impl<T> BoundedBounds for T where
-    T: Num
+    T: Element
+        + Num
         + NumCast
         + PartialEq
         + PartialOrd
@@ -108,6 +110,11 @@ pub struct Bounded<T: BoundedBounds> {
     pub mid: T,
     pub width: T,
     pub sampler: BoundedDistribution,
+    log: bool,
+}
+
+fn to_log<T: BoundedBounds>(x: T) -> T {
+    T::from(f64::ln(x.as_())).unwrap()
 }
 
 impl<T: BoundedBounds> Bounded<T> {
@@ -119,8 +126,9 @@ impl<T: BoundedBounds> Bounded<T> {
     /// # Parameters
     /// * `lower` - Lower bound of the [`Bounded`] [`Domain`].
     /// * `upper` - Upper bound of the [`Bounded`] [`Domain`].
+    /// * `sampler` - A [`BoundedDistribution`] that will be used to sample the [`Bounded`] [`Domain`].
     ///
-    pub fn new<S: DomainSampler<Self> + Into<BoundedDistribution>>(
+    pub fn new<S: Distribution<Self> + Into<BoundedDistribution>>(
         lower: T,
         upper: T,
         sampler: S,
@@ -133,10 +141,20 @@ impl<T: BoundedBounds> Bounded<T> {
                 mid,
                 width,
                 sampler: sampler.into(),
+                log: false,
             }
         } else {
             panic!("Boundaries error, {} is not < {}.", lower, upper);
         }
+    }
+
+    /// Method to convert the [`Bounded`] [`Domain`] to a logarithmic scale.
+    pub fn to_log(self) -> Self {
+        let lower = to_log(*self.bounds.start());
+        let upper = to_log(*self.bounds.end());
+        let mut log_dom = Self::new(lower, upper, self.sampler);
+        log_dom.log = true;
+        log_dom
     }
 
     /// Fabric for a [`Bounded`] dedicated to be wrapped in a [`Grid`](crate::domain::grid::Grid).
@@ -147,7 +165,7 @@ impl<T: BoundedBounds> Bounded<T> {
     pub fn grid<
         I: IntoIterator<Item = Item>,
         Item: Into<T>,
-        S: DomainSampler<GridDom<T>> + Into<GridDomDistribution>,
+        S: Distribution<GridDom<T>> + Into<GridDomDistribution>,
     >(
         values: I,
         sampler: S,
@@ -164,10 +182,10 @@ impl<T: BoundedBounds> PartialEq for Bounded<T> {
 
 impl<T: BoundedBounds> PreDomain for Bounded<T> {}
 impl<T: BoundedBounds> Domain for Bounded<T> {
-    type TypeDom = T;
+    type Element = T;
 
     /// Sample a `T` using the inner [`BoundedDistribution`] of [`Bounded`].
-    fn sample<R: Rng>(&self, rng: &mut R) -> Self::TypeDom {
+    fn sample<R: Rng>(&self, rng: &mut R) -> Self::Element {
         self.sampler.sample(self, rng)
     }
 
@@ -178,17 +196,17 @@ impl<T: BoundedBounds> Domain for Bounded<T> {
 }
 
 impl<T: BoundedBounds> NumericalDomain for Bounded<T> {
-    fn get_bounds(&self) -> (Self::TypeDom, Self::TypeDom) {
+    fn get_bounds(&self) -> (Self::Element, Self::Element) {
         (*self.bounds.start(), *self.bounds.end())
     }
 
-    fn get_ref_bounds(&self) -> (&Self::TypeDom, &Self::TypeDom) {
+    fn get_ref_bounds(&self) -> (&Self::Element, &Self::Element) {
         (self.bounds.start(), self.bounds.end())
     }
 }
 
 impl<T: BoundedBounds> RangeDomain for Bounded<T> {
-    fn get_bounds(&self) -> RangeInclusive<Self::TypeDom> {
+    fn get_bounds(&self) -> RangeInclusive<Self::Element> {
         self.bounds.clone()
     }
 }
@@ -224,13 +242,13 @@ where
     Out: BoundedBounds,
     f64: AsPrimitive<Out>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Bounded<Out>>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Bounded<Out>>;
     /// [`Onto`] function between a [`Bounded`] and another [`Bounded`] [`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -244,10 +262,46 @@ where
         target: &Bounded<Out>,
     ) -> Result<Self::TargetItem, OntoError> {
         if self.contains(item) {
-            let a: f64 = (*item - *self.bounds.start()).as_();
-            let b: f64 = self.width.as_();
-            let c: f64 = target.width.as_();
-            let mapped: Out = (a / b * c).as_() + *target.bounds.start();
+            let in_lower: f64;
+            let in_upper: f64;
+            let in_width: f64;
+            let in_x: f64;
+            if self.log {
+                in_lower = self.bounds.start().as_().exp();
+                in_upper = self.bounds.end().as_().exp();
+                in_width = in_upper - in_lower;
+                in_x = item.as_().exp();
+            } else {
+                in_lower = self.bounds.start().as_();
+                in_upper = self.bounds.end().as_();
+                in_width = self.width.as_();
+                in_x = item.as_();
+            }
+
+            let out_lower: f64;
+            let out_upper: f64;
+            let out_width: f64;
+            if target.log {
+                out_lower = target.bounds.start().as_().exp();
+                out_upper = target.bounds.end().as_().exp();
+                out_width = out_upper - out_lower;
+            } else {
+                out_lower = target.bounds.start().as_();
+                out_upper = target.bounds.end().as_();
+                out_width = target.width.as_();
+            }
+
+            let out_x = if in_lower == out_lower && in_upper == out_upper {
+                in_x
+            } else {
+                ((in_x - in_lower) / in_width * out_width) + out_lower
+            };
+
+            let mapped = if target.log {
+                out_x.ln().as_()
+            } else {
+                out_x.as_()
+            };
 
             if target.contains(&mapped) {
                 Ok(mapped)
@@ -259,6 +313,7 @@ where
         }
     }
 }
+
 impl<In, Out> OntoDom<Bounded<Out>> for Bounded<In>
 where
     In: BoundedBounds,
@@ -272,8 +327,8 @@ where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Bool>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Bool>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bool`][`Domain`].
     ///
     /// Considering $l_{in}$ and $u_{in}$ the lower and upper bounds of
@@ -281,7 +336,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bool`].
     ///
     /// # Errors
@@ -308,8 +363,8 @@ impl<In> Onto<Unit> for Bounded<In>
 where
     In: BoundedBounds,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Unit>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Unit>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Unit`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -320,7 +375,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Unit`].
     ///
     /// # Errors
@@ -358,8 +413,8 @@ where
     Out: GridBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<GridDom<Out>>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<GridDom<Out>>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Bounded`][`Domain`].
     ///
     /// Considering $l_{in}$, $u_{in}$ the lower and upper bounds of
@@ -375,7 +430,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Bounded`].
     ///
     /// # Errors
@@ -417,13 +472,13 @@ where
     In: BoundedBounds,
     f64: AsPrimitive<In>,
 {
-    type Item = TypeDom<Bounded<In>>;
-    type TargetItem = TypeDom<Mixed>;
+    type Item = Elem<Bounded<In>>;
+    type TargetItem = Elem<Mixed>;
     /// [`Onto`] function between a [`Bounded`] [`Domain`] and a [`Mixed`][`Domain`].
     ///
     /// # Parameters
     ///
-    /// * `item` - A borrowed [`TypeDom`](Domain::TypeDom) from the [`Bounded`]`<In>`.
+    /// * `item` - A borrowed [`Element`](Domain::Element) from the [`Bounded`]`<In>`.
     /// * `target` - A borrowed targetted [`Mixed`].
     ///
     /// # Errors
@@ -552,18 +607,5 @@ impl From<Mixed> for Int {
             Mixed::Int(d) => d,
             _ => panic!("Cannot convert Mixed to Int, expected Mixed::Int variant."),
         }
-    }
-}
-
-impl<T> CSVWritable<(), <Bounded<T> as Domain>::TypeDom> for Bounded<T>
-where
-    T: BoundedBounds,
-{
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::new()
-    }
-
-    fn write(&self, comp: &<Bounded<T> as Domain>::TypeDom) -> Vec<String> {
-        Vec::from([comp.to_string()])
     }
 }

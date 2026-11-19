@@ -18,10 +18,8 @@ crate-type = ["cdylib", "rlib"]
 tantale_core.workspace = true
 pyo3 = {version = "0.28.2", features = ["auto-initialize"]}
 serde = { workspace = true, features=["derive","rc"]}
-
-[features]
-pyspikes = []
+log = { workspace = true}
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--html-in-header", "katex-header.html"]
+rustdoc-args = [ "--html-in-header", "katex-header.html", "--html-in-header", "highlight-header.html" ]

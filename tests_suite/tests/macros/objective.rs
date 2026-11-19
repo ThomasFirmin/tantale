@@ -1,15 +1,15 @@
 use rand::rngs::ThreadRng;
-use tantale::core::{BaseSol, HasX};
+use tantale::core::{HasX, Problem, aliases::Shape, problem::Pb};
 
 #[test]
 fn obj_test() {
     mod searchspace {
         use serde::{Deserialize, Serialize};
+        use tantale::core::distribution::{Bernoulli, Uniform};
         use tantale::core::domain::{Bool, Cat, Int, Nat, Real};
-        use tantale::core::sampler::{Bernoulli, Uniform};
-        use tantale::macros::{Outcome, objective};
+        use tantale::macros::{Outcome, Recordable, Schema, objective};
 
-        #[derive(Outcome, Debug, Serialize, Deserialize)]
+        #[derive(Outcome, Schema, Recordable, Debug, Serialize, Deserialize)]
         pub struct OutExample {
             #[maximize]
             pub obj: f64,
@@ -45,7 +45,7 @@ fn obj_test() {
         }
 
         objective!(
-            pub fn example<'a>() -> OutExample {
+            pub fn example() -> OutExample {
                 let a = [! a | Real(0.0,5.0,Uniform) | !];
                 let aa = [! aa_{10} | Real(-5.0,0.0,Uniform) | Int(0,100,Uniform) !];
                 let aaa = [! aaa | Real(100.0,200.0,Uniform) | !];
@@ -72,21 +72,15 @@ fn obj_test() {
 
     use tantale::core::{EmptyInfo, SId, Searchspace, solution::shape::SolutionShape};
     let sp = searchspace::get_searchspace();
+    let func = searchspace::get_function();
+    let _pb: Pb<SId, EmptyInfo, _, _> = Pb::new(sp, func);
+    let pb = searchspace::get_problem();
 
     let mut rng = rand::rng();
 
-    fn get_pair<Scp>(sp: &Scp, rng: &mut ThreadRng) -> Scp::SolShape
-    where
-        Scp: Searchspace<
-                BaseSol<SId, searchspace::OptType, EmptyInfo>,
-                SId,
-                EmptyInfo,
-                Opt = searchspace::OptType,
-            >,
-    {
-        let info = std::sync::Arc::new(EmptyInfo {});
-        let obj = sp.sample_obj(rng, info);
-        let pair = sp.onto_opt(obj); // Paired solutions have the same ID
+    fn get_pair<P: Problem<Info = EmptyInfo>>(pb: &P, rng: &mut ThreadRng) -> Shape<P> {
+        let obj = pb.get_searchspace().sample_obj(rng);
+        let pair = pb.get_searchspace().onto_opt(obj);
         println!(
             "Obj {:?}:  <=> Opt {:?} : ",
             pair.get_sobj(),
@@ -94,6 +88,6 @@ fn obj_test() {
         );
         pair
     }
-    let sample = get_pair(&sp, &mut rng);
+    let sample = get_pair(&pb, &mut rng);
     searchspace::example(sample.get_sobj().clone_x());
 }

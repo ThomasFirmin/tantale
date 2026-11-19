@@ -1,14 +1,13 @@
 use super::init_cod::*;
 use super::init_sp::{
-    sp_ms_nosamp, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real, sp_only_unit,
+    one_step_func_with_out::{FuncType, SolType},
+    sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real,
+    sp_only_unit,
 };
 use paste::paste;
 use rmp_serde;
 use std::sync::Arc;
-use tantale::core::Mixed;
-use tantale::core::{
-    BaseSol, Computed, EmptyInfo, HasId, HasX, HasY, SId, searchspace::Searchspace,
-};
+use tantale::core::{Computed, HasId, HasX, HasY, searchspace::Searchspace};
 
 macro_rules! get_test {
     ($($sp : ident | $dom : path | [$($out : ident | $func : ident ,)+] | $comp : expr ),*) => {
@@ -18,15 +17,15 @@ macro_rules! get_test {
             #[test]
             fn [< test_ $sp _ $func _json >](){
                 let sp = $sp::get_searchspace();
-                let info = Arc::new(EmptyInfo{});
+
                 let rng = &mut rand::rng();
-                let sample: BaseSol<SId,$sp::ObjType,_> = Searchspace::<BaseSol<SId,_,_>,_,_>::sample_obj(&sp, rng,info.clone());
+                let sample = Searchspace::<FuncType<$sp::ObjType, $out>>::sample_obj(&sp, rng);
                 let (_,elem) = $func();
-                let computed: Computed<_,SId,$dom, $out,EmptyInfo> = Computed::new(sample,Arc::new(elem));
+                let computed: Computed<SolType<$sp::ObjType>,$out> = Computed::new(sample,Arc::new(elem));
 
 
                 let st_ser = rmp_serde::encode::to_vec(&computed).unwrap();
-                let ncomputed : Computed<BaseSol<SId,_,EmptyInfo>,SId,$dom, $out,EmptyInfo> = rmp_serde::decode::from_slice(&st_ser).unwrap();
+                let ncomputed : Computed<SolType<$sp::ObjType>, $out> = rmp_serde::decode::from_slice(&st_ser).unwrap();
 
                 let id = computed.id();
                 let nid = ncomputed.id();
@@ -47,7 +46,7 @@ macro_rules! get_test {
 }
 
 get_test!(
-    sp_ms_nosamp
+    sp_mixed_to_nodomain
         | Mixed
         | [
             OutCodSingle | get_elemsingle,

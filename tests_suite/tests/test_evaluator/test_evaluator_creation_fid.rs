@@ -3,7 +3,7 @@ use tantale::core::checkpointer::messagepack::MPFnStateCheckpointer;
 use tantale::core::experiment::basics::{LoadPool, Pool};
 use tantale::core::{
     Codomain, EmptyInfo, FidelitySol, HasId, Mixed, MixedTypeDom, Searchspace, SingleCodomain, Sp,
-    StepSId, Stepped,
+    StepSId, MultiStep,
     checkpointer::NoFuncStateCheck,
     domain::NoDomain,
     experiment::{
@@ -37,7 +37,7 @@ fn test_fidbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = Arc::new(RSInfo { iteration: 0 });
     let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -75,7 +75,7 @@ fn test_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -182,7 +182,7 @@ fn test_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -211,7 +211,7 @@ fn test_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -240,7 +240,7 @@ fn test_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -269,7 +269,7 @@ fn test_fidbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -291,7 +291,7 @@ fn test_fidthrbatchevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = Arc::new(RSInfo { iteration: 0 });
     let sinfo = Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -329,7 +329,7 @@ fn test_fidthrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -445,7 +445,7 @@ fn test_fidthrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -480,7 +480,7 @@ fn test_fidthrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -515,7 +515,7 @@ fn test_fidthrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -550,7 +550,7 @@ fn test_fidthrbatchevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -578,7 +578,7 @@ fn test_seqfidevaluator() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
     let mut acc = SingleCodomain::new_accumulator();
@@ -606,7 +606,7 @@ fn test_seqfidevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -662,7 +662,7 @@ fn test_seqfidevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -688,7 +688,7 @@ fn test_seqfidevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -714,7 +714,7 @@ fn test_seqfidevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -740,7 +740,7 @@ fn test_seqfidevaluator() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -787,7 +787,7 @@ fn test_fidbatchevaluator_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = Arc::new(RSInfo { iteration: 0 });
     let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
@@ -830,7 +830,7 @@ fn test_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -937,7 +937,7 @@ fn test_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -966,7 +966,7 @@ fn test_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -995,7 +995,7 @@ fn test_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1024,7 +1024,7 @@ fn test_fidbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1053,7 +1053,7 @@ fn test_fidthrbatchevaluator_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = Arc::new(SingleCodomain::new(|o: &FidOutEvaluator| o.obj));
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let info = Arc::new(RSInfo { iteration: 0 });
     let sinfo = Arc::new(EmptyInfo {});
     let stop = Arc::new(Mutex::new(Calls::new(50)));
@@ -1096,7 +1096,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1212,7 +1212,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1247,7 +1247,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1282,7 +1282,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1317,7 +1317,7 @@ fn test_fidthrbatchevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         OutBatchEvaluate<
             StepSId,
             EmptyInfo,
@@ -1352,7 +1352,7 @@ fn test_seqfidevaluator_loadpool() {
     let sp = sp_evaluator_fid::get_searchspace();
     let func = sp_evaluator_fid::example;
     let cod = SingleCodomain::new(|o: &FidOutEvaluator| o.obj);
-    let obj = Arc::new(Stepped::new(func));
+    let obj = Arc::new(MultiStep::new(func));
     let sinfo = Arc::new(EmptyInfo {});
     let mut stop = Calls::new(50);
     let mut acc = SingleCodomain::new_accumulator();
@@ -1385,7 +1385,7 @@ fn test_seqfidevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -1439,7 +1439,7 @@ fn test_seqfidevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -1465,7 +1465,7 @@ fn test_seqfidevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -1491,7 +1491,7 @@ fn test_seqfidevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,
@@ -1517,7 +1517,7 @@ fn test_seqfidevaluator_loadpool() {
         Sp<Mixed, NoDomain>,
         FidOutEvaluator,
         Calls,
-        Stepped<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
+        MultiStep<Arc<[MixedTypeDom]>, FidOutEvaluator, FnState>,
         Option<
             OutShapeEvaluate<
                 StepSId,

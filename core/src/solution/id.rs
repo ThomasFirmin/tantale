@@ -1,26 +1,13 @@
 //! Solution identifiers.
 //!
-//! An [`Id`] is a unique object associated with a [`Solution`](crate::Solution). Two solutions
+//! A [`SolId`] is a unique identifier associated with a [`Solution`](crate::Solution). Two solutions
 //! created independently are considered distinct even if their contents are identical.
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{Id, SId};
-//!
-//! let a = SId::generate();
-//! let b = SId::generate();
-//! assert_ne!(a, b);
-//! ```
-//!
-//! ```
-//! use tantale::core::{Id, ParSId};
-//!
-//! let a = ParSId::generate();
-//! let b = ParSId::generate();
-//! assert_ne!(a, b);
-//! ```
-
-use crate::{SOL_ID, recorder::csv::CSVWritable};
+//! See the crate-level documentation for complete, tested usage examples.
+use crate::{
+    SOL_ID,
+    utils::record::{Recordable, Schema},
+};
 use num::cast::AsPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -36,24 +23,23 @@ use mpi::Rank;
 
 /// Unique identifier for a [`Solution`](crate::Solution).
 ///
-/// Implementations must generate new unique identifiers via [`Id::generate`].
+/// Implementations must generate new unique identifiers via [`SolId::generate`].
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, SId};
-///
-/// let id = SId::generate();
-/// println!("Generated id: {:?}", id);
-/// ```
-pub trait Id
+/// See the crate-level documentation for complete, tested usage examples.
+pub trait SolId
 where
     Self: Sized
+        + Send
+        + Sync
         + PartialEq
         + Eq
         + Clone
         + Copy
+        + Default
         + Debug
         + ToString
+        + Schema<(), Parts = ()>
+        + Recordable<(), Parts = ()>
         + Serialize
         + for<'a> Deserialize<'a>
         + Hash,
@@ -63,7 +49,7 @@ where
 }
 
 /// Identifier for stepped solutions, embedding a step counter.
-pub trait StepId: Id {
+pub trait StepId: SolId {
     /// Increment the step counter by one.
     fn increment(&mut self);
     /// Get the current step counter value.
@@ -75,7 +61,7 @@ pub trait StepId: Id {
 #[cfg(feature = "mpi")]
 /// Distributed identifier embedding the MPI [`Rank`] where a [`Solution`](crate::Solution) is being created, and a process-local counter.
 ///
-/// This [`Id`] ensures uniqueness across MPI ranks by pairing the `rank` with a unique `id`
+/// This identifier ensures uniqueness across MPI ranks by pairing the `rank` with a unique `id`
 /// local to each process.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[repr(C)]
@@ -102,7 +88,14 @@ impl Display for DistSId {
 }
 
 #[cfg(feature = "mpi")]
-impl Id for DistSId {
+impl Default for DistSId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
+#[cfg(feature = "mpi")]
+impl SolId for DistSId {
     /// Generate a new distributed identifier using the MPI rank and a global counter.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
@@ -113,18 +106,23 @@ impl Id for DistSId {
         }
     }
 }
-#[cfg(feature = "mpi")]
-impl CSVWritable<(), ()> for DistSId {
-    /// CSV header for distributed identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id"), String::from("rank")])
-    }
 
-    /// CSV row for distributed identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id), format!("{}", self.rank)])
+#[cfg(feature = "mpi")]
+impl Schema<()> for DistSId {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["rank".to_string(), "id".to_string()]
     }
 }
+
+#[cfg(feature = "mpi")]
+impl Recordable<()> for DistSId {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.rank.to_string(), self.id.to_string()]
+    }
+}
+
 #[cfg(feature = "mpi")]
 impl PartialEq for DistSId {
     fn eq(&self, other: &Self) -> bool {
@@ -143,7 +141,7 @@ impl Hash for DistSId {
 
 /// Process-local identifier embedding the process id and a local counter.
 ///
-/// This [`Id`] is unique within a single process and is convenient for multi-processing workloads.
+/// This identifier is unique within a single process and is convenient for multi-process workloads.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ParSId {
     pub pid: usize,
@@ -156,12 +154,33 @@ impl Display for ParSId {
     }
 }
 
-impl Id for ParSId {
+impl Default for ParSId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
+impl SolId for ParSId {
     /// Generate a new process-local identifier from the current process id.
     fn generate() -> Self {
         let pid = std::process::id().as_();
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         ParSId { pid, id }
+    }
+}
+
+impl Schema<()> for ParSId {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["pid".to_string(), "id".to_string()]
+    }
+}
+
+impl Recordable<()> for ParSId {
+    type Parts = ();
+
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.pid.to_string(), self.id.to_string()]
     }
 }
 impl ParSId {
@@ -170,17 +189,7 @@ impl ParSId {
         ParSId { pid: pid.as_(), id }
     }
 }
-impl CSVWritable<(), ()> for ParSId {
-    /// CSV header for process-local identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("pid"), String::from("id")])
-    }
 
-    /// CSV row for process-local identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.pid), format!("{}", self.id)])
-    }
-}
 impl PartialEq for ParSId {
     fn eq(&self, other: &Self) -> bool {
         self.pid == other.pid && self.id == other.id
@@ -198,16 +207,9 @@ impl Hash for ParSId {
 
 /// Simple sequential identifier using a global counter.
 ///
-/// This is the default [`Id`] for most-cases.
+/// This is the default sequential identifier for most cases.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, SId};
-///
-/// let a = SId::generate();
-/// let b = SId::generate();
-/// assert_ne!(a, b);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SId {
     pub id: usize,
@@ -219,30 +221,34 @@ impl Display for SId {
     }
 }
 
-impl Id for SId {
+impl Default for SId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
+impl SolId for SId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         SId { id }
     }
 }
-impl SId {
-    /// Create a new sequential identifier from an explicit counter.
-    pub fn new(id: usize) -> SId {
-        SId { id }
-    }
-}
-impl CSVWritable<(), ()> for SId {
-    /// CSV header for sequential identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id")])
-    }
 
-    /// CSV row for sequential identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id)])
+impl Schema<()> for SId {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["id".to_string()]
     }
 }
+
+impl Recordable<()> for SId {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.id.to_string()]
+    }
+}
+
 impl PartialEq for SId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
@@ -258,18 +264,11 @@ impl Hash for SId {
 }
 
 /// Simple sequential identifier using a global counter,
-/// and a step counter for [`Stepped`](crate::Stepped).
+/// and a step counter for multi-step evaluation.
 ///
-/// This is the default [`Id`] for most-cases.
+/// This identifier also tracks the step number for multi-step evaluations.
 ///
-/// # Example
-/// ```
-/// use tantale::core::{Id, StepSId};
-///
-/// let a = StepSId::generate();
-/// let b = StepSId::generate();
-/// assert_ne!(a, b);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct StepSId {
     pub id: usize,
@@ -282,11 +281,31 @@ impl Display for StepSId {
     }
 }
 
-impl Id for StepSId {
+impl Default for StepSId {
+    fn default() -> Self {
+        Self::generate()
+    }
+}
+
+impl SolId for StepSId {
     /// Generate a new sequential identifier.
     fn generate() -> Self {
         let id = SOL_ID.fetch_add(1, Ordering::Relaxed);
         StepSId { id, id_step: 0 }
+    }
+}
+
+impl Schema<()> for StepSId {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["id".to_string(), "id_step".to_string()]
+    }
+}
+
+impl Recordable<()> for StepSId {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.id.to_string(), self.id_step.to_string()]
     }
 }
 
@@ -313,17 +332,7 @@ impl StepSId {
         StepSId { id, id_step: 0 }
     }
 }
-impl CSVWritable<(), ()> for StepSId {
-    /// CSV header for sequential identifiers.
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("id"), String::from("id_step")])
-    }
 
-    /// CSV row for sequential identifiers.
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([format!("{}", self.id), format!("{}", self.id_step)])
-    }
-}
 impl PartialEq for StepSId {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id

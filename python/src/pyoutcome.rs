@@ -6,8 +6,8 @@
 //! | Type | For |
 //! |------|-----|
 //! | [`PyStep`] | Exposes [`Step`] as a `#[pyclass]` to Python |
-//! | [`PyOutcome`] | Wraps any Python return value for a single-step [`Objective`](tantale_core::Objective) |
-//! | [`PyFidOutcome`] | Wraps any Python return value for a multi-fidelity [`Stepped`](tantale_core::Stepped) |
+//! | [`PyOutcome`] | Wraps any Python return value for a single-step [`OneStep`](tantale_core::OneStep) |
+//! | [`PyFidOutcome`] | Wraps any Python return value for a multi-fidelity [`MultiStep`](tantale_core::MultiStep) |
 //!
 //! ## Notes
 //!
@@ -17,9 +17,9 @@
 //! ```python
 //! class MyOutcome:
 //!     @staticmethod
-//!     def csv_header() -> list[str]: ...   # column names
+//!     def header() -> list[str]: ...   # column names
 //!
-//!     def csv_write(self) -> list[str]: ... # row values
+//!     def record(self) -> list[str]: ... # row values
 //! ```
 //!
 //! For multi-fidelity outcomes ([`PyFidOutcome`]) the class must additionally
@@ -31,7 +31,10 @@
 //!     ...
 //! ```
 
-use std::fmt::{self};
+use std::{
+    fmt::{self},
+    format, write,
+};
 
 use crate::{
     PY_OUTCOME_CLASS,
@@ -39,7 +42,10 @@ use crate::{
 };
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use tantale_core::{CSVWritable, Outcome, Step};
+use tantale_core::{
+    Outcome, Step,
+    utils::record::{Recordable, Schema},
+};
 
 pub trait PyOutWrap: Outcome {
     /// Wraps a Python return value in the appropriate Rust wrapper type.
@@ -84,11 +90,6 @@ impl PyStep {
             inner: Step::Partially(value),
         }
     }
-    /// Creates a [`Step::Error`] value, indicating the evaluation raised an error.
-    #[staticmethod]
-    pub fn error() -> Self {
-        Self { inner: Step::Error }
-    }
     /// Creates a [`Step::Discard`] value, indicating the solution should be discarded.
     #[staticmethod]
     pub fn discarded() -> Self {
@@ -112,7 +113,6 @@ impl PyStep {
             Step::Partially(_) => "partially",
             Step::Evaluated => "evaluated",
             Step::Discard => "discarded",
-            Step::Error => "error",
         };
         let method = cls.getattr(method_name)?;
         let args: pyo3::Bound<'py, PyTuple> = match self.inner {
@@ -130,7 +130,7 @@ impl PyStep {
 /// via Python's `pickle` module for serialization and `repr()` for debug output.
 ///
 /// Implements [`Outcome`], making it usable as the `Out` type parameter of
-/// [`Objective`](tantale_core::Objective)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, [`PyOutcome`](crate::PyOutcome)`]>`.
+/// [`OneStep`](tantale_core::OneStep)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, [`PyOutcome`](crate::PyOutcome)`]>`.
 pub struct PyOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyOutcome {
@@ -163,24 +163,38 @@ impl<'de> Deserialize<'de> for PyOutcome {
     }
 }
 
-impl CSVWritable<(), ()> for PyOutcome {
-    fn header(_elem: &()) -> Vec<String> {
+impl Schema<()> for PyOutcome {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-                .call_method0("csv_header")
+                .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method header() -> list[str]"
+                    );
+                })
         })
     }
+}
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for PyOutcome {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)
-                .call_method0("csv_write")
+                .call_method0("record")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method record() -> list[str]"
+                    );
+                })
         })
     }
 }
@@ -192,7 +206,7 @@ impl PyOutcome {
     ///
     /// Mirrors direct field access on typed outcomes, enabling identical
     /// codomain closure syntax:
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
@@ -208,7 +222,7 @@ impl PyOutcome {
 
     /// Extracts a named attribute from the Python outcome as a `usize`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyOutcome| o.getattr_usize("spikes")
     /// ```
     /// Returns `usize::MAX` if the attribute is missing or not numeric.
@@ -230,7 +244,7 @@ impl PyOutcome {
 /// that returns a [`PyStep`] instance.
 ///
 /// Implements [`Outcome`] and [`FidOutcome`](tantale_core::FidOutcome), making it usable as the `Out` type
-/// parameter of [`Stepped`](tantale_core::Stepped)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
+/// parameter of [`MultiStep`](tantale_core::MultiStep)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
 pub struct PyFidOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyFidOutcome {
@@ -265,24 +279,38 @@ impl<'de> Deserialize<'de> for PyFidOutcome {
 
 // impl Outcome for PyFidOutcome {}
 
-impl CSVWritable<(), ()> for PyFidOutcome {
-    fn header(_elem: &()) -> Vec<String> {
+impl Schema<()> for PyFidOutcome {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
         let cls = PY_OUTCOME_CLASS.get().unwrap();
         Python::attach(|py| {
             cls.bind(py)
-                .call_method0("csv_header")
+                .call_method0("header")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method header() -> list[str]"
+                    );
+                })
         })
     }
+}
 
-    fn write(&self, _comp: &()) -> Vec<String> {
+impl Recordable<()> for PyFidOutcome {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
         Python::attach(|py| {
             self.0
                 .bind(py)
-                .call_method0("csv_write")
+                .call_method0("record")
                 .and_then(|v| v.extract::<Vec<String>>())
-                .unwrap()
+                .unwrap_or_else(|err| {
+                    err.print(py);
+                    panic!(
+                        "Python outcome class must implement static method record() -> list[str]"
+                    );
+                })
         })
     }
 }
@@ -290,7 +318,7 @@ impl CSVWritable<(), ()> for PyFidOutcome {
 impl PyFidOutcome {
     /// Extracts a named attribute from the Python outcome as a `f64`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyFidOutcome| o.getattr_f64("obj1")
     /// ```
     /// Returns `f64::NAN` if the attribute is missing or not numeric.
@@ -306,7 +334,7 @@ impl PyFidOutcome {
 
     /// Extracts a named attribute from the Python outcome as a `usize`.
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// |o: &PyFidOutcome| o.getattr_usize("spikes")
     /// ```
     /// Returns `usize::MAX` if the attribute is missing or not numeric.

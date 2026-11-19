@@ -7,65 +7,44 @@
 //!
 //! # Examples
 //! ```
-//! use tantale::core::{Batch, BaseSol, EmptyInfo, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
+//! use tantale::core::{Batch, BaseSol, Id, HasId, Pair, Real, SId, Unit, Uncomputed};
 //! use std::sync::Arc;
 //!
-//! let info = Arc::new(EmptyInfo {});
-//! let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]), info.clone());
-//! let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
+//! let obj = BaseSol::<SId, Real, _>::new(SId::generate(), Arc::from(vec![0.1]));
+//! let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]));
 //! let pair = Pair::new(obj, opt);
 //!
-//! let mut batch = Batch::new(vec![pair], info);
+//! let mut batch = Batch::new(vec![pair]);
 //! assert_eq!(batch.size(), 1);
 //! assert!(!batch.is_empty());
 //! ```
 
 use crate::{
-    HasInfo, HasStep, OptInfo, StepId,
-    objective::{Outcome, Step},
-    solution::{Id, SolInfo, SolutionShape},
+    HasStep, objective::{Outcome, Step}, solution::{SolId, SolutionShape},
 };
 use core::slice;
 use rayon::iter::IntoParallelIterator;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, marker::PhantomData, sync::Arc, vec::IntoIter};
+use std::{fmt::Debug, vec::IntoIter};
 
-#[cfg(feature = "mpi")]
-use crate::experiment::mpi::utils::PriorityList;
-#[cfg(feature = "mpi")]
-use mpi::Rank;
-#[cfg(feature = "mpi")]
 use std::collections::HashMap;
 
 /// A [`Batch`] describes a collection of [`SolutionShape`].
-///
-/// All pairs in the batch share the same [`OptInfo`].
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(bound(
     serialize = "Shape: Serialize",
     deserialize = "Shape: for<'a> Deserialize<'a>",
 ))]
-pub struct Batch<SolId, SInfo, Info, Shape>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+pub struct Batch<Shape: SolutionShape>
 {
     pub pairs: Vec<Shape>,
-    pub info: Arc<Info>,
-    _id: PhantomData<SolId>,
-    _sinfo: PhantomData<SInfo>,
 }
 
-impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
+impl<Shape> Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape,
 {
-    /// Creates a new [`Batch`] from paired `Obj` and `Opt` [`Solution`](crate::Solution) within a [`SolutionShape`] and an [`OptInfo`].
+    /// Creates a new [`Batch`] from paired `Obj` and `Opt` [solutions](crate::Solution) within a [`SolutionShape`].
     ///
     /// # Example
     /// ```
@@ -80,32 +59,22 @@ where
     /// let batch = Batch::new(vec![pair], info);
     /// assert_eq!(batch.size(), 1);
     /// ```
-    pub fn new(pairs: Vec<Shape>, info: Arc<Info>) -> Self {
-        Batch {
-            pairs,
-            info,
-            _id: PhantomData,
-            _sinfo: PhantomData,
-        }
+    pub fn new(pairs: Vec<Shape>) -> Self {
+        Batch { pairs }
     }
 
     /// Creates a new empty [`Batch`] from an [`OptInfo`].
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{BaseSol, Batch, EmptyInfo, Lone, Real, SId, Uncomputed};
+    /// use tantale::core::{BaseSol, EmptyInfo, Batch, Lone, Real, SId, Uncomputed};
     /// use std::sync::Arc;
     ///
-    /// let batch: Batch<SId, EmptyInfo, EmptyInfo, Lone<BaseSol<SId, Real, EmptyInfo>, SId, Real, EmptyInfo>> = Batch::empty(Arc::new(EmptyInfo {}));
+    /// let batch: Batch<Lone<BaseSol<SId, Real, EmptyInfo>>> = Batch::empty();
     /// assert!(batch.is_empty());
     /// ```
-    pub fn empty(info: Arc<Info>) -> Self {
-        Batch {
-            pairs: Vec::new(),
-            info,
-            _id: PhantomData,
-            _sinfo: PhantomData,
-        }
+    pub fn empty() -> Self {
+        Batch { pairs: Vec::new() }
     }
 
     /// Add a new [`SolutionShape`] to the batch.
@@ -120,7 +89,7 @@ where
     /// let opt = BaseSol::<SId, Unit, _>::new(obj.id(), Arc::from(vec![0.9]), info.clone());
     /// let pair = Pair::new(obj, opt);
     ///
-    /// let mut batch = Batch::empty(info);
+    /// let mut batch = Batch::empty();
     /// batch.add(pair);
     /// assert_eq!(batch.size(), 1);
     /// ```
@@ -142,7 +111,7 @@ where
     /// let opt2 = BaseSol::<SId, Unit, _>::new(obj2.id(), Arc::from(vec![0.8]), info.clone());
     /// let pairs = vec![Pair::new(obj1, opt1), Pair::new(obj2, opt2)];
     ///
-    /// let mut batch = Batch::empty(info);
+    /// let mut batch = Batch::empty();
     /// batch.add_vec(pairs);
     /// assert_eq!(batch.size(), 2);
     /// ```
@@ -163,7 +132,7 @@ where
     /// let pair = Pair::new(obj, opt);
     ///
     /// let mut a = Batch::new(vec![pair], info.clone());
-    /// let b = Batch::empty(info);
+    /// let b = Batch::empty();
     /// a.extend(b);
     /// assert_eq!(a.size(), 1);
     /// ```
@@ -223,18 +192,11 @@ where
     pub fn pop(&mut self) -> Option<Shape> {
         self.pairs.pop()
     }
-
-    pub fn extract(self) -> (Vec<Shape>, Arc<Info>) {
-        (self.pairs, self.info)
-    }
 }
 
-impl<SolId, SInfo, Info, Shape> Batch<SolId, SInfo, Info, Shape>
+impl<Shape> Batch<Shape>
 where
-    SolId: StepId,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + HasStep,
+    Shape: SolutionShape + HasStep,
 {
     /// Split the [`Batch`] into buckets based on [`Step`].
     ///
@@ -256,14 +218,13 @@ where
     /// assert_eq!(eval.size(), 1);
     /// ```
     pub fn chunk_by_step(self) -> (Self, Self, Self, Self, Self) {
-        let info = self.info.clone();
         self.into_iter().fold(
             (
-                Self::empty(info.clone()),
-                Self::empty(info.clone()),
-                Self::empty(info.clone()),
-                Self::empty(info.clone()),
-                Self::empty(info.clone()),
+                Self::empty(),
+                Self::empty(),
+                Self::empty(),
+                Self::empty(),
+                Self::empty(),
             ),
             |(mut pend, mut part, mut disc, mut eval, mut erro), pair| {
                 match pair.step() {
@@ -289,7 +250,7 @@ where
     /// so that it can be sent to the same worker as before.
     pub fn chunk_to_priority(
         self,
-        where_is_id: &mut HashMap<SolId, Rank>,
+        where_is_id: &mut HashMap<Shape::Id, Rank>,
         priority_discard: &mut PriorityList<Shape>,
         priority_resume: &mut PriorityList<Shape>,
         new_batch: &mut Self,
@@ -309,29 +270,13 @@ where
     }
 }
 
-impl<SolId, SInfo, Info, Shape> HasInfo<Info> for Batch<SolId, SInfo, Info, Shape>
-where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
-{
-    /// Return the optimizer metadata shared by the batch.
-    fn info(&self) -> Arc<Info> {
-        self.info.clone()
-    }
-}
-
 //--------------------//
 //--- INTOITERATOR ---//
 //--------------------//
 
-impl<SolId, SInfo, Info, Shape> IntoIterator for Batch<SolId, SInfo, Info, Shape>
+impl<Shape> IntoIterator for Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape + HasStep,
 {
     type Item = Shape;
     type IntoIter = IntoIter<Shape>;
@@ -341,12 +286,9 @@ where
     }
 }
 
-impl<'a, SolId, SInfo, Info, Shape> IntoIterator for &'a Batch<SolId, SInfo, Info, Shape>
+impl<'a, Shape> IntoIterator for &'a Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape + HasStep,
 {
     type Item = &'a Shape;
     type IntoIter = slice::Iter<'a, Shape>;
@@ -356,12 +298,9 @@ where
     }
 }
 
-impl<'a, SolId, SInfo, Info, Shape> IntoIterator for &'a mut Batch<SolId, SInfo, Info, Shape>
+impl<'a, Shape> IntoIterator for &'a mut Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape + HasStep,
 {
     type Item = &'a mut Shape;
     type IntoIter = slice::IterMut<'a, Shape>;
@@ -375,12 +314,9 @@ where
 //--- INTOPARITERATOR ---//
 //-----------------------//
 
-impl<SolId, SInfo, Info, Shape> IntoParallelIterator for Batch<SolId, SInfo, Info, Shape>
+impl<Shape> IntoParallelIterator for Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
+    Shape: SolutionShape + Send + Sync,
 {
     type Item = Shape;
     type Iter = rayon::vec::IntoIter<Shape>;
@@ -390,12 +326,9 @@ where
     }
 }
 
-impl<'a, SolId, SInfo, Info, Shape> IntoParallelIterator for &'a Batch<SolId, SInfo, Info, Shape>
+impl<'a, Shape> IntoParallelIterator for &'a Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
+    Shape: SolutionShape + Send + Sync,
 {
     type Item = &'a Shape;
     type Iter = rayon::slice::Iter<'a, Shape>;
@@ -405,13 +338,9 @@ where
     }
 }
 
-impl<'a, SolId, SInfo, Info, Shape> IntoParallelIterator
-    for &'a mut Batch<SolId, SInfo, Info, Shape>
+impl<'a, Shape> IntoParallelIterator for &'a mut Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo> + Send + Sync,
+    Shape: SolutionShape + Send + Sync,
 {
     type Item = &'a mut Shape;
     type Iter = rayon::slice::IterMut<'a, Shape>;
@@ -422,58 +351,35 @@ where
 }
 
 /// Convert a [`Vec`] of [`SolutionShape`]s into a [`Batch`].
-///
-/// # Notes
-///
-/// The [`OptInfo`] is set to default.
-impl<SolId, SInfo, Info, Shape> FromIterator<Shape> for Batch<SolId, SInfo, Info, Shape>
+impl<Shape> FromIterator<Shape> for Batch<Shape>
 where
-    SolId: Id,
-    SInfo: SolInfo,
-    Info: OptInfo,
-    Shape: SolutionShape<SolId, SInfo>,
+    Shape: SolutionShape,
 {
     fn from_iter<T: IntoIterator<Item = Shape>>(iter: T) -> Self {
-        Self::new(iter.into_iter().collect(), Arc::new(Info::default()))
+        Self::new(iter.into_iter().collect())
     }
 }
 
 /// A [`OutBatch`] describes a collection of solution [`Id`]s and raw [`Outcome`] values.
-///
-/// All entries share the same [`OptInfo`].
 #[derive(Debug)]
-pub struct OutBatch<SolId, Info, Out>
+pub struct OutBatch<Id, Out>
 where
-    SolId: Id,
-    Info: OptInfo,
+    Id: SolId,
     Out: Outcome,
 {
-    pub out: Vec<(SolId, Out)>,
-    pub info: Arc<Info>,
+    pub out: Vec<(Id, Out)>,
 }
 
-impl<SolId, Info, Out> HasInfo<Info> for OutBatch<SolId, Info, Out>
+impl<Id, Out> OutBatch<Id, Out>
 where
-    SolId: Id,
-    Info: OptInfo,
-    Out: Outcome,
-{
-    fn info(&self) -> Arc<Info> {
-        self.info.clone()
-    }
-}
-
-impl<SolId, Info, Out> OutBatch<SolId, Info, Out>
-where
-    SolId: Id,
-    Info: OptInfo,
+    Id: SolId,
     Out: Outcome,
 {
     /// Creates a new [`OutBatch`] from a vec of pairs of solution [`Id`]s and raw [`Outcome`] values, and an [`OptInfo`].
     ///
     /// # Example
     /// ```
-    /// use tantale::core::{EmptyInfo, Id, OutBatch, SId};
+    /// use tantale::core::{Id, OutBatch, SId};
     /// use std::sync::Arc;
     /// use serde::{Deserialize, Serialize};
     /// use tantale::macros::Outcome;
@@ -481,13 +387,12 @@ where
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
     /// struct Out { #[maximize] value: f64 }
     ///
-    /// let info = Arc::new(EmptyInfo {});
     /// let out = vec![(SId::generate(), Out { value: 1.0 })];
-    /// let batch = OutBatch::new(out, info);
+    /// let batch = OutBatch::new(out);
     /// assert_eq!(batch.size(), 1);
     /// ```
-    pub fn new(out: Vec<(SolId, Out)>, info: Arc<Info>) -> Self {
-        OutBatch { out, info }
+    pub fn new(out: Vec<(Id, Out)>) -> Self {
+        OutBatch { out }
     }
 
     /// Creates a new empty [`OutBatch`] from an [`OptInfo`].
@@ -502,13 +407,12 @@ where
     /// #[derive(Outcome, Serialize, Deserialize, Debug, Clone)]
     /// struct Out { #[maximize] value: f64 }
     ///
-    /// let batch = OutBatch::<SId, EmptyInfo, Out>::empty(Arc::new(EmptyInfo {}));
+    /// let batch = OutBatch::<SId, Out>::empty();
     /// assert!(batch.is_empty());
     /// ```
-    pub fn empty(info: Arc<Info>) -> Self {
+    pub fn empty() -> Self {
         OutBatch {
             out: Vec::new(),
-            info,
         }
     }
 
@@ -525,11 +429,11 @@ where
     /// struct Out { #[maximize] value: f64 }
     ///
     /// let info = Arc::new(EmptyInfo {});
-    /// let mut batch: OutBatch<_, _, Out> = OutBatch::empty(info);
+    /// let mut batch: OutBatch<_, _, Out> = OutBatch::empty();
     /// batch.add((SId::generate(), Out { value: 2.0 }));
     /// assert_eq!(batch.size(), 1);
     /// ```
-    pub fn add(&mut self, out: (SolId, Out)) {
+    pub fn add(&mut self, out: (Id, Out)) {
         self.out.push(out);
     }
 
@@ -550,7 +454,7 @@ where
     /// batch.add_vec(vec![(SId::generate(), Out { value: 2.0 }), (SId::generate(), Out { value: 3.0 })]);
     /// assert_eq!(batch.size(), 2);
     /// ```
-    pub fn add_vec(&mut self, vout: Vec<(SolId, Out)>) {
+    pub fn add_vec(&mut self, vout: Vec<(Id, Out)>) {
         self.out.extend(vout);
     }
 
@@ -619,7 +523,7 @@ where
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    pub fn bindex(&self, index: usize) -> &'_ (SolId, Out) {
+    pub fn bindex(&self, index: usize) -> &'_ (Id, Out) {
         &self.out[index]
     }
 
@@ -628,14 +532,14 @@ where
     /// # Panics
     ///
     /// Panics if `index` is out of bounds.
-    pub fn remove(&mut self, index: usize) -> (SolId, Out) {
+    pub fn remove(&mut self, index: usize) -> (Id, Out) {
         self.out.remove(index)
     }
 
     /// Pop the last paired solution [`Id`] and raw [`Outcome`] within the batch.
     ///
     /// Returns `None` if the batch is empty.
-    pub fn pop(&mut self) -> Option<(SolId, Out)> {
+    pub fn pop(&mut self) -> Option<(Id, Out)> {
         self.out.pop()
     }
 }
@@ -644,42 +548,39 @@ where
 //--- INTOITERATOR ---//
 //--------------------//
 
-impl<SolId, Info, Out> IntoIterator for OutBatch<SolId, Info, Out>
+impl<Id, Out> IntoIterator for OutBatch<Id, Out>
 where
-    SolId: Id,
-    Info: OptInfo,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = (SolId, Out);
-    type IntoIter = IntoIter<(SolId, Out)>;
+    type Item = (Id, Out);
+    type IntoIter = IntoIter<(Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.into_iter()
     }
 }
 
-impl<'a, SolId, Info, Out> IntoIterator for &'a OutBatch<SolId, Info, Out>
+impl<'a, Id, Out> IntoIterator for &'a OutBatch<Id, Out>
 where
-    SolId: Id,
-    Info: OptInfo,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = &'a (SolId, Out);
-    type IntoIter = slice::Iter<'a, (SolId, Out)>;
+    type Item = &'a (Id, Out);
+    type IntoIter = slice::Iter<'a, (Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter()
     }
 }
 
-impl<'a, SolId, Info, Out> IntoIterator for &'a mut OutBatch<SolId, Info, Out>
+impl<'a, Id, Out> IntoIterator for &'a mut OutBatch<Id, Out>
 where
-    SolId: Id,
-    Info: OptInfo,
+    Id: SolId,
     Out: Outcome,
 {
-    type Item = &'a mut (SolId, Out);
-    type IntoIter = slice::IterMut<'a, (SolId, Out)>;
+    type Item = &'a mut (Id, Out);
+    type IntoIter = slice::IterMut<'a, (Id, Out)>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.out.iter_mut()
@@ -690,42 +591,39 @@ where
 //--- INTOPARITERATOR ---//
 //-----------------------//
 
-impl<SolId, Info, Out> IntoParallelIterator for OutBatch<SolId, Info, Out>
+impl<Id, Out> IntoParallelIterator for OutBatch<Id, Out>
 where
-    SolId: Id + Send,
-    Info: OptInfo,
+    Id: SolId + Send,
     Out: Outcome + Send,
 {
-    type Item = (SolId, Out);
-    type Iter = rayon::vec::IntoIter<(SolId, Out)>;
+    type Item = (Id, Out);
+    type Iter = rayon::vec::IntoIter<(Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         self.out.into_par_iter()
     }
 }
 
-impl<'a, SolId, Info, Out> IntoParallelIterator for &'a OutBatch<SolId, Info, Out>
+impl<'a, Id, Out> IntoParallelIterator for &'a OutBatch<Id, Out>
 where
-    SolId: Id + Send + Sync,
-    Info: OptInfo,
+    Id: SolId + Send + Sync,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a (SolId, Out);
-    type Iter = rayon::slice::Iter<'a, (SolId, Out)>;
+    type Item = &'a (Id, Out);
+    type Iter = rayon::slice::Iter<'a, (Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&[_]>::into_par_iter(&self.out)
     }
 }
 
-impl<'a, SolId, Info, Out> IntoParallelIterator for &'a mut OutBatch<SolId, Info, Out>
+impl<'a, Id, Out> IntoParallelIterator for &'a mut OutBatch<Id, Out>
 where
-    SolId: Id + Send + Sync,
-    Info: OptInfo,
+    Id: SolId + Send + Sync,
     Out: Outcome + Send + Sync,
 {
-    type Item = &'a mut (SolId, Out);
-    type Iter = rayon::slice::IterMut<'a, (SolId, Out)>;
+    type Item = &'a mut (Id, Out);
+    type Iter = rayon::slice::IterMut<'a, (Id, Out)>;
 
     fn into_par_iter(self) -> Self::Iter {
         <&mut [_]>::into_par_iter(&mut self.out)

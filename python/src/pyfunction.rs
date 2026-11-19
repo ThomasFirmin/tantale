@@ -1,7 +1,7 @@
 //! Python function wrappers for Tantale objectives.
 //!
-//! This module bridges Python callables to Tantale's [`Objective`] and
-//! [`Stepped`] interfaces. The bridge works in three layers:
+//! This module bridges Python callables to Tantale's [`OneStep`] and
+//! [`MultiStep`] interfaces. The bridge works in three layers:
 //!
 //! 1. **Thread-local storage** – the active Python callable is stored in a
 //!    thread-local [`RefCell`](std::cell::RefCell) (see [`crate::PY_OBJECTIVE_FUNC`] /
@@ -28,10 +28,12 @@ use std::{
     fmt::{self, Display},
     path::PathBuf,
     sync::Arc,
+    write,
 };
 
+use log::warn;
 use pyo3::prelude::*;
-use tantale_core::{FidOutcome, Fidelity, FuncState, Objective, Stepped};
+use tantale_core::{FidOutcome, Fidelity, FuncState, MultiStep, OneStep, Uncomputed};
 
 use crate::{
     PY_OBJECTIVE_FUNC, PY_STEPPED_FUNC,
@@ -70,7 +72,14 @@ impl FuncState for PyFuncState {
                 .map_err(py_to_io)?;
             // Save the class so load() can reconstruct it.
             let cls = self.0.bind(py).get_type().into_any().unbind();
-            let cls_bytes = pickle_dumps(py, &cls).map_err(py_to_io).unwrap();
+            let cls_bytes = match pickle_dumps(py, &cls) {
+                Ok(res) => res,
+                Err(err) => {
+                    err.print(py); // stderr, same format as Python
+                    warn!("Python objection function state failed to pickle the class");
+                    return Err(err.into());
+                }
+            };
             let path_cls = path.join("_tantale_cls.pkl");
             std::fs::write(path_cls, cls_bytes)
         })
@@ -80,12 +89,23 @@ impl FuncState for PyFuncState {
         let cls_bytes = std::fs::read(path.join("_tantale_cls.pkl"))?;
         let path_str = path_to_str(&path)?;
         Python::attach(|py| -> std::io::Result<Self> {
-            let cls = pickle_loads(py, &cls_bytes).map_err(py_to_io).unwrap();
-            let obj = cls
-                .call_method1(py, "load", (&path_str,))
-                .map_err(py_to_io)
-                .unwrap();
-            Ok(PyFuncState(obj))
+            let cls = match pickle_loads(py, &cls_bytes) {
+                Ok(res) => res,
+                Err(err) => {
+                    err.print(py);
+                    warn!("Python objection function state failed to unpickle the class");
+                    return Err(err.into());
+                }
+            };
+            let obj = cls.call_method1(py, "load", (&path_str,));
+            match obj {
+                Ok(obj) => Ok(PyFuncState(obj)),
+                Err(err) => {
+                    err.print(py); // stderr, same format as Python
+                    warn!("Python objection function state failed to load");
+                    Err(err.into())
+                }
+            }
         })
     }
 }
@@ -118,8 +138,14 @@ pub fn py_objective<E: ElementIntoPyObject, Out: PyOutWrap>(x: Arc<[E]>) -> Out 
         .expect("The PyObjective was not initialized");
     Python::attach(|py| {
         let list = x.to_pyany(py).expect("failed to build Python input list");
-        let result = binding.call1(py, (list,)).unwrap();
-        Out::wrap(py, result)
+        let result = binding.call1(py, (list,));
+        match result {
+            Ok(res) => Out::wrap(py, res),
+            Err(err) => {
+                err.print(py); // stderr, same format as Python
+                panic!("Python objective failed");
+            }
+        }
     })
 }
 
@@ -146,10 +172,16 @@ pub fn py_stepped<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
         let list = x.to_pyany(py).expect("failed to build Python input list");
         let result = binding
             .call1(py, (list, fidelity.0, py_state))
-            .expect("Python stepped objective raised an error");
-        let (out, new_state): (Py<PyAny>, Py<PyAny>) = result
-            .extract(py)
-            .expect("Python stepped objective must return a 2-tuple (outcome, state)");
+            .unwrap_or_else(|err: PyErr| {
+                err.print(py);
+                panic!("Python stepped objective failed");
+            });
+
+        let (out, new_state): (Py<PyAny>, Py<PyAny>) =
+            result.extract(py).unwrap_or_else(|err: PyErr| {
+                err.print(py);
+                panic!("Python stepped objective must return a 2-tuple (outcome, state)");
+            });
         (Out::wrap(py, out), PyFuncState(new_state))
     })
 }
@@ -179,14 +211,19 @@ impl PyObjective {
 
 impl PyObjective {
     /// Registers this callable as the active thread-local objective and returns
-    /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
+    /// an [`OneStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
-    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap>(&self) -> Objective<Arc<[E]>, Out> {
+    pub fn register<E, Out, S>(&self) -> OneStep<S, Out>
+    where
+        S: Uncomputed<X = Arc<[E]>>,
+        Out: PyOutWrap,
+        E: ElementIntoPyObject,
+    {
         Python::attach(|py| {
             PY_OBJECTIVE_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python objective function: a function has already been registered");
         });
-        Objective::new(py_objective)
+        OneStep::new(py_objective)
     }
 }
 
@@ -207,7 +244,7 @@ impl PyObjective {
 /// - Returns a 2-tuple `(outcome, new_state)`.
 ///
 /// Call [`register`](crate::PyStepped::register) (from Rust) to register the callable and
-/// obtain a typed [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
+/// obtain a typed [`MultiStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
 #[pyclass]
 pub struct PyStepped(pub Py<PyAny>);
 
@@ -221,15 +258,18 @@ impl PyStepped {
 
 impl PyStepped {
     /// Registers this callable as the active thread-local stepped objective and
-    /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
+    /// returns a [`MultiStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
     ///
     /// Only one `PyStepped` may be active per thread at a time.
-    pub fn register<E: ElementIntoPyObject, Out: PyOutWrap + FidOutcome>(
-        &self,
-    ) -> Stepped<Arc<[E]>, Out, PyFuncState> {
+    pub fn register<E, Out, S>(&self) -> MultiStep<S, Out, PyFuncState>
+    where
+        S: Uncomputed<X = Arc<[E]>>,
+        Out: PyOutWrap + FidOutcome,
+        E: ElementIntoPyObject,
+    {
         Python::attach(|py| {
             PY_STEPPED_FUNC.set(self.0.clone_ref(py)).expect("Failed to register Python stepped objective function: a function has already been registered");
         });
-        Stepped::new(py_stepped)
+        MultiStep::new(py_stepped)
     }
 }

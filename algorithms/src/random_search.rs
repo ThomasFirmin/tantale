@@ -1,129 +1,67 @@
 use tantale_core::{
-    BaseSol, BatchSampler, CompAcc, CompBatch, CompShape, FidOutcome, HasFidelity, HasStep, Id,
-    IntoComputedShape, Sampler, SingleSampler, StepSId, Uncomputed,
-    domain::onto::LinkOpt,
-    objective::{
-        Step,
-        outcome::{FuncState, Outcome},
-    },
-    optimizer::{
-        EmptyInfo, OptInfo, OptState,
-        opt::{BatchOptimizer, Optimizer, SingleOptimizer},
-    },
-    recorder::csv::CSVWritable,
+    HasState, Problem, Sampled, Sampler, SolInfo, State,
+    aliases::{Accum, CompShape, Shape},
+    optimizer::opt::{Batched, Prunable},
     searchspace::Searchspace,
-    solution::{Batch, SId, partial::FidelitySol},
+    utils::{
+        ShapeWithInfo,
+        record::{Recordable, Schema},
+    },
 };
 
-use rand::{prelude::ThreadRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, sync::Arc};
+use std::fmt::Debug;
+use tantale_macros::basic_bounds;
 
-use crate::utils::{
-    BCompAcc, BCompShape, BatchBCompShape, BatchFCompShape, FCompAcc, FCompShape, SimpleObjective,
-    SimpleStepped,
-};
+use crate::utils::{refill_apply, with_rng};
 
-thread_local! {
-    static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
+/// A helper macro to simplify the type signature of [`RandomSearch`].
+#[macro_export]
+macro_rules! randomsearch {
+    () => {
+        RandomSearch
+    };
 }
 
-/// Metadata for a Random Search optimization step, associated to each [`Batch`].
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct RSInfo {
-    /// The iteration number at which this batch was created
-    pub iteration: usize,
+/// A helper macro to simplify the type signature of [`BatchRandomSearch`].
+#[macro_export]
+macro_rules! batchrandomsearch {
+    () => {BatchRandomSearch<_>};
 }
-impl OptInfo for RSInfo {}
-impl CSVWritable<(), ()> for RSInfo {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("iteration")])
+
+/// Metadata recording the call count associated with a random-search sample.
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
+pub struct RSInfo(pub usize);
+
+impl Schema<()> for RSInfo {
+    type Parts = ();
+    fn columns(_context: &(), _part: Self::Parts) -> Vec<String> {
+        vec!["calls".to_string()]
     }
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.iteration.to_string()])
+}
+impl Recordable<()> for RSInfo {
+    type Parts = ();
+    fn record(&self, _context: &(), _part: Self::Parts) -> Vec<String> {
+        vec![self.0.to_string()]
     }
 }
+impl SolInfo for RSInfo {}
 
 //------------------//
 //--- SEQUENTIAL ---//
 //------------------//
 
-/// State for the Sequential Random Search optimizer.
-/// This struct is intentionally minimal, as Random Search does not require any internal state to function.
-#[derive(Serialize, Deserialize)]
-pub struct SeqRSState;
-impl OptState for SeqRSState {}
-
-/// Sequential Random Search optimizer implementation.
-/// This optimizer samples solutions on-demand and  at random
-/// from the [`Searchspace`] at each iteration, without any internal state or memory of past evaluations.
+/// Random sampler that draws a candidate from the problem search space each
+/// time a new sample is requested. It does not rank or filter candidates based
+/// on past objective values.
 ///
-/// # Workflow
-///
-/// ```text
-///  Worker requests solution
-///           |
-///           v
-///  +--------------------+
-///  | Prior solution     |
-///  | provided?          |
-///  +--------------------+
-///     Yes /         | No
-///        /          |
-///       v           |
-///  +----------+     |
-///  | Check    |     +----------------+
-///  | status   |                      |
-///  +----------+                      |
-///       |                            |
-///       v                            v
-///    +---------+           +-------------------+
-///   / Partially \          | Sample new random |  
-///  /   stepped?  \  No --> | solution from     |
-///  \             /         | searchspace       |
-///   \   Yes     /           +-------------------+  
-///    +---------+                     |      
-///        |                           |
-///        v                           v
-///  Return same solution      Return the solution
-///  (continue evaluation)
-/// ```
-///
-/// # Note
-///
-/// It implements [`SingleOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
-/// allowing it to handle [`Step`]-based optimization scenarios.
-/// [`RandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it does not maintain
-/// any state or history of evaluations.
-/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-///
-/// # Note on RNG
-///
-/// The optimizer uses a thread-local [`StdRng`] for random sampling.
-/// The RNG is not part of the optimizer state, as it cannot be serialized or deserialized.
-/// The [`StdRng`] is defined at the module level as follows:
-/// ```rust,ignore
-/// thread_local! {
-///     static THREAD_RNG: RefCell<StdRng> = RefCell::new(rand::make_rng());
-/// }
-/// ```
-/// It is called with a private function `with_rng` that takes a closure, allowing the optimizer to perform random sampling while keeping the RNG separate from the optimizer state:
-/// ```rust,ignore
-/// self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-/// ```
-pub struct RandomSearch(pub SeqRSState);
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RandomSearch(pub usize);
 
 impl RandomSearch {
-    /// Creates a new instance of the Sequential [`RandomSearch`] optimizer with an initial state.
+    /// Creates a random sampler with its call counter set to zero.
     pub fn new() -> Self {
-        RandomSearch(SeqRSState)
-    }
-
-    fn with_rng<F, T>(&self, f: F) -> T
-    where
-        F: FnOnce(&mut StdRng) -> T,
-    {
-        THREAD_RNG.with(|rng| f(&mut rng.borrow_mut()))
+        RandomSearch(0)
     }
 }
 
@@ -133,625 +71,161 @@ impl Default for RandomSearch {
     }
 }
 
-impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for RandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    type State = SeqRSState;
-    type SInfo = EmptyInfo;
+impl State for RandomSearch {}
+
+impl HasState for RandomSearch {
+    type State = Self;
 
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
     }
 
     fn from_state(state: Self::State) -> Self {
-        Self(state)
+        state
     }
 }
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for RandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-    type State = SeqRSState;
-    type SInfo = EmptyInfo;
+#[basic_bounds(P, Opt)]
+impl<P, Opt> Sampler<P, Opt> for RandomSearch {
+    type Info = RSInfo;
 
-    fn get_state(&self) -> &Self::State {
-        &self.0
+    fn sample_info(
+        &mut self,
+        scp: &P::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<RSInfo>)> {
+        self.0 += 1;
+        let shape = with_rng(|rng| scp.sample_pair(rng));
+        Some((shape, RSInfo(self.0).into()))
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
-    }
-
-    fn from_state(state: Self::State) -> Self {
-        Self(state)
-    }
+    fn update(&mut self, _x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {}
 }
 
-impl<Out, Scp>
-    SingleOptimizer<
-        BaseSol<SId, Scp::Opt, EmptyInfo>,
-        SId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
-    > for RandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    fn step(
-        &mut self,
-        _x: Option<BCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        _acc: &BCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-    }
-}
+impl Prunable for RandomSearch {}
 
-impl<Out, Scp, FnState>
-    SingleOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-    > for RandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity,
-    FnState: FuncState,
-{
-    fn step(
-        &mut self,
-        x: Option<FCompShape<Scp, Out, Self::SInfo>>,
-        scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Scp::SolShape {
-        match x {
-            Some(comp) => {
-                let (pair, _): (Scp::SolShape, _) = IntoComputedShape::extract(comp);
-                match pair.step() {
-                    Step::Pending => {
-                        unreachable!(
-                            "A pending SolShape, should not be passed to RandomSearch step."
-                        )
-                    }
-                    Step::Partially(_) => pair,
-                    _ => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
-                }
-            }
-            None => self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into())),
-        }
-    }
-}
-
-impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp> for RandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-}
-
-impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for RandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-}
-
-impl<Out, Scp>
-    SingleSampler<
-        BaseSol<SId, Scp::Opt, EmptyInfo>,
-        SId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
-    > for RandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    /// Generates a new candidate by sampling from the search space.
-    fn sample(
-        &mut self,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-    }
-
-    /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
-    fn update(
-        &mut self,
-        _x: &CompShape<Scp::SolShape, SId, Self::SInfo, Out>,
-        _scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape,
-    {
-        let sol = <RandomSearch as SingleSampler<_, _, _, Out, _, _>>::sample(self, scp, acc);
-        f(sol)
-    }
-}
-
-impl<Out, Scp, FnState>
-    SingleSampler<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-    > for RandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity,
-    FnState: FuncState,
-{
-    /// Generates a new candidate by sampling from the search space.
-    fn sample(
-        &mut self,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Scp::SolShape {
-        self.with_rng(|rng| scp.sample_pair(rng, EmptyInfo.into()))
-    }
-
-    /// Does not update the internal state, as Random Search does not maintain any state or memory of past evaluations.
-    fn update(
-        &mut self,
-        _x: &CompShape<Scp::SolShape, StepSId, Self::SInfo, Out>,
-        _scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        scp: &Scp,
-        acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Scp::SolShape
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape,
-    {
-        let sol = <RandomSearch as SingleSampler<
-            _,
-            _,
-            _,
-            Out,
-            _,
-            SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-        >>::sample(self, scp, acc);
-        f(sol)
-    }
-}
-
-//------------------//
-//--- Batched ---//
-//------------------//
-
-/// State for the [`BatchRandomSearch`] optimizer.
 #[derive(Serialize, Deserialize)]
-pub struct BatchRSState {
-    /// The number of solutions to sample at each iteration (batch size).
-    pub batch: usize,
-    /// The current iteration count. Increments after each call to [`step()`](BatchRandomSearch::step).
-    pub iteration: usize,
-    _emptyinfo: Arc<EmptyInfo>,
+#[serde(bound = "ShapeWithInfo<Shape<P>, RSInfo>: Serialize + for<'a> Deserialize<'a>")]
+/// Random sampler that stores candidates in batches.
+///
+/// A batch is generated when the pending batch is empty. The batch is cleared
+/// after its candidates have been requested, and the next request samples
+/// another batch. `batch_size` controls the number of candidates generated at
+/// a time.
+pub struct BatchRandomSearch<P: Problem> {
+    pub calls: usize,
+    pub batch_size: usize,
+    pub batch_uncomputed: Vec<ShapeWithInfo<Shape<P>, RSInfo>>,
+    pub batch_computed: Vec<CompShape<P>>,
 }
 
-impl BatchRSState {
-    pub fn new(batch: usize, iteration: usize) -> Self {
-        BatchRSState {
-            batch,
-            iteration,
-            _emptyinfo: Arc::new(EmptyInfo),
+impl<P: Problem> Clone for BatchRandomSearch<P> {
+    fn clone(&self) -> Self {
+        BatchRandomSearch {
+            calls: self.calls,
+            batch_size: self.batch_size,
+            batch_uncomputed: self.batch_uncomputed.clone(),
+            batch_computed: self.batch_computed.clone(),
         }
     }
 }
-impl OptState for BatchRSState {}
 
-/// Batched Random Search optimizer implementation.
-/// This optimizer samples batches of solutions at random from the [`Searchspace`] at each iteration,
-/// without any internal state or memory of past evaluations, except for the iteration count.
-///
-/// # Workflow
-///
-/// ```text
-///  Start / Previous batch evaluated
-///           |
-///           v
-///  +--------------------+
-///  | Prior batch        |
-///  | provided?          |
-///  +--------------------+
-///      No /     \ Yes
-///        /       \
-///       v         v
-///  +--------+   +--------------------+
-///  | First  |   | For each solution: |
-///  | batch  |   +--------------------+
-///  +--------+            |
-///       |                v
-///       |        +----------------+
-///       |        | Partially      |  Yes
-///       |        | stepped?       | ---+
-///       |        +----------------+    |
-///       |                | No          |
-///       |                v             |
-///       |        +----------------+    |
-///       |        | Sample new     |    |
-///       |        | random config  |    |
-///       |        +----------------+    |
-///       |                |             |
-///       |                +<------------+
-///       |                |
-///       v                v
-///  +--------------------+
-///  | Assemble batch     |
-///  | Increment iteration|
-///  +--------------------+
-///           |
-///           v
-///    Return batch for evaluation
-/// ```
-///
-/// # Note
-///
-/// It implements [`BatchOptimizer`] for both [`BaseSol`] and [`FidelitySol`] solution types,
-/// allowing it to handle [`Step`]-based optimization scenarios.
-/// [`BatchRandomSearch`] cannot [`Discard`](Step::Discard) any solutions, as it
-/// does not maintain any state or history of evaluations.
-/// All [`Partially`](Step::Partially) solutions will be re-outputed automatically, until [`Evaluated`](Step::Evaluated).
-///
-/// When the input batch only contains [`Evaluated`](Step::Evaluated),
-/// the next batch will be sampled as usual, without any change in behavior.
-pub struct BatchRandomSearch(pub BatchRSState, ThreadRng);
-
-impl BatchRandomSearch {
-    /// Creates a new instance of the [`BatchRandomSearch`] optimizer with the specified batch size.
-    pub fn new(batch: usize) -> Self {
-        let rng = rand::rng();
-        BatchRandomSearch(
-            BatchRSState {
-                batch,
-                iteration: 0,
-                _emptyinfo: Arc::new(EmptyInfo),
-            },
-            rng,
-        )
+impl<P: Problem> Debug for BatchRandomSearch<P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BatchRandomSearch")
+            .field("calls", &self.calls)
+            .field("batch_size", &self.batch_size)
+            .field("batch_uncomputed", &self.batch_uncomputed)
+            .field("batch_computed", &self.batch_computed)
+            .finish()
     }
 }
 
-//-----------------//
-//--- OBJECTIVE ---//
-//-----------------//
-
-fn rs_iter_apply<Scp, PSol, SolId, F>(
-    f: F,
-    opt: &mut BatchRandomSearch,
-    sp: &Scp,
-    bsize: usize,
-) -> Batch<SolId, EmptyInfo, RSInfo, Scp::SolShape>
-where
-    F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
-    PSol: Uncomputed<SolId, Scp::Opt, EmptyInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, EmptyInfo>,
-    Scp: Searchspace<PSol, SolId, EmptyInfo>,
-    SolId: Id,
-{
-    let info = RSInfo {
-        iteration: opt.0.iteration,
-    };
-    opt.0.iteration += 1;
-    let pairs = sp.vec_apply_pair(f, &mut opt.1, bsize, opt.0._emptyinfo.clone());
-    Batch::new(pairs, info.into())
+impl<P: Problem> BatchRandomSearch<P> {
+    /// Creates a batched random sampler.
+    ///
+    /// The batch size is not validated; a size of zero yields no samples.
+    pub fn new(batch_size: usize) -> Self {
+        BatchRandomSearch {
+            calls: 0,
+            batch_size,
+            batch_uncomputed: Vec::with_capacity(batch_size),
+            batch_computed: Vec::with_capacity(batch_size),
+        }
+    }
 }
 
-fn rs_iter<Scp, PSol, SolId>(
-    opt: &mut BatchRandomSearch,
-    sp: &Scp,
-    bsize: usize,
-) -> Batch<SolId, EmptyInfo, RSInfo, Scp::SolShape>
-where
-    PSol: Uncomputed<SolId, Scp::Opt, EmptyInfo>,
-    PSol::Twin<Scp::Obj>: Uncomputed<SolId, Scp::Obj, EmptyInfo>,
-    Scp: Searchspace<PSol, SolId, EmptyInfo>,
-    SolId: Id,
-{
-    let info = RSInfo {
-        iteration: opt.0.iteration,
-    };
-    opt.0.iteration += 1;
-    let pairs = sp.vec_sample_pair(&mut opt.1, bsize, opt.0._emptyinfo.clone());
-    Batch::new(pairs, info.into())
-}
-
-impl<Out, Scp> Optimizer<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for BatchRandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    type State = BatchRSState;
-    type SInfo = EmptyInfo;
+impl<P: Problem> State for BatchRandomSearch<P> {}
+impl<P: Problem> HasState for BatchRandomSearch<P> {
+    type State = Self;
 
     fn get_state(&self) -> &Self::State {
-        &self.0
+        self
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+    fn get_mut_state(&mut self) -> &mut Self::State {
+        self
     }
 
     fn from_state(state: Self::State) -> Self {
-        Self(state, rand::rng())
+        state
     }
 }
 
-impl<Out, Scp> Optimizer<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for BatchRandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-    type State = BatchRSState;
-    type SInfo = EmptyInfo;
-
-    fn get_state(&self) -> &Self::State {
-        &self.0
+#[basic_bounds(P, Opt)]
+impl<P, Opt> Batched<P, Opt> for BatchRandomSearch<P> {
+    fn batch_size(&self) -> usize {
+        self.batch_size
     }
 
-    fn get_mut_state(&mut self) -> &Self::State {
-        &self.0
+    fn set_batch_size(&mut self, size: usize) {
+        self.batch_size = size;
     }
 
-    fn from_state(state: Self::State) -> Self {
-        Self(state, rand::rng())
+    fn batch(&self) -> &[ShapeWithInfo<Shape<P>, RSInfo>] {
+        &self.batch_uncomputed
+    }
+
+    fn mut_batch(&mut self) -> &mut Vec<ShapeWithInfo<Shape<P>, RSInfo>> {
+        &mut self.batch_uncomputed
+    }
+
+    fn comp_batch(&self) -> &[CompShape<P>] {
+        self.batch_computed.as_slice()
+    }
+
+    fn mut_comp_batch(&mut self) -> &mut Vec<CompShape<P>> {
+        &mut self.batch_computed
     }
 }
 
-impl<Out, Scp>
-    BatchOptimizer<
-        BaseSol<SId, Scp::Opt, EmptyInfo>,
-        SId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
-    > for BatchRandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
+#[basic_bounds(P, Opt)]
+impl<P, Opt> Sampler<P, Opt> for BatchRandomSearch<P> {
     type Info = RSInfo;
 
-    fn first_step(
+    fn sample_info(
         &mut self,
-        scp: &Scp,
-        _acc: &BCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        rs_iter(self, scp, self.0.batch)
-    }
-
-    fn step(
-        &mut self,
-        _x: BatchBCompShape<Scp, Out, Self::Info, Self::SInfo>,
-        scp: &Scp,
-        _acc: &BCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        rs_iter(self, scp, self.0.batch)
-    }
-
-    fn set_batch_size(&mut self, batch_size: usize) {
-        self.0.batch = batch_size;
-    }
-
-    fn get_batch_size(&self) -> usize {
-        self.0.batch
-    }
-}
-
-impl<Out, Scp, FnState>
-    BatchOptimizer<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-    > for BatchRandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity,
-    FnState: FuncState,
-{
-    type Info = RSInfo;
-
-    fn first_step(
-        &mut self,
-        scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        rs_iter(self, scp, self.0.batch)
-    }
-
-    fn step(
-        &mut self,
-        x: BatchFCompShape<Scp, Out, Self::Info, Self::SInfo>,
-        scp: &Scp,
-        _acc: &FCompAcc<Scp, Out, Self::SInfo>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        let mut pairs: Vec<_> = x
-            .into_iter()
-            .map(|p| match p.step() {
-                Step::Evaluated | Step::Discard | Step::Error => {
-                    scp.sample_pair(&mut self.1, self.0._emptyinfo.clone())
-                }
-                _ => IntoComputedShape::extract(p).0,
-            })
-            .collect();
-        self.0.iteration += 1;
-        let info = RSInfo {
-            iteration: self.0.iteration,
+        scp: &P::Scp,
+        _acc: &Accum<P>,
+    ) -> Option<(Shape<P>, Sampled<RSInfo>)> {
+        if self.batch_uncomputed.is_empty() {
+            self.calls += 1;
+            refill_apply::<P, RSInfo, _>(&mut self.batch_uncomputed, scp, self.batch_size, |s| {
+                (s, RSInfo(self.calls))
+            });
+            self.batch_computed.clear();
         }
-        .into();
-        if pairs.len() <= self.0.batch {
-            let remaining = self.0.batch - pairs.len();
-            let mut new_pairs =
-                scp.vec_sample_pair(&mut self.1, remaining, self.0._emptyinfo.clone());
-            pairs.append(&mut new_pairs);
-        }
-        Batch::new(pairs, info)
+        let shape = self.batch_uncomputed.pop()?;
+        Some((shape.0, shape.1))
     }
 
-    fn set_batch_size(&mut self, batch_size: usize) {
-        self.0.batch = batch_size;
-    }
-
-    fn get_batch_size(&self) -> usize {
-        self.0.batch
+    fn update(&mut self, x: &CompShape<P>, _scp: &P::Scp, _acc: &Accum<P>) {
+        self.add_to_comp_batch(x.clone());
     }
 }
 
-impl<Out, Scp> Sampler<BaseSol<SId, Scp::Opt, EmptyInfo>, SId, Scp::Opt, Out, Scp>
-    for BatchRandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-}
-
-impl<Out, Scp> Sampler<FidelitySol<StepSId, Scp::Opt, EmptyInfo>, StepSId, Scp::Opt, Out, Scp>
-    for BatchRandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-{
-}
-
-impl<Out, Scp>
-    BatchSampler<
-        BaseSol<SId, Scp::Opt, EmptyInfo>,
-        SId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleObjective<Scp::SolShape, EmptyInfo, Out>,
-    > for BatchRandomSearch
-where
-    Out: Outcome,
-    Scp: Searchspace<BaseSol<SId, LinkOpt<Scp>, EmptyInfo>, SId, EmptyInfo>,
-{
-    type Info = RSInfo;
-
-    fn sample(
-        &mut self,
-        batch: usize,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape> {
-        rs_iter(self, scp, batch)
-    }
-
-    fn update(
-        &mut self,
-        _x: CompBatch<SId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
-        _scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        batch: usize,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, SId, Self::SInfo, Out>,
-    ) -> Batch<SId, Self::SInfo, Self::Info, Scp::SolShape>
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
-    {
-        rs_iter_apply(f, self, scp, batch)
-    }
-}
-
-impl<Out, Scp, FnState>
-    BatchSampler<
-        FidelitySol<StepSId, Scp::Opt, EmptyInfo>,
-        StepSId,
-        Scp::Opt,
-        Out,
-        Scp,
-        SimpleStepped<Scp::SolShape, EmptyInfo, Out, FnState>,
-    > for BatchRandomSearch
-where
-    Out: FidOutcome,
-    Scp: Searchspace<FidelitySol<StepSId, LinkOpt<Scp>, EmptyInfo>, StepSId, EmptyInfo>,
-    Scp::SolShape: HasStep + HasFidelity,
-    FCompShape<Scp, Out, Self::SInfo>: HasStep + HasFidelity,
-    FnState: FuncState,
-{
-    type Info = RSInfo;
-
-    fn sample(
-        &mut self,
-        batch: usize,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape> {
-        rs_iter(self, scp, batch)
-    }
-
-    fn update(
-        &mut self,
-        _x: CompBatch<StepSId, Self::SInfo, Self::Info, Scp::SolShape, Out>,
-        _scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) {
-    }
-
-    fn sample_apply<F>(
-        &mut self,
-        f: F,
-        batch: usize,
-        scp: &Scp,
-        _acc: &CompAcc<Scp::SolShape, StepSId, Self::SInfo, Out>,
-    ) -> Batch<StepSId, Self::SInfo, Self::Info, Scp::SolShape>
-    where
-        F: Fn(Scp::SolShape) -> Scp::SolShape + Send + Sync,
-    {
-        rs_iter_apply(f, self, scp, batch)
-    }
-}
+impl<P: Problem> Prunable for BatchRandomSearch<P> {}

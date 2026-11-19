@@ -1,26 +1,18 @@
 //! Partial (uncomputed) solutions.
 //!
 //! A partial solution is created by a [`Searchspace`](crate::Searchspace) and contains a unique
-//! [`Id`] plus its raw representation (vector, permutation, matrix, ...), assembled
+//! [`SolId`] plus its raw representation, assembled
 //! from the underlying [`Domain`] definitions. This raw solution is what gets
-//! evaluated by an [`Objective`](crate::Objective) or [`Stepped`](crate::Stepped) function.
+//! evaluated by a [`OneStep`](crate::objective::OneStep) or
+//! [`MultiStep`](crate::objective::MultiStep) function.
 //!
-//! # Examples
-//! ```
-//! use tantale::core::{Uncomputed, BaseSol, EmptyInfo, Id, Real, SId};
-//!
-//! let x = std::sync::Arc::from(vec![0.1, 0.2, 0.3]);
-//! let info = std::sync::Arc::new(EmptyInfo {});
-//! let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-//! ```
-
+//! See the crate-level documentation for complete, tested usage examples.
+use crate::aliases::{Elem, TypeCodom};
 use crate::domain::Domain;
-use crate::domain::codomain::TypeCodom; 
 use crate::objective::Step;
-use crate::recorder::csv::CSVWritable;
-use crate::solution::{Id, IntoComputed, SolInfo, Solution, SolutionShape, Uncomputed};
+use crate::solution::{SolId, SolInfo, Solution, SolutionShape, Uncomputed};
 use crate::{Computed, EvalStep, Outcome, StepId};
-use crate::{HasFidelity, HasId, HasSolInfo, HasStep, HasStepId, HasX};
+use crate::{HasFidelity, HasId, HasInfo, HasStep, HasStepId, HasX};
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -32,31 +24,25 @@ use std::{
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Fidelity(pub f64);
 
+impl Default for Fidelity {
+    fn default() -> Self {
+        Fidelity(0.0)
+    }
+}
+
 impl Display for Fidelity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl CSVWritable<(), ()> for Fidelity {
-    fn header(_elem: &()) -> Vec<String> {
-        Vec::from([String::from("fidelity")])
-    }
-
-    fn write(&self, _comp: &()) -> Vec<String> {
-        Vec::from([self.0.to_string()])
-    }
-}
-
 impl Fidelity {
     /// Apply this fidelity to both sides of a paired solution.
-    pub fn set_pair<Shape, SolId, SInfo>(self, pair: &mut Shape)
+    pub fn set_pair<Shape>(self, pair: &mut Shape)
     where
-        SolId: Id,
-        SInfo: SolInfo,
-        Shape: SolutionShape<SolId, SInfo> + HasFidelity,
-        Shape::SolObj: HasFidelity,
-        Shape::SolOpt: HasFidelity,
+        Shape: SolutionShape + HasFidelity,
+        Shape::ObjSol: HasFidelity,
+        Shape::OptSol: HasFidelity,
     {
         pair.get_mut_sobj().set_fidelity(self.0);
         pair.get_mut_sopt().set_fidelity(self.0);
@@ -65,176 +51,105 @@ impl Fidelity {
 
 /// A non-evaluated [`Solution`].
 ///
-/// # Attributes
-/// * `id` : [`Id`] - The unique [`Id`] of the solution.
-/// * `x` : [`Arc`][`<[TypeDom]>`](Domain::TypeDom) - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `info` : [`Arc`]`<Info>` - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
-///
-/// # Example
-/// ```
-/// use tantale::core::{HasX, Uncomputed, BaseSol, EmptyInfo, Id, Real, SId, Solution};
-///
-/// let x = std::sync::Arc::from(vec![0.0; 5]);
-/// let info = std::sync::Arc::new(EmptyInfo {});
-/// let sol = BaseSol::<SId, Real, _>::new(SId::generate(), x, info);
-///
-/// assert_eq!(sol.ref_x().len(), 5);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct BaseSol<SolId, Dom, Info>
-where
-    SolId: Id,
-    Dom: Domain,
-    Info: SolInfo,
-{
-    pub id: SolId,
-    pub x: Arc<[Dom::TypeDom]>,
+#[serde(bound = "Id: SolId, Dom: Domain, Info: SolInfo")]
+pub struct BaseSol<Id: SolId, Dom: Domain, Info: SolInfo> {
+    pub id: Id,
+    pub x: Arc<[Dom::Element]>,
     pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for BaseSol<SolId, Dom, Info>
+impl<Id, Dom, Info> Clone for BaseSol<Id, Dom, Info>
 where
-    SolId: Id,
+    Id: SolId,
     Dom: Domain,
     Info: SolInfo,
 {
-    /// Return the raw representation for evaluation by the objective.
-    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
-        &self.x
-    }
-
-    /// Return a clone of the raw representation for evaluation by the objective.
-    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
-        self.x.clone()
-    }
-}
-
-impl<SolId, Dom, Info> HasId<SolId> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    fn id(&self) -> SolId {
-        self.id
-    }
-
-    fn ref_id(&self) -> &SolId {
-        &self.id
-    }
-
-    fn mut_ref_id(&mut self) -> &mut SolId {
-        &mut self.id
-    }
-}
-
-impl<SolId, Dom, Info> HasSolInfo<Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    fn sinfo(&self) -> Arc<Info> {
-        self.info.clone()
-    }
-}
-
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = BaseSol<SolId, B, Info>;
-
-    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_sol(&self) -> Self {
+    fn clone(&self) -> Self {
         BaseSol {
             id: self.id,
             x: self.x.clone(),
             info: self.info.clone(),
         }
     }
+}
 
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::Twin<B> {
-        BaseSol {
-            id: self.id,
-            x,
-            info: self.info.clone(),
-        }
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasX for BaseSol<Id, Dom, Info> {
+    type X = Arc<[Dom::Element]>;
+
+    /// Return the raw representation for evaluation by the objective.
+    fn ref_x(&self) -> &Arc<[Dom::Element]> {
+        &self.x
+    }
+
+    /// Return a clone of the raw representation for evaluation by the objective.
+    fn clone_x(&self) -> Arc<[Dom::Element]> {
+        self.x.clone()
+    }
+
+    fn set_x(&mut self, x: Self::X) {
+        self.x = x;
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    type TwinUC<B: Domain> = BaseSol<SolId, B, Info>;
-    /// Creates a new [`BaseSol`] from a slice of [`TypeDom`](Domain::TypeDom).
-    ///
-    /// # Attributes
-    ///
-    /// * `id` : `SolId` - A unique [`Id`].
-    /// * `x` : `Into`[`<Raw>`](Solution::Raw) - A raw solution. For example a simple vector of [`TypeDom`](Domain::TypeDom).
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasId for BaseSol<Id, Dom, Info> {
+    type Id = Id;
+
+    fn id(&self) -> Id {
+        self.id
+    }
+
+    fn ref_id(&self) -> &Id {
+        &self.id
+    }
+
+    fn mut_id(&mut self) -> &mut Id {
+        &mut self.id
+    }
+}
+
+impl<Id: SolId, Dom: Domain, Info: SolInfo> HasInfo for BaseSol<Id, Dom, Info> {
+    type Info = Info;
+    fn sinfo(&self) -> Arc<Info> {
+        self.info.clone()
+    }
+
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.info = info;
+    }
+}
+
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Solution for BaseSol<Id, Dom, Info> {
+    type Dom = Dom;
+    type MetaData = (Id, Arc<Info>);
+    fn meta(&self) -> Self::MetaData {
+        (self.id, self.info.clone())
+    }
+}
+
+impl<Id: SolId, Dom: Domain, Info: SolInfo> Uncomputed for BaseSol<Id, Dom, Info> {
+    /// Creates a new [`BaseSol`] from a slice of [`Element`](Domain::Element).
     ///
     /// # Example
     ///
-    /// ```
-    /// use tantale::core::{HasX, Solution, Uncomputed, BaseSol, Id, Real, EmptyInfo, SId};
-    ///
-    /// let x = std::sync::Arc::from(vec![0.0;5]);
-    /// let info = std::sync::Arc::new(EmptyInfo{});
-    ///
-    /// let real_sol = BaseSol::<_,Real,_>::new(SId::generate(),x,info);
-    ///
-    /// for elem in real_sol.ref_x().iter(){
-    ///     println!("{},", elem);
-    /// }
-    ///
-    /// ```
-    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
+    /// See the crate-level documentation for complete, tested usage examples.
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
-        T: Into<Self::Raw>,
+        T: Into<Self::X>,
     {
         BaseSol {
-            id,
+            id: meta.0,
             x: x.into(),
-            info,
-        }
-    }
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::TwinUC<B> {
-        BaseSol {
-            id: self.id,
-            x,
-            info: self.info.clone(),
+            info: meta.1,
         }
     }
 
     /// Create a default-valued solution of a given size.
-    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solution.
+    /// It uses the [`Default`] implementation of the underlying [`Element`](Domain::Element) to fill the raw solution.
     fn default(info: Arc<Info>, size: usize) -> Self {
-        let id = SolId::generate();
-        let x = vec![Dom::TypeDom::default(); size];
+        let id = Id::generate();
+        let x = vec![Dom::Element::default(); size];
         BaseSol {
             id,
             x: x.into(),
@@ -242,28 +157,15 @@ where
         }
     }
     /// Create multiple default-valued solutions with the same size.
-    /// It uses the [`Default`] implementation of the underlying [`TypeDom`](Domain::TypeDom) to fill the raw solutions.
+    /// It uses the [`Default`] implementation of the underlying [`Element`](Domain::Element) to fill the raw solutions.
     fn default_vec(info: Arc<Info>, size: usize, vsize: usize) -> Vec<Self> {
         (0..vsize)
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-}
 
-impl<SolId, Dom, Info> IntoComputed for BaseSol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: Id,
-{
-    type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out> {
         Computed::new(self, y)
-    }
-
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-        (comp.sol, comp.y)
     }
 }
 
@@ -273,88 +175,64 @@ where
 
 /// A non-evaluated [`Solution`] containing a [`Fidelity`].
 ///
-/// # Attributes
-/// * `id` : [`Id`] - The unique [`Id`] of a [`Solution`].
-/// * `x` : [`Arc`]`<[Dom::`[`TypeDom`](Domain::TypeDom)`]>` - A vector of [`TypeDom`](Domain::TypeDom).
-/// * `step` : [`Step`] -  The current evaluation [`Step`] of `x`.
-/// * `fid` : [`Fidelity`] -  The [`Fidelity`] associated to `x`.
-/// * `info` : [`Arc<SolInfo>`](SolInfo) - Information given by the [`Optimizer`](crate::Optimizer) and linked to a specific [`Solution`].
-///
-/// # Example
-/// ```
-/// use tantale::core::{HasX, Id, Step, Fidelity, Uncomputed, FidelitySol, HasFidelity, HasId, HasStep, EmptyInfo, Real, StepSId, Solution};
-///
-/// let x = std::sync::Arc::from(vec![0.0; 3]);
-/// let info = std::sync::Arc::new(EmptyInfo {});
-/// let mut sol = FidelitySol::<StepSId, Real, _>::new(StepSId::generate(), x, info);
-/// // By default, the solution is pending with zero fidelity.
-/// assert_eq!(sol.step(), Step::Pending);
-/// assert_eq!(sol.fidelity().0, 0.0);
-/// // We can set the fidelity to a specific value, for example 0.5.
-/// sol.set_fidelity(0.5);
-/// assert_eq!(sol.ref_x().len(), 3);
-/// assert_eq!(sol.fidelity().0, 0.5);
-/// ```
+/// See the crate-level documentation for complete, tested usage examples.
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(bound(
-    serialize = "Dom::TypeDom: Serialize",
-    deserialize = "Dom::TypeDom: for<'a> Deserialize<'a>",
-))]
-pub struct FidelitySol<SolId, Dom, Info>
-where
-    SolId: StepId,
-    Dom: Domain,
-    Info: SolInfo,
-{
-    pub id: SolId,
-    pub x: Arc<[Dom::TypeDom]>,
+#[serde(bound = "Id: StepId, Dom: Domain, Info: SolInfo")]
+pub struct FidelitySol<Id: StepId, Dom: Domain, Info: SolInfo> {
+    pub id: Id,
+    pub x: Arc<[Dom::Element]>,
+    pub info: Arc<Info>,
     pub step: EvalStep, // A `isize` [`EvalStep`] for serde and mpi communication issues.
     pub fid: Fidelity,
-    pub info: Arc<Info>,
 }
 
-impl<SolId, Dom, Info> HasX<Arc<[Dom::TypeDom]>> for FidelitySol<SolId, Dom, Info>
-where
-    SolId: StepId,
-    Dom: Domain,
-    Info: SolInfo,
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Clone for FidelitySol<Id, Dom, Info> {
+    fn clone(&self) -> Self {
+        FidelitySol {
+            id: self.id,
+            x: self.x.clone(),
+            info: self.info.clone(),
+            step: self.step,
+            fid: self.fid,
+        }
+    }
+}
+
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasX for FidelitySol<Id, Dom, Info> {
+    type X = Arc<[Dom::Element]>;
+
     /// Return the raw representation for evaluation by the objective.
-    fn ref_x(&self) -> &Arc<[Dom::TypeDom]> {
+    fn ref_x(&self) -> &Arc<[Dom::Element]> {
         &self.x
     }
 
     /// Return a clone of the raw representation for evaluation by the objective.
-    fn clone_x(&self) -> Arc<[Dom::TypeDom]> {
+    fn clone_x(&self) -> Arc<[Dom::Element]> {
         self.x.clone()
+    }
+
+    fn set_x(&mut self, x: Self::X) {
+        self.x = x;
     }
 }
 
-impl<SolId, Dom, Info> HasId<SolId> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
-    fn id(&self) -> SolId {
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasId for FidelitySol<Id, Dom, Info> {
+    type Id = Id;
+
+    fn id(&self) -> Id {
         self.id
     }
 
-    fn ref_id(&self) -> &SolId {
+    fn ref_id(&self) -> &Id {
         &self.id
     }
 
-    fn mut_ref_id(&mut self) -> &mut SolId {
+    fn mut_id(&mut self) -> &mut Id {
         &mut self.id
     }
 }
 
-impl<SolId, Dom, Info> HasStepId<SolId> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStepId for FidelitySol<Id, Dom, Info> {
     fn increment(&mut self) {
         self.id.increment();
     }
@@ -363,28 +241,23 @@ where
         self.id.id_step()
     }
 
-    fn previous_id(&self) -> SolId {
+    fn previous_id(&self) -> Id {
         self.id.previous_id()
     }
 }
 
-impl<SolId, Dom, Info> HasSolInfo<Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasInfo for FidelitySol<Id, Dom, Info> {
+    type Info = Info;
     fn sinfo(&self) -> Arc<Info> {
         self.info.clone()
     }
+
+    fn set_info(&mut self, info: Arc<Self::Info>) {
+        self.info = info;
+    }
 }
 
-impl<SolId, Dom, Info> HasFidelity for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasFidelity for FidelitySol<Id, Dom, Info> {
     fn fidelity(&self) -> Fidelity {
         self.fid
     }
@@ -393,12 +266,7 @@ where
     }
 }
 
-impl<SolId, Dom, Info> HasStep for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
+impl<Id: StepId, Dom: Domain, Info: SolInfo> HasStep for FidelitySol<Id, Dom, Info> {
     /// Return the current evaluation [`Step`] of the solution.
     fn step(&self) -> Step {
         self.step.into()
@@ -423,104 +291,45 @@ where
         self.step = EvalStep(-9);
     }
 
-    /// Mark the solution as errored.
-    fn error(&mut self) {
-        self.step = EvalStep(-10);
-    }
-
-    /// Return the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
+    /// Return the raw evaluation step value.
     /// [`Step`] and [`EvalStep`] are two different types: [`Step`] is an enum for user-facing APIs, while [`EvalStep`] is a wrapper around `isize` for internal use and communication.
     fn raw_step(&self) -> EvalStep {
         self.step
     }
 
-    /// Set the raw evaluation step value. This is useful for [`serde`] and [`mpi`] communication issues.
+    /// Set the raw evaluation step value.
     fn set_raw_step(&mut self, value: EvalStep) {
         self.step = value;
     }
 }
 
-impl<SolId, Dom, Info> Solution<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
-    type Raw = Arc<[Dom::TypeDom]>;
-    type Twin<B: Domain> = FidelitySol<SolId, B, Info>;
-
-    /// Creates a clone of this solution with the same values, metadata, and [`Id`], used
-    /// for [`Accumulator`](crate::domain::codomain::Accumulator).
-    fn _clone_sol(&self) -> Self {
-        FidelitySol {
-            id: self.id,
-            x: self.x.clone(),
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
-    }
-
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::Twin<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::Twin<B> {
-        FidelitySol {
-            id: self.id,
-            x,
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Solution for FidelitySol<Id, Dom, Info> {
+    type Dom = Dom;
+    type MetaData = (Id, Arc<Info>, EvalStep, Fidelity);
+    fn meta(&self) -> Self::MetaData {
+        (self.id, self.info.clone(), self.step, self.fid)
     }
 }
 
-impl<SolId, Dom, Info> Uncomputed<SolId, Dom, Info> for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
-    type TwinUC<B: Domain> = FidelitySol<SolId, B, Info>;
-
+impl<Id: StepId, Dom: Domain, Info: SolInfo> Uncomputed for FidelitySol<Id, Dom, Info> {
     /// Create a new [`Fidelity`] partial solution with [`Pending`](Step::Pending) [`Step`] and zero [`Fidelity`].
-    fn new<T>(id: SolId, x: T, info: Arc<Info>) -> Self
+    fn new<T>(meta: Self::MetaData, x: T) -> Self
     where
-        T: Into<Self::Raw>,
+        T: Into<Self::X>,
     {
         FidelitySol {
-            id,
+            id: meta.0,
             x: x.into(),
-            step: EvalStep::pending(),
-            fid: Fidelity(0.0),
-            info,
+            step: meta.2,
+            fid: meta.3,
+            info: meta.1,
         }
     }
 
-    /// Create a twin solution with the same id and info but a different raw representation.
-    /// Twin [`Solution`]s share the same [`Id`] and [`SolInfo`] but differ in their raw representation (`Obj` vs `Opt` raw solution).
-    /// This is useful for paired [`Solution`]s called [`SolutionShape`] in a [`Searchspace`](crate::Searchspace).
-    /// The [`Fidelity`] and [`Step`] of the twin solution are the same as the original solution.
-    fn twin<B: Domain>(
-        &self,
-        x: <Self::TwinUC<B> as Solution<SolId, B, Info>>::Raw,
-    ) -> Self::TwinUC<B> {
-        FidelitySol {
-            id: self.id,
-            x,
-            step: self.step,
-            fid: self.fid,
-            info: self.info.clone(),
-        }
-    }
     /// Create a default-valued [`Fidelity`] solution of a given size.
     fn default(info: Arc<Info>, size: usize) -> Self {
-        let id = SolId::generate();
-        let x = vec![Dom::TypeDom::default(); size];
+        let id = Id::generate();
+        let x = vec![Elem::<Dom>::default(); size];
         FidelitySol {
             id,
             x: x.into(),
@@ -536,21 +345,8 @@ where
             .map(|_| Self::default(info.clone(), size))
             .collect()
     }
-}
 
-impl<SolId, Dom, Info> IntoComputed for FidelitySol<SolId, Dom, Info>
-where
-    Dom: Domain,
-    Info: SolInfo,
-    SolId: StepId,
-{
-    type Computed<Out: Outcome> = Computed<Self, SolId, Dom, Out, Info>;
-
-    fn into_computed<Out: crate::Outcome>(self, y: Arc<TypeCodom<Out>>) -> Self::Computed<Out> {
+    fn into_computed<Out: Outcome>(self, y: Arc<TypeCodom<Out>>) -> Computed<Self, Out> {
         Computed::new(self, y)
-    }
-
-    fn extract<Out: Outcome>(comp: Self::Computed<Out>) -> (Self, Arc<TypeCodom<Out>>) {
-        (comp.sol, comp.y)
     }
 }

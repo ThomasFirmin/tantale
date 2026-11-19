@@ -1,7 +1,7 @@
-use tantale::algos::RandomSearch;
+use tantale::algos::{RandomSearch, randomsearch};
 use tantale::core::{
-    CSVRecorder, Evaluated, FolderConfig, MessagePack, PoolMode, Runable, SaverConfig, load,
-    mono_with_pool,
+    CSVRecorder, Evaluated, FolderConfig, MessagePack, ParExperiment, Pb, PoolMode,
+    ThreadCommunicator,
 };
 use tantale::python::init_python;
 
@@ -12,8 +12,8 @@ use crate::run_checker::run_reader;
 fn test_python_function() {
     pub mod sp_ms_nosamp {
         use tantale::core::{
+            distribution::{Bernoulli, Uniform},
             domain::{Bool, Cat, Int, Nat, Real},
-            sampler::{Bernoulli, Uniform},
         };
         use tantale::macros::pyhpo;
 
@@ -29,7 +29,7 @@ fn test_python_function() {
 
     let sp = sp_ms_nosamp::get_searchspace();
     let obj = init_python!(
-        Objective, sp_ms_nosamp,
+        OneStep, sp_ms_nosamp,
         "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py", "function_async_parrun", "objective",
         "/tests/test_pytantale_objective_async_parrun/function_async_parrun.py", "function_async_parrun", "MyOutcome",
         objectives: [maximize "obj1"],
@@ -40,36 +40,57 @@ fn test_python_function() {
     let opt = RandomSearch::new(); // log(max/min)
 
     let stop = Evaluated::new(50);
-    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let pb = Pb::new(sp, obj);
+    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config);
 
-    mono_with_pool(sp, obj, opt, stop, (rec, check), PoolMode::Persistent).run();
+    let com = ThreadCommunicator::new();
+    ParExperiment::new(pb, opt, stop, rec, check, com)
+        .with_pool(PoolMode::Persistent)
+        .run();
     run_reader("tmp_test_python_async_parrun_parrun_rs", 50);
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj2;
+    let pb = Pb::new(sp, obj2);
 
-    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let mut exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
+    let com = ThreadCommunicator::new();
+    let mut exp =
+        ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
 
-    let expstop = exp.get_mut_stop();
-    assert_eq!(expstop.0, 50, "Number of calls is wrong");
-    expstop.1 = 100;
+    match exp.master_mut() {
+        Some(m) => {
+            let expstop = &mut m.stop;
+            assert_eq!(expstop.0, 50, "Number of calls is wrong");
+            expstop.1 = 100;
+        }
+        None => {
+            panic!("Experiment is not in master mode");
+        }
+    }
     exp.run();
 
     let sp = sp_ms_nosamp::get_searchspace();
-    let obj = obj3;
+    let pb = Pb::new(sp, obj3);
 
-    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs").init();
-    let rec = CSVRecorder::new(config.clone(), true, true, true, true);
+    let config = FolderConfig::new("tmp_test_python_async_parrun_parrun_rs");
+    let rec = CSVRecorder::new(config.clone());
     let check = MessagePack::new(config).unwrap();
 
-    let exp = load!(mono, RandomSearch, Evaluated, sp, obj, (rec, check));
+    let com = ThreadCommunicator::new();
+    let exp = ParExperiment::<_, randomsearch!(), Evaluated, _, _, _>::load(pb, rec, check, com);
     run_reader("tmp_test_python_async_parrun_parrun_rs", 100);
-    let expstop = exp.get_stop();
-    assert_eq!(expstop.0, 100, "Number of calls is wrong");
+    match exp.master() {
+        Some(m) => {
+            let expstop = &m.stop;
+            assert_eq!(expstop.0, 100, "Number of calls is wrong");
+        }
+        None => {
+            panic!("Experiment is not in master mode");
+        }
+    }
 }

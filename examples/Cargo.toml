@@ -21,4 +21,4 @@ bincode = {version = "2.0.1", features=["serde"]}
 mpi = {version = "0.8.0", features=["derive"]}
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "katex-header.html"]
+rustdoc-args = [ "--html-in-header", "katex-header.html", "--html-in-header", "highlight-header.html" ]

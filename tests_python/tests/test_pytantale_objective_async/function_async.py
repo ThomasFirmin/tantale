@@ -8,10 +8,10 @@ class MyOutcome:
         self.info = info
 
     @staticmethod
-    def csv_header():
+    def header():
         return ["obj1", "obj2", "info"]
     
-    def csv_write(self):
+    def record(self):
         return [str(self.obj1), str(self.obj2), str(self.info)]
 
 def objective(x: list) -> MyOutcome:
