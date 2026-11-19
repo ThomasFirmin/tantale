@@ -2,7 +2,7 @@
 //!
 //! The [`Sampler`] trait proposes candidate solutions for a [`Problem`](crate::Problem),
 //! receives evaluated candidates, and maintains the state needed by an
-//! experiment. [`Batched`](opt::Batched) extends it with batch operations.
+//! experiment. [`Batched`] extends it with batch operations.
 //! This crate defines these interfaces; ready-made algorithms are provided
 //! by companion crates.
 //!

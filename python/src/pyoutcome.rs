@@ -6,8 +6,8 @@
 //! | Type | For |
 //! |------|-----|
 //! | [`PyStep`] | Exposes [`Step`] as a `#[pyclass]` to Python |
-//! | [`PyOutcome`] | Wraps any Python return value for a single-step [`Objective`](tantale_core::Objective) |
-//! | [`PyFidOutcome`] | Wraps any Python return value for a multi-fidelity [`Stepped`](tantale_core::Stepped) |
+//! | [`PyOutcome`] | Wraps any Python return value for a single-step [`OneStep`](tantale_core::OneStep) |
+//! | [`PyFidOutcome`] | Wraps any Python return value for a multi-fidelity [`MultiStep`](tantale_core::MultiStep) |
 //!
 //! ## Notes
 //!
@@ -130,7 +130,7 @@ impl PyStep {
 /// via Python's `pickle` module for serialization and `repr()` for debug output.
 ///
 /// Implements [`Outcome`], making it usable as the `Out` type parameter of
-/// [`Objective`](tantale_core::Objective)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, [`PyOutcome`](crate::PyOutcome)`]>`.
+/// [`OneStep`](tantale_core::OneStep)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, [`PyOutcome`](crate::PyOutcome)`]>`.
 pub struct PyOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyOutcome {
@@ -244,7 +244,7 @@ impl PyOutcome {
 /// that returns a [`PyStep`] instance.
 ///
 /// Implements [`Outcome`] and [`FidOutcome`](tantale_core::FidOutcome), making it usable as the `Out` type
-/// parameter of [`Stepped`](tantale_core::Stepped)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
+/// parameter of [`MultiStep`](tantale_core::MultiStep)`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, PyFidOutcome, PyFuncState>`.
 pub struct PyFidOutcome(pub Py<PyAny>);
 
 impl fmt::Debug for PyFidOutcome {

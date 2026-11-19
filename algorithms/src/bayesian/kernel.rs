@@ -94,7 +94,7 @@ pub trait KernelFunc<Dom: Domain>: Clone + Debug {
     /// * `dom` - The domain of the input point.
     ///
     /// # Returns
-    /// The kernel value between the two [`Dom::TypeDom`](tantale_core::Domain::TypeDom).
+    /// The kernel value between the two [`Element`](tantale_core::Domain::Element).
     fn compute(x1: &Dom::Element, x2: &Dom::Element, context: &Self::Context, dom: &Dom) -> f64;
 
     /// Computes the prior probability for a given point `x` in the domain `dom`.

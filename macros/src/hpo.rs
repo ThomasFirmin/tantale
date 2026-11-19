@@ -249,7 +249,7 @@ struct WrappedVarInfo {
 type ParsedSpOut = (
     proc_macro2::Ident,                      //Ident Obj,
     proc_macro2::Ident,                      //Ident Opt,
-    proc_macro2::Ident,                      //Ident Obj::TypeDom,
+    proc_macro2::Ident,                      //Ident Obj::Element,
     std::vec::Vec<proc_macro2::TokenStream>, // Push to Var Vec,
     std::vec::Vec<proc_macro2::TokenStream>, // Constants for indices,
     Vec<proc_macro2::Ident>,                 // Vec of Obj types,

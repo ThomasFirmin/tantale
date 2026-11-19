@@ -21,7 +21,7 @@
 //! ---
 //! **Inputs**
 //! 1. &emsp; $\mathcal{X}$ &emsp;&emsp; *A [searchspace](tantale_core::Searchspace)*
-//! 2. &emsp; $n$ &emsp;&emsp; *[batch](tantale_core::Batch) size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
+//! 2. &emsp; $n$ &emsp;&emsp; *batch size, s.t. $n \geq \eta^{\left\lfloor\log_\eta(b_\text{max}/b_0)\right\rfloor}$*
 //! 3. &emsp; $b_0$ &emsp;&emsp; *Initial budget*
 //! 4. &emsp; $b_{\text{max}}$ &emsp;&emsp; *Maximum budget*
 //! 5. &emsp; $\eta$ &emsp;&emsp; *Scaling*

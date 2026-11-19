@@ -9,7 +9,7 @@
 //! |--------|---------|
 //! | [`pydomain`] | Converts Tantale domain values to Python objects |
 //! | [`pyoutcome`] | Wraps Python-returned outcomes with the required Rust traits |
-//! | [`pyfunction`] | Wraps Python callables as [`Objective`](tantale_core::Objective) / [`Stepped`](tantale_core::Stepped) |
+//! | [`pyfunction`] | Wraps Python callables as [`OneStep`](tantale_core::OneStep) / [`MultiStep`](tantale_core::MultiStep) |
 //! | [`pyutils`] | Low-level helpers (pickle, path conversion, outcome class registration) |
 //!
 //! ## Thread-local state

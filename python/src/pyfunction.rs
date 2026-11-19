@@ -1,7 +1,7 @@
 //! Python function wrappers for Tantale objectives.
 //!
-//! This module bridges Python callables to Tantale's [`Objective`] and
-//! [`Stepped`] interfaces. The bridge works in three layers:
+//! This module bridges Python callables to Tantale's [`OneStep`] and
+//! [`MultiStep`] interfaces. The bridge works in three layers:
 //!
 //! 1. **Thread-local storage** – the active Python callable is stored in a
 //!    thread-local [`RefCell`](std::cell::RefCell) (see [`crate::PY_OBJECTIVE_FUNC`] /
@@ -211,7 +211,7 @@ impl PyObjective {
 
 impl PyObjective {
     /// Registers this callable as the active thread-local objective and returns
-    /// an [`Objective`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
+    /// an [`OneStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyOutcome`](crate::PyOutcome)`>`.
     ///
     /// Only one `PyObjective` may be active per thread at a time.
     pub fn register<E, Out, S>(&self) -> OneStep<S, Out>
@@ -244,7 +244,7 @@ impl PyObjective {
 /// - Returns a 2-tuple `(outcome, new_state)`.
 ///
 /// Call [`register`](crate::PyStepped::register) (from Rust) to register the callable and
-/// obtain a typed [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
+/// obtain a typed [`MultiStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
 #[pyclass]
 pub struct PyStepped(pub Py<PyAny>);
 
@@ -258,7 +258,7 @@ impl PyStepped {
 
 impl PyStepped {
     /// Registers this callable as the active thread-local stepped objective and
-    /// returns a [`Stepped`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
+    /// returns a [`MultiStep`]`<Arc<[`[`MixedTypeDom`](tantale_core::MixedTypeDom)`]>, `[`PyFidOutcome`](crate::PyFidOutcome)`, `[`PyFuncState`]`>`.
     ///
     /// Only one `PyStepped` may be active per thread at a time.
     pub fn register<E, Out, S>(&self) -> MultiStep<S, Out, PyFuncState>

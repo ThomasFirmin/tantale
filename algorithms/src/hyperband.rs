@@ -29,7 +29,7 @@
 //! 7. &emsp;
 //! 8. &emsp; **for** $s \in [s_{\max}, \ldots, 0]$ **do**
 //! 9. &emsp;  &emsp; **set_max_budget**$(\mathcal{O}, b_{\max}\eta^{-s})$ &emsp; *Configure inner optimizer budgets*
-//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`BatchOptimizer`] ------
+//! 10. &emsp; &emsp; ------ If $\mathcal{O}$ is a [`Sampler`] ------
 //! 11. &emsp; &emsp; **set_batch_size**$\left(\mathcal{O}, \left\lceil \frac{s_{\max}+1}{s+1} \eta^s \right\rceil\right)$ &emsp; *Configure inner optimizer batch size*
 //! 12. &emsp; &emsp; ------------------------------------------------------------
 //! 13. &emsp; &emsp; **Run** $\mathcal{O}$ until **current_budget**$(\mathcal{O}) \geq b_{\max}\eta^{-s}$ &emsp;

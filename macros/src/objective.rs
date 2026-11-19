@@ -129,7 +129,7 @@ fn simple_vec_replacement(
     ty: &proc_macro2::Ident,
 ) -> TokenStream {
     // For replicated non-Mixed domains, collect a slice of the input array as references
-    // Returns: tantale_in[start..end].iter().collect::<Vec<&TypeDom>>()
+    // Returns: tantale_in[start..end].iter().collect::<Vec<&Element>>()
     quote! {{tantale_in[#start..#end].iter().collect::<Vec<&<#ty as Domain>::Element>>()}}.into()
 }
 

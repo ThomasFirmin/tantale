@@ -164,7 +164,7 @@ pub trait XToNdArray<Dom: Domain> {
     /// where each row corresponds to a solution and each column corresponds to a dimension of the solution space.
     ///
     /// # Type Parameters
-    /// * `T`: The desired type for the elements of the resulting array. It must implement `Copy` and be convertible from `Dom::TypeDom` using the `AsPrimitive` trait.
+    /// * `T`: The desired type for the elements of the resulting array. It must implement `Copy` and be convertible from [`Element`](crate::Domain::Element) using the `AsPrimitive` trait.
     fn x_array_type<T>(&self) -> Array2<T>
     where
         T: Copy + 'static,
