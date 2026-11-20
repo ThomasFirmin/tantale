@@ -90,7 +90,7 @@ mod searchspace {
                     obj2: obj.value[1],
                     info: [!j | Real(0.0,2000.0, Uniform) | !],
                     fid: evalstate,
-                    rank: rank,
+                    rank,
                 },
                 state
             )

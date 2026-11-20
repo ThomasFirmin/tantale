@@ -38,18 +38,12 @@ pub mod weighter;
 pub use weighter::{PointWeights, Weighter, UniformWeighter};
 
 pub mod kernel;
-pub use kernel::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, Univariate};
-
-pub mod nw_regression;
-pub use nw_regression::{NwRegressor, Predictor};
+pub use kernel::{Kernel, AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, Univariate};
 
 pub mod bandwidth;
 pub use bandwidth::{Bandwidth, BandwidthType, CategoricalBw, Hyperopt, Optuna, Scott};
 
 pub mod error;
-
-pub mod prior;
-pub use prior::BetaPrior;
 
 use crate::utils::with_rng;
 

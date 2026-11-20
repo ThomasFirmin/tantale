@@ -40,11 +40,11 @@ impl Parse for Identifier {
             }
         };
 
-        let litint;
-        if input.peek(syn::token::Brace) {
+        
+        let litint = if input.peek(syn::token::Brace) {
             let rcontent;
             braced!(rcontent in input);
-            litint = match rcontent.parse::<LitInt>() {
+            match rcontent.parse::<LitInt>() {
                 Ok(expr) => Some(expr),
                 _ => {
                     return Err(syn::Error::new(
@@ -52,10 +52,10 @@ impl Parse for Identifier {
                         "Unknown expression. In sp!, a line should start by the identifier (name) of the variable followed by an optinal range expression. <NAME><RANGE> | <Objective part> | <Optimizer Part> ;",
                     ));
                 }
-            };
+            }
         } else {
-            litint = None;
-        }
+            None
+        };
 
         Ok(Identifier { id: ident, litint })
     }

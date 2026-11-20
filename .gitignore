@@ -63,3 +63,6 @@ tmp_*/
 # Rust
 /target
 Cargo.lock
+deny.toml
+about.hbs
+about.toml

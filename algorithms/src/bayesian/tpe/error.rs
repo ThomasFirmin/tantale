@@ -25,23 +25,6 @@ impl ErrMsg for SplitError {
 }
 err_msg!(SplitError);
 
-/// Error type for bayesian prior operations.
-pub enum PriorError {
-    /// Error indicating that the configuration of the prior is invalid.
-    ConfigError(&'static str),
-}
-
-impl ErrMsg for PriorError {
-    fn _err_msg(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PriorError::ConfigError(msg) => {
-                write!(f, "Prior error: Invalid configuration for the prior. {msg}")
-            }
-        }
-    }
-}
-err_msg!(PriorError);
-
 pub enum KernelError {
     /// Error indicating that the configuration of the kernel is invalid.
     ConfigError(&'static str),

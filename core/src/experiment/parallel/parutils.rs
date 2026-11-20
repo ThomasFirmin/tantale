@@ -41,40 +41,38 @@ pub(crate) fn init_and_update<Com: MasterWorkerCom>(
     let deadline = Instant::now() + Duration::from_secs(30);
     while !initialized.all() && Instant::now() < deadline {
         let msg = receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(envelope) => {
-                let tag = envelope.tag;
-                let from = envelope.from;
-                if initialized[from] {
-                    return Err(format!(
-                        "Received a message right after initialization from worker {}. This is unexpected.",
-                        from
-                    ));
-                }
-                initialized.set(from, true);
-                com.set_idle(from);
-                match tag {
-                    InitMsg::TAG => {
-                        // Initialize without loaded states
-                        log::info!("Worker {} initialized and ready to receive tasks.", from);
-                        com.set_alive(from);
-                    }
-                    _ => {
-                        log::warn!(
-                            "Received unexpected message: {:?}. Worker will be considered as idle",
-                            tag
-                        );
-                        // Do nothing, just mark the worker as idle
-                    }
-                }
-                if com.is_dead(from) {
-                    log::warn!(
-                        "The master received a message from a dead Worker {}. This worker is now considered as alive",
-                        from
-                    );
+        {
+            let envelope = msg?;
+            let tag = envelope.tag;
+            let from = envelope.from;
+            if initialized[from] {
+                return Err(format!(
+                    "Received a message right after initialization from worker {}. This is unexpected.",
+                    from
+                ));
+            }
+            initialized.set(from, true);
+            com.set_idle(from);
+            match tag {
+                InitMsg::TAG => {
+                    // Initialize without loaded states
+                    log::info!("Worker {} initialized and ready to receive tasks.", from);
                     com.set_alive(from);
                 }
+                _ => {
+                    log::warn!(
+                        "Received unexpected message: {:?}. Worker will be considered as idle",
+                        tag
+                    );
+                    // Do nothing, just mark the worker as idle
+                }
+            }
+            if com.is_dead(from) {
+                log::warn!(
+                    "The master received a message from a dead Worker {}. This worker is now considered as alive",
+                    from
+                );
+                com.set_alive(from);
             }
         }
     }
@@ -168,72 +166,70 @@ where
         if stop.stop() {
             break;
         }
-        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(ref mut envelope) => {
-                match envelope.take() {
-                    None => break, // No more messages to process
-                    Some(envelope) => {
-                        let tag = envelope.tag;
-                        let from = envelope.from;
-                        com.set_idle(from);
-                        match tag {
-                            InitMsg::TAG => {
-                                // Initialize with a potential loaded solution
-                                log::info!(
-                                    "Worker {} initialized and ready to receive tasks.",
-                                    from
-                                );
-                                com.set_alive(from);
-                            }
-                            OutMsg::<P>::TAG => {
-                                // Usual f(x) = y management
-                                let msg =
-                                    envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
-                                let out = &msg.as_ref().1;
-                                let sol = state.currently[from].take();
-                                match sol {
-                                    Some(s) => {
-                                        let y = problem.get_codomain().get_elem(out).into();
-                                        let computed = s.into_computed(y);
-                                        record(recorder, problem, &computed, out);
-                                        stop.update(ExpStep::Evaluation(Step::Evaluated));
-                                        accumulator.accumulate(&computed);
-                                        sampler.update(
-                                            &computed,
-                                            problem.get_searchspace(),
-                                            accumulator,
-                                        );
-                                    }
-                                    None => {
-                                        log::warn!("
-                                            Received output for solution ID {:?} from worker {}, 
-                                            but no corresponding solution was found in the current state. 
-                                            This may indicate a mismatch between sent and received solutions.
-                                            Or failure when loading a previous state from a checkpoint.
-                                            ",
-                                            msg.as_ref().0,
-                                            from
-                                        );
-                                    }
-                                }
-                            }
-                            _ => {
-                                log::warn!(
-                                    "Received unexpected message: {:?}. Worker will be considered as idle",
-                                    tag
-                                );
-                                // Do nothing, just mark the worker as idle
-                            }
-                        }
-                        if com.is_dead(from) {
-                            log::warn!(
-                                "The master received a message from a dead Worker {}. This worker is now considered as alive",
+        let msg = try_receive_with_tolerance(com.channel(0), tolerance);
+        {
+            let envelope = &mut msg?;
+            match envelope.take() {
+                None => break, // No more messages to process
+                Some(envelope) => {
+                    let tag = envelope.tag;
+                    let from = envelope.from;
+                    com.set_idle(from);
+                    match tag {
+                        InitMsg::TAG => {
+                            // Initialize with a potential loaded solution
+                            log::info!(
+                                "Worker {} initialized and ready to receive tasks.",
                                 from
                             );
                             com.set_alive(from);
                         }
+                        OutMsg::<P>::TAG => {
+                            // Usual f(x) = y management
+                            let msg =
+                                envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
+                            let out = &msg.as_ref().1;
+                            let sol = state.currently[from].take();
+                            match sol {
+                                Some(s) => {
+                                    let y = problem.get_codomain().get_elem(out).into();
+                                    let computed = s.into_computed(y);
+                                    record(recorder, problem, &computed, out);
+                                    stop.update(ExpStep::Evaluation(Step::Evaluated));
+                                    accumulator.accumulate(&computed);
+                                    sampler.update(
+                                        &computed,
+                                        problem.get_searchspace(),
+                                        accumulator,
+                                    );
+                                }
+                                None => {
+                                    log::warn!("
+                                        Received output for solution ID {:?} from worker {}, 
+                                        but no corresponding solution was found in the current state. 
+                                        This may indicate a mismatch between sent and received solutions.
+                                        Or failure when loading a previous state from a checkpoint.
+                                        ",
+                                        msg.as_ref().0,
+                                        from
+                                    );
+                                }
+                            }
+                        }
+                        _ => {
+                            log::warn!(
+                                "Received unexpected message: {:?}. Worker will be considered as idle",
+                                tag
+                            );
+                            // Do nothing, just mark the worker as idle
+                        }
+                    }
+                    if com.is_dead(from) {
+                        log::warn!(
+                            "The master received a message from a dead Worker {}. This worker is now considered as alive",
+                            from
+                        );
+                        com.set_alive(from);
                     }
                 }
             }
@@ -282,12 +278,12 @@ where
                 ",
                 id,
                 peer,
-                &e
+                e
             );
             com.set_dead(peer);
             com.set_idle(peer);
             if com.all_dead() {
-                return Err(format!("All peers are dead. The last error was {:?}", &e));
+                return Err(format!("All peers are dead. The last error was {:?}", e));
             }
         }
     }
@@ -562,54 +558,52 @@ where
     let deadline = Instant::now() + Duration::from_secs(30);
     while !initialized.all() && Instant::now() < deadline {
         let msg = receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(envelope) => {
-                let tag = envelope.tag;
-                let from = envelope.from;
-                if initialized[from] {
-                    return Err(format!(
-                        "Received a message right after initialization from worker {}. This is unexpected.",
-                        from
-                    ));
-                }
-                initialized.set(from, true);
-                com.set_idle(from);
-                match tag {
-                    InitMsg::TAG => {
-                        // Initialize without loaded states
-                        log::info!("Worker {} initialized and ready to receive tasks.", from);
-                        com.set_alive(from);
-                    }
-                    ContainsIds::<P::Id>::TAG => {
-                        // Initialize with potentially loaded states
-                        let msg = envelope
-                            .content
-                            .into_any()
-                            .downcast::<ContainsIds<P::Id>>()
-                            .unwrap();
-                        let ids = msg.as_ref().0.clone();
-                        for id in ids {
-                            state.where_is.insert(id, from);
-                        }
-                        log::info!("Worker {} initialized and ready to receive tasks.", from);
-                        com.set_alive(from);
-                    }
-                    _ => {
-                        log::warn!(
-                            "Received unexpected message: {:?}. Worker will be considered as idle",
-                            tag
-                        );
-                        // Do nothing, just mark the worker as idle
-                    }
-                }
-                if com.is_dead(from) {
-                    log::warn!(
-                        "The master received a message from a dead Worker {}. This worker is now considered as alive",
-                        from
-                    );
+        {
+            let envelope = msg?;
+            let tag = envelope.tag;
+            let from = envelope.from;
+            if initialized[from] {
+                return Err(format!(
+                    "Received a message right after initialization from worker {}. This is unexpected.",
+                    from
+                ));
+            }
+            initialized.set(from, true);
+            com.set_idle(from);
+            match tag {
+                InitMsg::TAG => {
+                    // Initialize without loaded states
+                    log::info!("Worker {} initialized and ready to receive tasks.", from);
                     com.set_alive(from);
                 }
+                ContainsIds::<P::Id>::TAG => {
+                    // Initialize with potentially loaded states
+                    let msg = envelope
+                        .content
+                        .into_any()
+                        .downcast::<ContainsIds<P::Id>>()
+                        .unwrap();
+                    let ids = msg.as_ref().0.clone();
+                    for id in ids {
+                        state.where_is.insert(id, from);
+                    }
+                    log::info!("Worker {} initialized and ready to receive tasks.", from);
+                    com.set_alive(from);
+                }
+                _ => {
+                    log::warn!(
+                        "Received unexpected message: {:?}. Worker will be considered as idle",
+                        tag
+                    );
+                    // Do nothing, just mark the worker as idle
+                }
+            }
+            if com.is_dead(from) {
+                log::warn!(
+                    "The master received a message from a dead Worker {}. This worker is now considered as alive",
+                    from
+                );
+                com.set_alive(from);
             }
         }
     }
@@ -647,93 +641,91 @@ where
         if stop.stop() {
             break;
         }
-        let mut msg = try_receive_with_tolerance(com.channel(0), tolerance);
-        match msg {
-            Err(e) => return Err(e),
-            Ok(ref mut envelope) => {
-                match envelope.take() {
-                    None => break, // No more messages to process
-                    Some(envelope) => {
-                        let tag = envelope.tag;
-                        let from = envelope.from;
-                        com.set_idle(from);
-                        match tag {
-                            InitMsg::TAG => {
-                                // Initialize without loaded states
-                                log::warn!(
-                                    "Worker {} send an initialization message after planned initialization.",
-                                    from
-                                );
-                                com.set_alive(from);
-                            }
-                            ContainsIds::<P::Id>::TAG => {
-                                // Initialize with potentially loaded states
-                                log::warn!(
-                                    "Worker {} send an initialization with solution IDs message after planned initialization.",
-                                    from
-                                );
-                                let msg = envelope
-                                    .content
-                                    .into_any()
-                                    .downcast::<ContainsIds<P::Id>>()
-                                    .unwrap();
-                                let ids = msg.as_ref().0.clone();
-                                for id in ids {
-                                    state.where_is.insert(id, from);
-                                }
-                                com.set_alive(from);
-                            }
-                            AskMsg::TAG => {}
-                            OutMsg::<P>::TAG => {
-                                // Usual f(x) = y management
-                                let msg =
-                                    envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
-                                let out = &msg.as_ref().1;
-                                let step = out.get_step().into();
-                                let sol = state.currently[from].take();
-                                match sol {
-                                    Some(s) => {
-                                        let y = problem.get_codomain().get_elem(out).into();
-                                        let mut computed = s.into_computed(y);
-                                        computed.increment();
-                                        computed.set_step(step);
-                                        record(recorder, problem, &computed, out);
-                                        stop.update(ExpStep::Evaluation(step));
-                                        accumulator.accumulate(&computed);
-                                        sampler.update(
-                                            &computed,
-                                            problem.get_searchspace(),
-                                            accumulator,
-                                        );
-                                    }
-                                    None => {
-                                        log::warn!("
-                                            Received output for solution ID {:?} from worker {}, 
-                                            but no corresponding solution was found in the current state. 
-                                            This may indicate a mismatch between sent and received solutions.
-                                            Or failure when loading a previous state from a checkpoint.
-                                            ",
-                                            msg.as_ref().0,
-                                            from
-                                        );
-                                    }
-                                }
-                            }
-                            _ => {
-                                log::warn!(
-                                    "Received unexpected message: {:?}. Worker will be considered as idle",
-                                    tag
-                                );
-                                // Do nothing, just mark the worker as idle
-                            }
-                        }
-                        if com.is_dead(from) {
+        let msg = try_receive_with_tolerance(com.channel(0), tolerance);
+        {
+            let envelope = &mut msg?;
+            match envelope.take() {
+                None => break, // No more messages to process
+                Some(envelope) => {
+                    let tag = envelope.tag;
+                    let from = envelope.from;
+                    com.set_idle(from);
+                    match tag {
+                        InitMsg::TAG => {
+                            // Initialize without loaded states
                             log::warn!(
-                                "The master received a message from a dead Worker {}. This worker is now considered as alive",
+                                "Worker {} send an initialization message after planned initialization.",
                                 from
                             );
                             com.set_alive(from);
                         }
+                        ContainsIds::<P::Id>::TAG => {
+                            // Initialize with potentially loaded states
+                            log::warn!(
+                                "Worker {} send an initialization with solution IDs message after planned initialization.",
+                                from
+                            );
+                            let msg = envelope
+                                .content
+                                .into_any()
+                                .downcast::<ContainsIds<P::Id>>()
+                                .unwrap();
+                            let ids = msg.as_ref().0.clone();
+                            for id in ids {
+                                state.where_is.insert(id, from);
+                            }
+                            com.set_alive(from);
+                        }
+                        AskMsg::TAG => {}
+                        OutMsg::<P>::TAG => {
+                            // Usual f(x) = y management
+                            let msg =
+                                envelope.content.into_any().downcast::<OutMsg<P>>().unwrap();
+                            let out = &msg.as_ref().1;
+                            let step = out.get_step().into();
+                            let sol = state.currently[from].take();
+                            match sol {
+                                Some(s) => {
+                                    let y = problem.get_codomain().get_elem(out).into();
+                                    let mut computed = s.into_computed(y);
+                                    computed.increment();
+                                    computed.set_step(step);
+                                    record(recorder, problem, &computed, out);
+                                    stop.update(ExpStep::Evaluation(step));
+                                    accumulator.accumulate(&computed);
+                                    sampler.update(
+                                        &computed,
+                                        problem.get_searchspace(),
+                                        accumulator,
+                                    );
+                                }
+                                None => {
+                                    log::warn!("
+                                        Received output for solution ID {:?} from worker {}, 
+                                        but no corresponding solution was found in the current state. 
+                                        This may indicate a mismatch between sent and received solutions.
+                                        Or failure when loading a previous state from a checkpoint.
+                                        ",
+                                        msg.as_ref().0,
+                                        from
+                                    );
+                                }
+                            }
+                        }
+                        _ => {
+                            log::warn!(
+                                "Received unexpected message: {:?}. Worker will be considered as idle",
+                                tag
+                            );
+                            // Do nothing, just mark the worker as idle
+                        }
+                    }
+                    if com.is_dead(from) {
+                        log::warn!(
+                            "The master received a message from a dead Worker {}. This worker is now considered as alive",
+                            from
+                        );
+                        com.set_alive(from);
                     }
                 }
             }
@@ -759,18 +751,16 @@ where
     } else {
         loop {
             let sol = sampler.sample(scp, accum);
-            match sol {
-                Some(s) => {
-                    let peer_sol = state.where_is(&s.id());
-                    match peer_sol {
-                        Some(p) if p == peer => return Some(s),
-                        Some(p) => {
-                            state.awaiting[p].push(s);
-                        }
-                        None => return Some(s),
+            {
+                let s = sol?;
+                let peer_sol = state.where_is(&s.id());
+                match peer_sol {
+                    Some(p) if p == peer => return Some(s),
+                    Some(p) => {
+                        state.awaiting[p].push(s);
                     }
+                    None => return Some(s),
                 }
-                None => return None,
             }
         }
     }
@@ -830,12 +820,12 @@ where
                 ",
                 id,
                 peer,
-                &e
+                e
             );
             com.set_dead(peer);
             com.set_idle(peer);
             if com.all_dead() {
-                return Err(format!("All peers are dead. The last error was {:?}", &e));
+                return Err(format!("All peers are dead. The last error was {:?}", e));
             }
         }
     }

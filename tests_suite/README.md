@@ -1,1 +1,0 @@
-This is the test folder for the Tantale library.

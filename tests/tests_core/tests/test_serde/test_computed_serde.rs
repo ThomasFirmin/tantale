@@ -1,0 +1,143 @@
+
+use tantale_tests_utils::{
+    init_cod::*,
+    init_sp::{
+        one_step_func_with_out::{FuncType, SolType},
+        sp_mixed_to_nodomain, sp_only_bool, sp_only_cat, sp_only_int, sp_only_nat, sp_only_real,
+        sp_only_unit
+    }
+};
+use paste::paste;
+use rmp_serde;
+use std::sync::Arc;
+use tantale::core::{Computed, HasId, HasX, HasY, searchspace::Searchspace};
+
+macro_rules! get_test {
+    ($($sp : ident | $dom : path | [$($out : ident | $func : ident ,)+] | $comp : expr ),*) => {
+        $(
+        $(
+            paste!{
+            #[test]
+            fn [< test_ $sp _ $func _json >](){
+                let sp = $sp::get_searchspace();
+
+                let rng = &mut rand::rng();
+                let sample = Searchspace::<FuncType<$sp::ObjType, $out>>::sample_obj(&sp, rng);
+                let (_,elem) = $func();
+                let computed: Computed<SolType<$sp::ObjType>,$out> = Computed::new(sample,Arc::new(elem));
+
+
+                let st_ser = rmp_serde::encode::to_vec(&computed).unwrap();
+                let ncomputed : Computed<SolType<$sp::ObjType>, $out> = rmp_serde::decode::from_slice(&st_ser).unwrap();
+
+                let id = computed.id();
+                let nid = ncomputed.id();
+                assert_eq!(id,nid, "IDs are not equal");
+
+                let x = computed.ref_x();
+                let nx = ncomputed.ref_x();
+                assert!(x.iter().zip(nx.iter()).all($comp),"Solutions x are not equal");
+
+                let y = computed.y();
+                let ny = ncomputed.y();
+                assert_eq!(y,ny,"Codomain y are not equal");
+            }
+        }
+        )*
+        )*
+    };
+}
+
+get_test!(
+    sp_mixed_to_nodomain
+        | Mixed
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| a == b,
+    sp_only_real
+        | tantale::core::Real
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
+    sp_only_int
+        | tantale::core::Int
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| a == b,
+    sp_only_nat
+        | tantale::core::Nat
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| a == b,
+    sp_only_unit
+        | tantale::core::Unit
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| (a * 10.0f64.powi(14)).round() == (b * 10.0f64.powi(14)).round(),
+    sp_only_bool
+        | tantale::core::Bool
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| a == b,
+    sp_only_cat
+        | tantale::core::Cat
+        | [
+            OutCodSingle | get_elemsingle,
+            OutCodCost | get_elemcost,
+            OutCodConst | get_elemconst,
+            OutCodCostConst | get_elemcostconst,
+            OutCodMulti | get_elemmulti,
+            OutCodCostMulti | get_elemcostmulti,
+            OutCodConstMulti | get_elemconstmulti,
+            OutCodCostConstMulti | get_elemcostconstmulti,
+        ]
+        | |(a, b)| a == b
+);

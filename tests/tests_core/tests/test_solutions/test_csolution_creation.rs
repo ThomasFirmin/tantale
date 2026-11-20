@@ -1,0 +1,72 @@
+use tantale::core::HasX;
+use tantale::core::aliases::Elem;
+use tantale::core::domain::{Bool, Cat, Domain, Int, Nat, Real, Unit};
+use tantale::core::{
+    BaseSol, Codomain, Computed, HasId, HasInfo, HasY, ParSId, solution::Uncomputed,
+};
+
+use num::cast::AsPrimitive;
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::fmt::{Debug, Display};
+use std::process;
+use std::sync::Arc;
+
+use tantale_tests_utils::{
+    init_outcome::{OutExample, get_struct},
+    init_sinfo::{TestSInfo, get_sinfo}
+};
+
+type TestComp<Sol> = Computed<Sol, OutExample>;
+
+fn _test_solution_assertion<Unc, Dom>(n: usize, sol: &TestComp<Unc>, pid: u32)
+where
+    Unc: Uncomputed<Id = ParSId, Dom = Dom, Info = TestSInfo, X = Arc<[Dom::Element]>>,
+    Dom: Domain + Clone + Display + Debug,
+    Elem<Dom>: Sync + Send,
+    Elem<Dom>: Default + Clone + Display + Debug + Serialize + for<'a> Deserialize<'a>,
+{
+    assert_eq!(
+        sol.clone_x(),
+        std::sync::Arc::from(vec![Dom::Element::default(); n]),
+        "Solution `x` mismatch."
+    );
+    assert_eq!(sol.y().value, 1.0, "Wrong value from codomain.");
+    assert_eq!(
+        sol.sinfo().info,
+        42.0,
+        "Wrong solution info from TestSInfo."
+    );
+    assert_eq!(
+        sol.id().pid,
+        <u32 as AsPrimitive<usize>>::as_(pid),
+        "Solution PID mismatch."
+    );
+}
+
+// BOTH DOMAINS ARE DEFINED
+macro_rules! get_default_sol {
+    ($name:ident ; $sol:ident ; ($($dom:ty),+) ; $size:expr ; $pid:expr) => {
+        #[test]
+        fn $name (){
+            let mut idsol = Vec::new();
+            let sinfo = std::sync::Arc::new(get_sinfo());
+            let out = get_struct();
+            let codom = <OutExample as tantale::core::Outcome>::codomain();
+            $(
+                let y = std::sync::Arc::new(codom.get_elem(&out));
+                let psol = $sol::<ParSId,$dom,TestSInfo>::default(sinfo.clone(),$size);
+                let sol = Computed::new(psol,y.clone());
+                _test_solution_assertion($size,&sol, $pid);
+                idsol.push(sol.id().id);
+            )*
+            let mut unique = HashSet::new();
+            idsol.iter().all(|x| unique.insert(x));
+
+            assert_eq!(idsol.len(),unique.len(), "An `id` is not unique.");
+        }
+    };
+}
+
+get_default_sol!(mixed_size_3 ; BaseSol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());
+// get_default_sol!(fid_mixed_size_3 ; FidelitySol ; (Real,Nat, Int, Cat, Bool, Unit) ; 3 ; process::id());

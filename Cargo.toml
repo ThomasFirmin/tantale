@@ -1,5 +1,16 @@
 [workspace]
-members = ["macros", "core", "algorithms", "python","tests_suite", "tests_python", "examples"]
+members = [
+    "core", 
+    "macros", 
+    "algorithms", 
+    "python", 
+    "spikes",
+    "tests/tests_core", 
+    "tests/tests_algos", 
+    "tests/tests_python", 
+    "tests/utils",
+    "examples"
+]
 
 [workspace.package]
 authors = ["Thomas Firmin"]
@@ -14,11 +25,11 @@ description  = "Tantale is a Rust library for Automated Machine Learning (AutoML
 keywords     = ["automl", "hpo", "nas"]
 
 [workspace.dependencies]
-tantale        = {path = ".", version = "0.5.0"}
-tantale_core   = {path = "core", version = "0.5.0"}
-tantale_macros = {path = "macros", version = "0.5.0"}
-tantale_algos  = {path = "algorithms", version = "0.5.0"}
-tantale_python  = {path = "python", version = "0.5.0"}
+tantale        = {path = "."}
+tantale_core   = {path = "core"}
+tantale_macros = {path = "macros"}
+tantale_algos  = {path = "algorithms"}
+tantale_python  = {path = "python"}
 num = "0.4.3"
 rand = "0.10.0"
 serde = {version="1.0.219", features=["derive","rc"]}
@@ -55,8 +66,8 @@ tantale_python = {workspace = true, optional = true}
 
 [features]
 mpi = ["tantale_core/mpi", "tantale_algos/mpi", "tantale_macros/mpi"]
-py = ["tantale_python", "tantale_macros/py"]
 bayes = ["tantale_algos/bayes"]
+py = ["tantale_python", "tantale_macros/py"]
 
 [dev-dependencies]
 tantale_core.workspace   = true

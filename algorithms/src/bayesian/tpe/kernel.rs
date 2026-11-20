@@ -7,7 +7,6 @@ use tantale_core::{
 };
 use tantale_macros::basic_bounds;
 
-use core::f64;
 use num::{Num, cast::AsPrimitive};
 use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
@@ -34,7 +33,7 @@ pub fn gaussian_pdf(mean: f64, std: f64, x: f64) -> f64 {
 /// cdf(x\\,\\lvert\\, mean, std) = \\frac{1}{2}\\left(1 + \\text{erf}\\left(\\frac{x - mean}{std \\sqrt{2}}\\right)\\right)\\enspace\\text{,}
 /// $$
 pub fn gaussian_cdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f64 {
-    0.5 * erf::erfc((mean - x.as_()) / (std * f64::consts::SQRT_2))
+    0.5 * erf::erfc((mean - x.as_()) / (std * std::f64::consts::SQRT_2))
 }
 
 /// Computes the inverse of the cumulative distribution function (CDF) of a Gaussian distribution with a given mean and standard deviation.
@@ -42,7 +41,7 @@ pub fn gaussian_cdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f6
 /// \\text{cdf}(x\\,\\lvert\\, mean, std)^{-1} = mean - (std \\sqrt{2} \\text{erfc}^{-1}(2x))\\enspace\\text{,}
 /// $$
 pub fn gaussian_icdf<T: Num + AsPrimitive<f64>>(mean: f64, std: f64, x: &T) -> f64 {
-    mean - (std * f64::consts::SQRT_2 * erf::erfc_inv(2.0 * x.as_()))
+    mean - (std * std::f64::consts::SQRT_2 * erf::erfc_inv(2.0 * x.as_()))
 }
 
 /// For Gaussian kernel, computes the probability of a point `x` being in the interval `[low, up]` given the bandwidth `b`.
@@ -59,7 +58,7 @@ pub fn gaussian_interval<T: Num + AsPrimitive<f64>>(
     up: f64,
 ) -> f64 {
     let x_f = x.as_();
-    let denom = f64::consts::SQRT_2 * bandwidth;
+    let denom = std::f64::consts::SQRT_2 * bandwidth;
     let low_erf = erf::erf((low - x_f) / denom);
     let up_erf = erf::erf((up - x_f) / denom);
     (up_erf - low_erf) / 2.0

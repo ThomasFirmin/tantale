@@ -48,7 +48,7 @@
 //! 21. &emsp; &emsp; **if** $i = 0$ **then**
 //! 22. &emsp; &emsp;&emsp; **return** $(\text{Random}(\mathcal{X},1),0)$
 //! 23. &emsp; &emsp; **else**
-//! 24. &emsp; &emsp;&emsp; $R_i \gets R_i \setminus \mathbf{x}_0$ &emsp; *Remove the selected solutions from the rung*
+//! 24. &emsp; &emsp;&emsp; **mark** $\mathbf{x}_0$  as promoted &emsp; *Mark the selected solution as promoted*
 //! 25. &emsp; &emsp;&emsp; **return** $(\mathbf{x}_0, i)$
 //! ---
 //!

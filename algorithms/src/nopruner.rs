@@ -43,7 +43,7 @@ macro_rules! nopruner {
 #[fidelity_bounds(P)]
 pub struct NoPruner<Smpl: Sampler<P, Opt<P>>, P: Problem> {
     pub sampler: Smpl,
-    pub partially: Option<CompShape<P>>,
+    pub partially: Vec<CompShape<P>>,
     pub fidelities: Option<Vec<f64>>,
 }
 
@@ -101,7 +101,7 @@ impl<Smpl: Sampler<P, Opt<P>>, P: Problem> NoPruner<Smpl, P> {
     pub fn new(sampler: Smpl, fidelities: Option<Vec<f64>>) -> Self {
         NoPruner {
             sampler,
-            partially: None,
+            partially: Vec::new(),
             fidelities,
         }
     }
@@ -116,7 +116,7 @@ impl<Smpl: Sampler<P, Opt>, P: Problem, Opt: Domain> Sampler<P, Opt> for NoPrune
         scp: &<P as Problem>::Scp,
         acc: &Accum<P>,
     ) -> Option<(Shape<P>, Sampled<Self::Info>)> {
-        if let Some(partially) = self.partially.take() {
+        if let Some(partially) = self.partially.pop() {
             let mut sol: Shape<P> = IntoComputedShape::extract(partially).0;
             if let Some(fids) = self.fidelities.as_ref()
                 && let Partially(step) = sol.step()
@@ -135,7 +135,7 @@ impl<Smpl: Sampler<P, Opt>, P: Problem, Opt: Domain> Sampler<P, Opt> for NoPrune
 
     fn update(&mut self, x: &CompShape<P>, _scp: &<P as Problem>::Scp, _acc: &Accum<P>) {
         match x.step() {
-            Step::Partially(_) => self.partially = Some(x.clone()),
+            Step::Partially(_) => self.partially.push(x.clone()),
             Step::Evaluated => self.sampler.update(x, _scp, _acc),
             _ => (),
         }

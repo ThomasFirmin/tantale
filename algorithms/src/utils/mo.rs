@@ -167,7 +167,7 @@ impl CandidateSelector for NSGA2Selector {
                     let dist = crowding_distance(&front);
                     // Associated front elements and distances
                     let mut front_with_distances: Vec<_> =
-                        front.into_iter().zip(dist.into_iter()).collect();
+                        front.into_iter().zip(dist).collect();
                     // Get remaining best candidates based on crowding distance | no need to sort
                     front_with_distances
                         .select_nth_unstable_by(remaining, |a, b| a.1.total_cmp(&b.1).reverse());
@@ -208,7 +208,7 @@ impl CandidateSelector for NSGA2Selector {
                     let dist = crowding_distance(&sorted);
                     // Associated front elements and distances
                     let mut front_with_distances: Vec<_> =
-                        front.into_iter().zip(dist.into_iter()).collect();
+                        front.into_iter().zip(dist).collect();
                     // Get remaining best candidates based on crowding distance | no need to sort
                     front_with_distances
                         .select_nth_unstable_by(remaining, |a, b| a.1.total_cmp(&b.1).reverse());

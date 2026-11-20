@@ -159,13 +159,13 @@ pub use grid_search::GridSearch;
 pub mod utils;
 pub use utils::mo;
 
-#[cfg(feature = "bayes")]
-pub mod bayesian;
-#[cfg(feature = "bayes")]
-pub use bayesian::{tpe, tpe::Tpe};
-
 pub mod nopruner;
 pub use nopruner::NoPruner;
 
 pub mod premade;
 pub use premade::Premade;
+
+#[cfg(feature = "bayes")]
+pub mod bayesian;
+#[cfg(feature = "bayes")]
+pub use bayesian::{tpe, tpe::Tpe};
