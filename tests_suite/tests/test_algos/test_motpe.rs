@@ -1,6 +1,5 @@
-use tantale::algos::bayesian::bandwidth::Optuna;
-use tantale::algos::bayesian::splitter::MOSplit;
-use tantale::algos::{Tpe, UniformWeighter, Univariate, tpe};
+use tantale::algos::tpe::{UniformWeighter, Univariate, Optuna, MOSplit};
+use tantale::algos::{Tpe, tpe};
 use tantale::core::Experiment;
 use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;

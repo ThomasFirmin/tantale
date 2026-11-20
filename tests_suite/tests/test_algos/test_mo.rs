@@ -3,7 +3,7 @@ use std::ops::Neg;
 use ndarray::array;
 use tantale::{
     algos::{
-        bayesian::splitter::{MOSplit, Splitter},
+        tpe::{MOSplit, Splitter},
         mo::{CandidateSelector, NSGA2Selector},
         utils::mo::crowding_distance,
     },

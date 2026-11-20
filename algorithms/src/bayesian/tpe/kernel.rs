@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use statrs::function::erf;
 use std::fmt::Debug;
 
-use crate::bayesian::{bandwidth::BandwidthType, error::KernelError, weighter::PointWeights};
+use crate::bayesian::tpe::{bandwidth::BandwidthType, error::KernelError, weighter::PointWeights};
 
 const SQRT_2PI: f64 = 2.5066282746310002;
 

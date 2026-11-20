@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use tantale::algos::bayesian::kernel::{AitchisonAitkenKernel, GaussianKernel, KernelFunc};
+use tantale::algos::bayesian::tpe::kernel::{AitchisonAitkenKernel, GaussianKernel, KernelFunc};
 use tantale::algos::bayesian::tpe::acquisition;
 use tantale::core::{Cat, Domain};
 use tantale::core::{Int, Nat, Real, Unit, distribution::Uniform};

@@ -1,4 +1,4 @@
-use tantale::algos::bayesian::splitter::{LinearSplit, Splitter, SqrtSplit};
+use tantale::algos::bayesian::tpe::splitter::{LinearSplit, Splitter, SqrtSplit};
 use tantale::core::OrderedArchive;
 use tantale::core::utils::orderable::{IntoOrdView, OrdView};
 

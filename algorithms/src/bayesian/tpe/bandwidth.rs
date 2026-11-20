@@ -11,7 +11,7 @@ use num::{FromPrimitive, Num, cast::AsPrimitive};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, mem::MaybeUninit, sync::Arc};
 
-use crate::bayesian::error::BandwidthError;
+use crate::bayesian::tpe::error::BandwidthError;
 
 pub trait BandwidthType {
     fn get(&self, idx: usize, dim: usize) -> f64;

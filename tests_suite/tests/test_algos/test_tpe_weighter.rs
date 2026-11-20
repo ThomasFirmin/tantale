@@ -1,4 +1,4 @@
-use tantale::algos::bayesian::weighter::{UniformWeighter, Weighter};
+use tantale::algos::bayesian::tpe::weighter::{UniformWeighter, Weighter};
 
 const EPS: f64 = 1e-10;
 

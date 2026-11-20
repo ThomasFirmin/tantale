@@ -30,14 +30,29 @@
 //!
 //! - Watanabe, [*Tree-Structured Parzen Estimator: Understanding Its Algorithm Components and Their Roles for Better Empirical Performance*](https://arxiv.org/pdf/2304.11127).
 //! - Ozaki et al., [*Multiobjective Tree-Structured Parzen Estimator*](https://www.jair.org/index.php/jair/article/view/13188/26784)
-//!
-use crate::{
-    bayesian::{
-        bandwidth::Bandwidth, error::SplitError, kernel::Kernel, splitter::Splitter,
-        weighter::Weighter,
-    },
-    utils::with_rng,
-};
+
+pub mod splitter;
+pub use splitter::{LinearSplit, MOSplit, Splitter, SqrtSplit};
+
+pub mod weighter;
+pub use weighter::{PointWeights, Weighter, UniformWeighter};
+
+pub mod kernel;
+pub use kernel::{AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate, Univariate};
+
+pub mod nw_regression;
+pub use nw_regression::{NwRegressor, Predictor};
+
+pub mod bandwidth;
+pub use bandwidth::{Bandwidth, BandwidthType, CategoricalBw, Hyperopt, Optuna, Scott};
+
+pub mod error;
+
+pub mod prior;
+pub use prior::BetaPrior;
+
+use crate::utils::with_rng;
+
 use tantale_core::{
     HasFidelity, HasState, HasX, Orderable, OrderedArchive, Problem, Prunable, SId, Sampled,
     Sampler, Searchspace, SolId, SolInfo, SolutionShape, State, StepSId, Xy,
@@ -148,7 +163,7 @@ type JointFidelityArchive<Raw, CodElem> = Vec<(f64, OrderedArchive<Xy<Raw, CodEl
 ))]
 pub struct Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -170,7 +185,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> Debug for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -196,7 +211,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> Clone for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -222,7 +237,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -264,7 +279,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> State for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -277,7 +292,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> HasState for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -303,7 +318,7 @@ where
 #[basic_bounds(P, Opt)]
 impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, SId>
 where
-    Kern: Kernel<P, Opt>,
+    Kern: kernel::Kernel<P, Opt>,
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -329,7 +344,7 @@ where
             let (good, bad) = match split {
                 Ok((good, bad)) => (good, bad),
                 Err(err) => match err {
-                    SplitError::NotEnoughPoints(msg) => {
+                    error::SplitError::NotEnoughPoints(msg) => {
                         warn!(
                             "Not enough points to split the archive: {msg}. Falling back to random sampling."
                         );
@@ -380,7 +395,7 @@ where
 #[fidelity_bounds(P, Opt)]
 impl<Kern, Bw, Wght, Splt, P, Opt> Sampler<P, Opt> for Tpe<Kern, Bw, Wght, Splt, P, StepSId>
 where
-    Kern: Kernel<P, Opt>,
+    Kern: kernel::Kernel<P, Opt>,
     Bw: Bandwidth<P, Opt>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,
@@ -409,7 +424,7 @@ where
             let (good, bad) = match split {
                 Ok((good, bad)) => (good, bad),
                 Err(err) => match err {
-                    SplitError::NotEnoughPoints(msg) => {
+                    error::SplitError::NotEnoughPoints(msg) => {
                         warn!(
                             "Not enough points to split the archive: {msg}. Falling back to random sampling."
                         );
@@ -483,7 +498,7 @@ where
 #[basic_bounds(P)]
 impl<Kern, Bw, Wght, Splt, P, Id> Prunable for Tpe<Kern, Bw, Wght, Splt, P, Id>
 where
-    Kern: Kernel<P, Opt<P>>,
+    Kern: kernel::Kernel<P, Opt<P>>,
     Bw: Bandwidth<P, Opt<P>>,
     Wght: Weighter<Xy<XOpt<P>, CodElem<P>>>,
     Splt: Splitter<Xy<XOpt<P>, CodElem<P>>>,

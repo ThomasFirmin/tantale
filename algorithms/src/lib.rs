@@ -162,15 +162,7 @@ pub use utils::mo;
 #[cfg(feature = "bayes")]
 pub mod bayesian;
 #[cfg(feature = "bayes")]
-pub use bayesian::{
-    bandwidth::{Bandwidth, BandwidthType, CategoricalBw, Hyperopt, Optuna, Scott},
-    kernel::Univariate,
-    prior::BetaPrior,
-    splitter::{LinearSplit, SqrtSplit},
-    tpe,
-    tpe::Tpe,
-    weighter::UniformWeighter,
-};
+pub use bayesian::{tpe, tpe::Tpe};
 
 pub mod nopruner;
 pub use nopruner::NoPruner;

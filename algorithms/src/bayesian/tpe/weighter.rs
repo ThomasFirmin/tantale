@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bayesian::error::WeighterError;
+use crate::bayesian::tpe::error::WeighterError;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 /// A struct to hold the weights for a set of points, as well as the prior weight.

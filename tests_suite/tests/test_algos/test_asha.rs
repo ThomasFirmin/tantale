@@ -1,10 +1,10 @@
 use csv::Reader;
 use std::collections::HashMap;
 use std::path::Path;
-use tantale::algos::bayesian::bandwidth::Optuna;
 use tantale::algos::{
-    Asha, LinearSplit, Premade, RandomSearch, Tpe, UniformWeighter, Univariate, asha, tpe,
+    Asha, Premade, RandomSearch, Tpe, asha, tpe,
 };
+use tantale::algos::tpe::{Optuna, LinearSplit, UniformWeighter, Univariate};
 use tantale::core::{CSVRecorder, FolderConfig, MessagePack, Runable, stop::Evaluated};
 use tantale::core::{Experiment, ParExperiment, ThreadCommunicator};
 

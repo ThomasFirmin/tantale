@@ -9,7 +9,7 @@ use tantale_core::{
 };
 use tantale_macros::basic_bounds;
 
-use crate::bayesian::{
+use crate::bayesian::tpe::{
     AitchisonAitkenKernel, GaussianKernel, MixedKernel, Multivariate,
     kernel::{Kernel, KernelFunc},
 };

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, ops::Neg};
 
-use crate::bayesian::error::SplitError;
+use crate::bayesian::tpe::error::SplitError;
 use tantale_core::{Dominate, NdArrayDominate, NonDominatedSorting, Orderable, OrderedArchive};
 
 use ndarray::{Array2, Axis, Zip, concatenate, s};

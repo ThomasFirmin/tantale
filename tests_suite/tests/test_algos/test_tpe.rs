@@ -1,7 +1,7 @@
-use tantale::algos::bayesian::bandwidth::Optuna;
-use tantale::algos::{
-    Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate, tpe,
-};
+use tantale::algos::bayesian::tpe::bandwidth::Optuna;
+use tantale::algos::{tpe, tpe::{
+    Hyperopt, LinearSplit, Scott, SqrtSplit, Tpe, UniformWeighter, Univariate,
+}};
 use tantale::core::Experiment;
 use tantale::core::ParExperiment;
 use tantale::core::experiment::parallel::threaded::ThreadCommunicator;

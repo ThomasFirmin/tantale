@@ -2,7 +2,7 @@ use ndarray::Array2;
 use num::Float;
 use std::mem::MaybeUninit;
 use std::sync::Arc;
-use tantale::algos::bayesian::bandwidth::{
+use tantale::algos::tpe::bandwidth::{
     Bandwidth, Hyperopt, Optuna, Scott, cat_bw, hyperopt_assign_col, magic_clip, optuna_bw,
     scott_col,
 };
